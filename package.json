@@ -1,0 +1,15 @@
+{
+  "name": "bunkerbox",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "install": "npm --prefix ./cascade install ./cascade"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "commander": "^2.9.0",
+    "underscore": "^1.8.3"
+  }
+}
