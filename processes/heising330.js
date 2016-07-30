@@ -1,7 +1,8 @@
 module.exports.setup = function (cascade) {
-    cascade.components.require_component("barometer");
-    cascade.components.require_component("test");
-    cascade.components.require_component_class("temperature");
+    cascade.require_process("pids");
+    //cascade.components.require_component("barometer");
+    //cascade.components.require_component("test");
+    //cascade.components.require_component_class("temperature");
 };
 
 module.exports.loop = function (cascade)

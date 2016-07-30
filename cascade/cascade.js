@@ -1,3 +1,6 @@
+var event_emitter = require('events').EventEmitter;
+var util = require("util");
+
 var package_info = require("./package.json");
 var winston = require('winston');
 var restify = require('restify');
@@ -9,19 +12,18 @@ var nunjucks = require("nunjucks");
 var mqtt = require('mqtt');
 
 var proc = require("./lib/process");
+var common = require("./lib/common");
 var component_class = require("./lib/component");
 
 nunjucks.configure(__dirname + "/web", {autoescape: true});
 
-var API_ROOT = "/api/processes";
-
-var COMPONENT_BY_ID_BASE = "component/by_id/";
-var COMPONENT_BY_CLASS_BASE = "component/by_class/";
+var API_ROOT = "/api";
 
 var cascade = function (config) {
-    var self = this;
 
-    this.processes = {};
+    this.setMaxListeners(100);
+
+    var self = this;
 
     if (!config) {
         config = {};
@@ -34,18 +36,19 @@ var cascade = function (config) {
         device_id: "development",
         web_port: 3000,
         mqtt_port: 1883,
-        username: undefined,
-        password: undefined,
+        admin_username: "admin",
+        admin_password: "admin",
+        read_only_username: undefined,
+        read_only_password: undefined,
         data_recorder_enabled: false,
         data_recorder_host: "localhost",
         data_recorder_port: 8089,
         processes: []
     });
 
-    this.local_components = {};
-    this.remote_components = {};
-    this.component_create_callbacks = {};
-    this.mqtt_clients = {};
+    this.processes = {};
+    this.components = {};
+
     this.config = config;
 
     this.console_logger = new (winston.Logger)({
@@ -63,7 +66,6 @@ var cascade = function (config) {
         this.data_recorder = new data_recorder(config.data_recorder_host, config.data_recorder_port);
     }
 
-
     this.api_server = restify.createServer();
     this.api_server.use(restify.authorizationParser());
     this.api_server.use(restify.queryParser());
@@ -79,21 +81,124 @@ var cascade = function (config) {
         }
     );
 
-    this.api_server.use(function (req, res, next) {
-        if (config.username || config.password) {
-            if (!req.authorization || !req.authorization.basic || req.authorization.basic.username != config.username || req.authorization.basic.password != config.password) {
-                res.header("www-authenticate", 'Basic realm="cascade"');
-                return next(new restify.UnauthorizedError());
+    function authenticate_web (req, res, next) {
+
+        var requires_auth = (config.admin_username || config.admin_password || config.read_only_username || config.read_only_password);
+
+        if (requires_auth) {
+
+            if(req.authorization.basic) {
+                if (req.authorization.basic.username == config.admin_username && req.authorization.basic.password == config.admin_password) {
+                    return next();
+                }
+
+                if (req.method = "GET" && req.authorization.basic.username == config.read_only_username && req.authorization.basic.password == config.read_only_password) {
+                    return next();
+                }
             }
+
+            res.header("www-authenticate", 'Basic realm="cascade"');
+            return next(new restify.UnauthorizedError());
         }
 
         next();
+    }
+
+    function inject_component(req, res, next) {
+        var component = self.components[req.params.component_id];
+
+        if (!component) {
+            return res.send(new restify.ResourceNotFoundError());
+        }
+
+        if (!req.user_data) req.user_data = {};
+
+        req.user_data.component = component;
+        next();
+    }
+
+    function format_component(component) {
+        var component_info = component.get_serializable_object();
+        component_info.process_id = component.process_id;
+        return component_info;
+    }
+
+    this.api_server.get(API_ROOT + "/", authenticate_web, function (req, res) {
+
+        var processes = {};
+        var components = {};
+
+        _.each(self.processes, function (process, process_id) {
+            processes[process_id] = {
+                id: process_id,
+                name: process.name,
+                description: process.description
+            }
+        });
+
+        _.each(self.components, function (component, component_id) {
+            components[component_id] = format_component(component);
+        });
+
+        res.json({
+            version: package_info.version,
+            processes: processes,
+            components: components
+        });
     });
 
-    /*var serve_static = restify.serveStatic({
-     directory: __dirname + '/web',
-     default: 'index.html'
-     });*/
+    this.api_server.get(API_ROOT + "/components/:component_id", authenticate_web, inject_component, function (req, res) {
+        var component = req.user_data.component;
+        res.json(format_component(component));
+    });
+
+    this.api_server.post(API_ROOT + "/components/:component_id", authenticate_web, inject_component, function (req, res) {
+        var component = req.user_data.component;
+
+        if (component.read_only) {
+            return res.send(new restify.MethodNotAllowedError("This component is read only"));
+        }
+
+        var value = req.query.value;
+
+        if (_.isUndefined(value)) {
+            if (_.isString(req.body)) {
+                value = req.body;
+            }
+            else {
+                value = req.body.value;
+            }
+        }
+
+        if (_.isUndefined(value) || value == "") {
+            value = null;
+        }
+
+        try {
+            component.value = value;
+            res.send(format_component(component));
+        }
+        catch (e) {
+            res.send(new restify.BadRequestError(e.toString()));
+        }
+    });
+
+    var serve_static = restify.serveStatic({
+        directory: __dirname + '/web',
+        default: 'index.html'
+    });
+
+    this.api_server.get(/.*/, function (req, res, next) {
+
+        if (req.url == "/" || req.url == "index.html") {
+            res.setHeader('Content-Type', 'text/html');
+            res.writeHead(200);
+            res.end(nunjucks.render("index.html", {title: config.title}));
+        }
+        else {
+            serve_static(req, res, next);
+        }
+    });
 
     this.api_server.server.listen(config.web_port, function () {
         self.log_info("Web server started on port " + config.web_port);
@@ -108,44 +213,54 @@ var cascade = function (config) {
 
     this.mqtt_server.attachHttpServer(this.api_server);
 
-    if (config.username || config.password) {
-        this.mqtt_server.authenticate = function (client, username, password, callback) {
+    this.mqtt_server.authenticate = function (client, username, password, callback) {
 
-            password = (password) ? password.toString() : undefined;
+        password = (password) ? password.toString() : undefined;
 
-            var authorized = (username === config.username && password === config.password);
-
-            if (authorized) {
-                self.log_info("MQTT Client " + client.id + " successful login");
-                client.user = username;
-            }
-            else {
-                self.log_info("MQTT Client " + client.id + " invalid login");
-            }
-
-            callback(null, authorized);
+        if ((config.admin_username || config.admin_password) && (username === config.admin_username && password === config.admin_password)) {
+            client.user = "admin";
         }
-    }
+        else if (config.read_only_username || config.read_only_password) {
+            if (username === config.read_only_username && password === config.read_only_password) {
+                client.user = "read_only";
+            }
+        }
+        else {
+            client.user = "read_only";
+        }
+
+        var authorized = !_.isUndefined(client.user);
+
+        if (authorized) {
+            self.log_info("MQTT Client " + client.id + " logged in as " + client.user);
+        }
+
+        callback(null, authorized);
+    };
+
+    this.mqtt_server.authorizePublish = function (client, topic, payload, callback) {
+        callback(null, (client.user === "admin")); // Must be an admin user to publish
+    };
+
+    this.mqtt_server.authorizeSubscribe = function (client, topic, callback) {
+        callback(null, (client.user === "admin" || client.user === "read_only"));
+    };
 
     this.mqtt_server.on('published', function (packet, client) {
 
         if (client) {
-            /*var matches = set_component_regex.exec(packet.topic);
+            // Look for messages to tell us to change our component value
+            var component_id = common.get_component_id_from_topic(packet.topic);
+            var component = self.components[component_id];
 
-             if (_.isArray(matches) && matches.length >= 2) {
-             var process_id = matches[1];
-             var component_id = matches[2];
-
-             if (self.processes[process_id] && self.processes[process_id].components[component_id]) {
-             var component = self.processes[process_id].components[component_id];
-
-             if (!component.read_only) {
-             component.value = packet.payload;
-             }
-             }
-             }*/
+            if (component) {
+                if (/\/set$/.test(packet.topic)) {
+                    if (!component.read_only) {
+                        component.value = packet.payload.toString();
+                    }
+                }
+            }
         }
-
     });
 
     this.mqtt_server.on('ready', function () {
@@ -179,150 +294,36 @@ var cascade = function (config) {
 
     });
 };
+util.inherits(cascade, event_emitter);
 
-var component_id_topic_regex = new RegExp("^" + COMPONENT_BY_ID_BASE + "([^\/]+)");
-function get_component_id_from_topic(topic) {
-    var matches = component_id_topic_regex.exec(topic);
-
-    if (_.isArray(matches) && matches.length >= 2) {
-        return matches[1];
-    }
-
-    return null;
-}
-
-cascade.prototype.create_component = function (config) {
+cascade.prototype.create_component = function (config, process_id) {
     var self = this;
     var new_component = new component_class(config);
+    new_component.process_id = process_id;
 
     if (new_component.id) {
 
-        self.local_components[new_component.id] = new_component;
+        self.components[new_component.id] = new_component;
 
-        self.publish_mqtt_message(COMPONENT_BY_ID_BASE + new_component.id + "/info", JSON.stringify(new_component.get_serializable_object()), true);
+        self.publish_mqtt_message(common.COMPONENT_BY_ID_BASE + new_component.id + "/info", JSON.stringify(new_component.get_serializable_object()), true);
+
+        if (new_component.class) {
+            self.publish_mqtt_message(common.COMPONENT_BY_CLASS_BASE + new_component.class + "/" + new_component.id + "/info", JSON.stringify(new_component.get_serializable_object()), true);
+        }
 
         new_component.on("value_updated", function () {
 
-            self.publish_mqtt_message(COMPONENT_BY_ID_BASE + new_component.id, new_component.value.toString(), false);
+            self.publish_mqtt_message(common.COMPONENT_BY_ID_BASE + new_component.id, new_component.value.toString(), false);
 
             if (new_component.class) {
-                self.publish_mqtt_message(COMPONENT_BY_CLASS_BASE + new_component.class + "/" + new_component.id, new_component.value.toString(), false);
+                self.publish_mqtt_message(common.COMPONENT_BY_CLASS_BASE + new_component.class + "/" + new_component.id, new_component.value.toString(), false);
             }
         });
-
-        self.process_component_create_callbacks(new_component.id, new_component);
     }
+
+    this.emit("new_component", new_component);
 
     return new_component;
-};
-
-cascade.prototype.process_component_create_callbacks = function (component_id, component) {
-    var callbacks = this.component_create_callbacks[component_id];
-    delete this.component_create_callbacks[component_id];
-
-    _.each(callbacks, function (callback) {
-        callback(null, component);
-    });
-};
-
-function normalize_component_id(component_id, cascade_server) {
-    if (cascade_server) {
-        component_id += ":" + cascade_server.toLowerCase();
-    }
-
-    return component_id;
-}
-
-// If cascade_server is not specified we assume it's the local server
-cascade.prototype.require_component = function (component_uri, callback) {
-    var self = this;
-
-    var component_id;
-    var cascade_server;
-    var uri = url.parse(component_uri);
-
-    // This is a local uri
-    if(!uri.host)
-    {
-        component_id = component_uri;
-    }
-    else // This is a remote server
-    {
-        component_id = uri.path.slice(1);
-        cascade_server = component_uri.slice(0, -uri.path.length);
-    }
-
-    var normalized_component_id = normalize_component_id(component_id, cascade_server);
-    var callbacks = self.component_create_callbacks[normalized_component_id];
-
-    if (!callbacks) {
-        callbacks = [];
-        self.component_create_callbacks[normalized_component_id] = callbacks;
-    }
-
-    callbacks.push(callback);
-
-    var component;
-
-    if (!cascade_server) {
-        component = self.local_components[normalized_component_id];
-    }
-    else {
-        component = self.remote_components[normalized_component_id];
-
-        if (!component) {
-
-            var mqtt_client = self.mqtt_clients[cascade_server];
-
-            if (!mqtt_client) {
-                mqtt_client = mqtt.connect(cascade_server);
-                self.mqtt_clients[cascade_server] = mqtt_client;
-
-                mqtt_client.on('error', function(err){
-                    self.log_error(err);
-                });
-
-                mqtt_client.on('message', function (topic, message) {
-
-                    message = message.toString();
-                    var topic_component_id = get_component_id_from_topic(topic);
-                    var remote_component_id = normalize_component_id(topic_component_id, cascade_server);
-
-                    var component = self.remote_components[remote_component_id];
-
-                    // This is an info update for our component
-                    if (/\/info$/.test(topic)) {
-
-                        if (!component) {
-                            try {
-                                var component_config = JSON.parse(message);
-
-                                var new_component = new component_class(component_config);
-                                self.remote_components[remote_component_id] = new_component;
-                                self.process_component_create_callbacks(remote_component_id, new_component);
-                            }
-                            catch (e) {
-                            }
-                        }
-                        else // TODO: Update the existing component
-                        {
-                        }
-                    }
-                    else if (topic == (COMPONENT_BY_ID_BASE + topic_component_id) && component) // This is a value update for our component
-                    {
-                        component.value = message;
-                    }
-                });
-            }
-
-            mqtt_client.subscribe(COMPONENT_BY_ID_BASE + component_id + "/info");
-            mqtt_client.subscribe(COMPONENT_BY_ID_BASE + component_id);
-        }
-    }
-
-    if (component) {
-        self.process_component_create_callbacks(normalized_component_id, component);
-    }
 };
 
 cascade.prototype.load_process = function (process_path, root_path) {
@@ -342,12 +343,6 @@ cascade.prototype.load_process = function (process_path, root_path) {
     return new_process;
 };
 
-/*cascade.prototype.record_data = function (measurement_name, values, tags, timestamp_in_ms) {
-    if (this.data_recorder) {
-        this.data_recorder.record(measurement_name, values, tags, timestamp_in_ms);
-    }
-};*/
-
 cascade.prototype.publish_mqtt_message = function (topic, message, retain) {
     if (!this.mqtt_server) return;
 
@@ -358,9 +353,6 @@ cascade.prototype.publish_mqtt_message = function (topic, message, retain) {
         retain: retain
     });
 };
-
-cascade.prototype.COMPONENT_BY_ID_BASE = COMPONENT_BY_ID_BASE;
-cascade.prototype.COMPONENT_BY_CLASS_BASE = COMPONENT_BY_CLASS_BASE;
 
 cascade.prototype.log_info = function (message) {
     this.console_logger.info(message);

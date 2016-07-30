@@ -110,7 +110,7 @@ button.cancel_button:hover
 }
 
 .pulse{
-    animation: pulse linear 1s 1;
+    animation: pulse linear 0.25s 1;
 }
 
 @keyframes pulse {
@@ -137,6 +137,7 @@ button.cancel_button:hover
     background-color: transparent;
     border-radius: 100%;
     animation: loading-spin 1s infinite linear;
+    z-index: 1000;
 }
 
 .loading:after {
@@ -236,4 +237,11 @@ input:checked + .slider:before {
 
 .slider.round:before {
     border-radius: 50%;
+}
+
+.login-error
+{
+    line-height: 38px;
+    color: #F03333;
+    text-align: center;
 }

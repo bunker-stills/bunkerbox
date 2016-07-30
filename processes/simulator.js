@@ -4,7 +4,7 @@ var _ = require("underscore");
 var ATMO_PRESSURE = 1013.25;
 
 var baro_component;
-var preheater_temp_component;
+var temp_components;
 
 function generate_random_value(chance_of_change, current_value, min, max)
 {
@@ -24,6 +24,7 @@ function randomize_component(component, chance_of_change, midpoint, range)
 }
 
 module.exports.setup = function (cascade) {
+
     baro_component = cascade.create_component({
         id: "barometer",
         name: "Barometer",
@@ -34,12 +35,20 @@ module.exports.setup = function (cascade) {
         value: ATMO_PRESSURE
     });
 
-    _.each(["FF4435641403"], function(probe_id){
-        preheater_temp_component = cascade.create_component({
+   var test_component = cascade.create_component({
+        id: "test",
+        name: "test",
+        class: "test",
+        read_only: true,
+        persist : true
+    });
+
+    _.each(["FF4435641403", "FFED5694403"], function(probe_id){
+        cascade.create_component({
             id: probe_id,
             name: "Temp. Probe " + probe_id + " Raw",
             units: cascade.UNITS.C,
-            class: "temperature",
+            class: "raw_temperature",
             read_only : true,
             type: cascade.TYPES.NUMBER,
             value: 21.0

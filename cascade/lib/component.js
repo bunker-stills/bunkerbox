@@ -6,6 +6,8 @@ var round_precision = require("round-precision");
 
 var component = function (config) {
 
+    this.setMaxListeners(200);
+
     var self = this;
 
     _.defaults(config, {
@@ -101,7 +103,7 @@ var component = function (config) {
 
             _value_last_updated = new Date();
 
-            this.emit("value_updated");
+            this.emit("value_updated", this);
 
             if(self.referenced_component && !self._prevent_reference_update)
             {
@@ -129,7 +131,10 @@ component.prototype.get_serializable_object = function()
         class : this.class,
         read_only : this.read_only,
         info : this.info,
-        units : this.units
+        value : this.value,
+        updated : this.updated,
+        units : this.units,
+        process_id : this.process_id
     }
 };
 
