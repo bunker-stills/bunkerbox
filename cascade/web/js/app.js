@@ -1,27 +1,28 @@
-var API_ROOT = location.origin + "/api";
-var COMPONENT_BY_ID_BASE = "component/by_id/";
-
 var mqtt_client;
 var client_was_connected = false;
 var components = {};
 
 function initialize() {
     window.addEventListener("hashchange", function () {
-        filter_for_process(get_location_hash());
+        filter_for_group(get_current_group());
     }, false);
     display_login_screen();
 }
 
-var component_id_topic_regex = new RegExp("^" + COMPONENT_BY_ID_BASE + "([^\/]+)");
-function get_component_id_from_topic(topic) {
-    var matches = component_id_topic_regex.exec(topic);
+/*var read_topic_regex = new RegExp("^read\/([^\/]+)\/([^\/]+)\/([^\/]+)");
+parse_read_topic = function (topic) {
+    var matches = read_topic_regex.exec(topic);
 
-    if (_.isArray(matches) && matches.length >= 2) {
-        return matches[1];
+    if (_.isArray(matches) && matches.length >= 4) {
+        return {
+            group: matches[1],
+            class: matches[2],
+            component_id: matches[3]
+        };
     }
 
     return null;
-}
+};*/
 
 function disconnect_mqtt_client() {
     if (mqtt_client) {
@@ -59,13 +60,12 @@ function connect_mqtt_client(username, password) {
         dismiss_modal();
 
         // Get all the info for our components
-        mqtt_client.subscribe(COMPONENT_BY_ID_BASE + "#")
+        mqtt_client.subscribe("read/+/+/+/detail");
     });
 
-    mqtt_client.on("close", function(){
+    mqtt_client.on("close", function () {
 
-        if(client_was_connected)
-        {
+        if (client_was_connected) {
             loading_indicator(true);
             display_modal_message("The server went offline. Trying to reconnect.", true);
         }
@@ -73,32 +73,14 @@ function connect_mqtt_client(username, password) {
         client_was_connected = false;
 
         components = {};
-        $("#processes").empty();
+        $("#groups").empty();
         $("#components").empty();
     });
 
     mqtt_client.on("message", function (topic, payload) {
-
-        payload = payload.toString();
-
-        if (/\/info$/.test(topic)) {
-            var component = JSON.parse(payload);
-            components[component.id] = component;
-
-            create_process_ui(component.process_id);
-            create_component_ui(component);
-        }
-        else // This is a value update
-        {
-            // Extract the component ID
-            var component = components[get_component_id_from_topic(topic)];
-            if (component) {
-                component.value = payload;
-                component.updated = (new Date()).toISOString();
-                update_component_value(component);
-            }
-        }
-
+        //var topic_info = parse_topic(topic);
+        payload = JSON.parse(payload.toString());
+        update_component_ui(payload);
     });
 }
 
@@ -122,8 +104,7 @@ function process_login() {
     connect_mqtt_client($("#username-input").val(), $("#password-input").val());
 }
 
-function update_component_value(component)
-{
+function update_component_value(component) {
     var component_field = $("#component_field_" + component.id);
 
     if (component_field.length <= 0) {
@@ -131,23 +112,20 @@ function update_component_value(component)
     }
 
     // Don't update the value if it's focused
-    if(!component_field.is(":focus")) {
+    if (!component_field.is(":focus")) {
 
-        switch(component.type)
-        {
-            case "OPTIONS" :
-            {
+        switch (component.type) {
+            case "OPTIONS" : {
                 component_field.empty();
 
                 component_field.append('<option value="">Select one...</option>');
 
-                _.each(component.info.options, function(option){
+                _.each(component.info.options, function (option) {
 
                     var option_field = $('<option></option>');
                     option_field.text(option);
 
-                    if(component.value == option)
-                    {
+                    if (component.value == option) {
                         option_field.prop("selected", true);
                     }
 
@@ -157,13 +135,11 @@ function update_component_value(component)
 
                 break;
             }
-            case "BOOLEAN" :
-            {
+            case "BOOLEAN" : {
                 component_field.prop("checked", component.value);
                 break;
             }
-            default :
-            {
+            default : {
                 component_field.val(component.value);
             }
         }
@@ -172,14 +148,12 @@ function update_component_value(component)
 
         // Update our component info box if it's open
         var component_info = $("#component_info_" + component.id);
-        if(component_info.length)
-        {
+        if (component_info.length) {
             var component_info_code = component_info.find("pre code");
             var current_text = component_info_code.text();
             var new_text = get_raw_component_info_text(component);
 
-            if(current_text != new_text)
-            {
+            if (current_text != new_text) {
                 component_info_code.text(new_text).apply_animation("pulse");
             }
         }
@@ -187,117 +161,114 @@ function update_component_value(component)
 
 }
 
-function create_component_ui(component) {
+function update_component_ui(component) {
+    
+    var component_row = $("#components .row[data-component='" + component.id + "']");
     var component_field = $("#component_field_" + component.id);
+    var group_row = $("#groups .row[data-group='" + component.group + "']");
 
-    if (component_field.length > 0) {
-        return; // This component already exists in the UI
+    // Create our group UI
+    if (group_row.length == 0) {
+        group_row = $('<div class="row"></div>')
+            .attr("data-group", component.group);
+
+        var column = $('<div class="12 columns"></div>');
+
+        var link = $('<a class="group"></a>');
+        link.attr("id", "group_" + component.group);
+        link.attr("href", "#" + component.group);
+        link.text(component.group);
+
+        if(component.group === get_current_group())
+        {
+            link.addClass("active");
+        }
+
+        column.append(link);
+        group_row.append(column);
+        $("#groups").append(group_row);
+
+        tinysort('#groups>row', '.group');
     }
 
-    var row = $('<div class="row"></div>');
-    row.attr("data-process-id", component.process_id);
+    // Create our component UI
+    if (component_row.length == 0) {
+        component_row = $('<div class="row"><div class="twelve columns component"><label class="component_label"></label></div></div>')
+            .attr("data-component", component.id)
+            .attr("data-group", component.group);
 
-    var value_column = $('<div class="twelve columns component"></div>');
+        component_row.find("label.component_label").on("click", function () {
+            toggle_component_info(component);
+        });
 
-    var name_label = $('<label class="component_label"></label>');
-    name_label.attr("id", "component_label_" + component.id);
-    name_label.text(component.name || component.id);
+        var value_column = component_row.find("div.component");
 
-    name_label.on("click", function () {
-        toggle_component_info(component);
-    });
+        switch (component.type) {
+            case "OPTIONS" : {
+                component_field = $('<select class="u-full-width"></select>')
+                    .attr("id", "component_field_" + component.id);
 
-    value_column.append(name_label);
+                component_field.on("change", function () {
+                    commit_edit_component(component_field);
+                    component_field.blur();
+                });
 
-    switch (component.type) {
-        case "OPTIONS" :
-        {
-            component_field = $('<select class="u-full-width"></select>');
-            component_field.attr("id", "component_field_" + component.id);
+                value_column.append(component_field);
 
-            component_field.on("change", function () {
-                commit_edit_component(component_field);
-                component_field.blur();
-            });
+                break;
+            }
+            case "BOOLEAN" : {
+                component_field = $('<input type="checkbox">');
+                component_field.attr("id", "component_field_" + component.id);
 
-            value_column.append(component_field);
+                component_field.on("click", function () {
+                    commit_edit_component(component_field);
+                });
 
-            break;
+                $('<label class="switch"></label>').append(component_field).append($('<div class="slider round"></div>')).appendTo(value_column);
+                break;
+            }
+            default: {
+                component_field = $('<input class="u-full-width component_input" type="text">');
+                component_field.attr("id", "component_field_" + component.id);
+                component_field.focusin(begin_edit_component);
+                value_column.append(component_field);
+
+                var units = $('<span class="component_units"></span>');
+                units.text(component.units);
+                value_column.append(units);
+
+                component_field.css("padding-right", units.width() + 15);
+            }
         }
-        case "BOOLEAN" :
+
+        if(component.group != get_current_group())
         {
-            component_field = $('<input type="checkbox">');
-            component_field.attr("id", "component_field_" + component.id);
-
-            component_field.on("click", function () {
-                commit_edit_component(component_field);
-            });
-
-            $('<label class="switch"></label>').append(component_field).append($('<div class="slider round"></div>')).appendTo(value_column);
-            break;
+            component_row.hide();
         }
-        default:
-        {
-            component_field = $('<input class="u-full-width component_input" type="text">');
-            component_field.attr("id", "component_field_" + component.id);
-            component_field.focusin(begin_edit_component);
-            value_column.append(component_field);
+        
+        $("#components").append(component_row);
 
-            var units = $('<span class="component_units"></span>');
-            units.text(component.units);
-            value_column.append(units);
-
-            component_field.css("padding-right", units.width() + 15);
-        }
+        tinysort('#components>row', 'label.component_label');
     }
 
-    component_field.data("details", component);
     component_field.prop("disabled", component.read_only);
+    component_field.data("details", component);
 
-    row.append(value_column);
-    $("#components").append(row);
+    component_row.find("label.component_label").text(component.name || component.id);
 
-    filter_for_process(get_location_hash());
+    update_component_value(component);
 }
 
-function filter_for_process(process_id)
-{
-    $("#processes").find(".active").removeClass("active");
-    $("#processes").find("#process_" + process_id).addClass("active");
-    $("div[data-process-id!='" + process_id + "'][data-process-id]").hide();
-    $("div[data-process-id='" + process_id + "'][data-process-id]").show();
+function filter_for_group(group_id) {
+    $("#groups").find(".active").removeClass("active");
+    $("#groups").find("#group_" + group_id).addClass("active");
+
+    $("#components .row[data-group!='" + group_id + "']").hide();
+    $("#components .row[data-group='" + group_id + "']").show();
 }
 
-function create_process_ui(process_id)
-{
-    if($("#process_" + process_id).length > 0)
-    {
-        return; // Process already exists
-    }
-
-    var process_element = $("#processes");
-
-    var row = $('<div class="row"></div>');
-
-    var column = $('<div class="12 columns"></div>');
-
-    var link = $('<a class="process"></a>');
-    link.attr("id", "process_" + process_id);
-    link.attr("href", "#" + process_id);
-    link.text(process_id);
-
-    /*if(process_id === current_process)
-    {
-        link.addClass("active");
-    }*/
-
-    column.append(link);
-    row.append(column);
-    process_element.append(row);
-}
-
-function display_modal_message(message, prevent_close)
-{
+function display_modal_message(message, prevent_close) {
     $("#message-modal").text(message).modal({
         escapeClose: !prevent_close,
         clickClose: !prevent_close,
@@ -305,14 +276,13 @@ function display_modal_message(message, prevent_close)
     });
 }
 
-function dismiss_modal()
-{
+function dismiss_modal() {
     $.modal.close();
 }
 
 //////////////// OLD
 
-function get_location_hash() {
+function get_current_group() {
     return location.hash.replace(/^#/, "");
 }
 
@@ -321,43 +291,31 @@ function end_edit_component() {
     $("#component_editor").remove();
 }
 
-/*function commit_edit_component(component_element) {
+function commit_edit_component(component_element) {
 
     var component_data = component_element.data("details");
 
     var new_value;
 
     switch (component_element.attr("type")) {
-        case "checkbox" :
-        {
+        case "checkbox" : {
             new_value = component_element.prop("checked");
             break;
         }
-        default:
-        {
+        default: {
             new_value = component_element.val();
         }
     }
 
-    $.ajax({
-        method: "post",
-        dataType: "json",
-        contentType: "application/json",
-        url: API_ROOT + "/processes/" + current_process + "/" + component_data.id,
-        data: JSON.stringify({
-            value: new_value
-        })
-    }).done(function (data) {
-        if (data) {
-            component_data.value = data;
-            component_element.data("details", component_data);
-        }
+    component_element.unbind("blur");
+    component_element.blur();
+    end_edit_component();
 
-        component_element.unbind("blur");
-        component_element.blur();
-        end_edit_component();
+    mqtt_client.publish("write/" + component_data.id, JSON.stringify(new_value), {
+        qos : 2
+    }, function () {
     });
-}*/
+}
 
 function cancel_edit_component(component_element) {
     var component_data = component_element.data("details");
@@ -413,8 +371,8 @@ function begin_edit_component(e) {
 function get_raw_component_info_text(component) {
     var output = JSON.stringify(component, null, 4);
 
-    //output += "\r\n\r\nGET " + API_ROOT + "/processes/" + current_process + "/" + component.id;
-    //output += "\r\nPOST " + API_ROOT + "/processes/" + current_process + "/" + component.id + "?value={some_value}";
+    //output += "\r\n\r\nGET " + API_ROOT + "/groupes/" + current_group + "/" + component.id;
+    //output += "\r\nPOST " + API_ROOT + "/groupes/" + current_group + "/" + component.id + "?value={some_value}";
 
     return output;
 }

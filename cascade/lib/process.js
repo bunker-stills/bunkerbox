@@ -68,9 +68,10 @@ var process_class = function (cascade, process_path, root_path) {
             self.cascade_context.log_info("Added component named '" + component.id + "'");
 
             return component;
-        },
-        components: new component_bundle(cascade)
+        }
     };
+
+    this.cascade_context.components = new component_bundle(cascade);
 
     if (_.isFunction(self.process_instance.setup)) {
         self.process_instance.setup.call(self.process_instance, self.cascade_context);

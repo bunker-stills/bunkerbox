@@ -31,7 +31,5 @@ var cascade_server = new cascade({
     data_recorder_port : 8089,
     web_port : process.env.WEB_PORT || 3000,
     data_storage_location : process.env.DATA_PATH,
-    admin_username : "admin",
-    admin_password : "admin",
     processes : process_list
 });

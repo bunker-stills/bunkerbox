@@ -36,10 +36,13 @@ var cascade = function (config) {
         device_id: "development",
         web_port: 3000,
         mqtt_port: 1883,
-        admin_username: "admin",
-        admin_password: "admin",
-        read_only_username: undefined,
-        read_only_password: undefined,
+        users: {
+            "admin": {
+                password: "admin",
+                can_read: true,
+                can_write: true
+            }
+        },
         data_recorder_enabled: false,
         data_recorder_host: "localhost",
         data_recorder_port: 8089,
@@ -81,22 +84,28 @@ var cascade = function (config) {
         }
     );
 
-    function authenticate_web (req, res, next) {
+    function authenticate_web(req, res, next) {
 
-        var requires_auth = (config.admin_username || config.admin_password || config.read_only_username || config.read_only_password);
+        var requires_auth = !_.isUndefined(config.users);
 
         if (requires_auth) {
 
-            if(req.authorization.basic) {
-                if (req.authorization.basic.username == config.admin_username && req.authorization.basic.password == config.admin_password) {
-                    return next();
-                }
+            if (req.authorization.basic) {
 
-                if (req.method = "GET" && req.authorization.basic.username == config.read_only_username && req.authorization.basic.password == config.read_only_password) {
-                    return next();
+                var user_info = config.users[req.authorization.basic.username];
+
+                if (user_info && user_info.password === req.authorization.basic.password) {
+                    if (req.method === "GET" && user_info.can_read) {
+                        return next();
+                    }
+
+                    if (req.method === "POST" && user_info.can_write) {
+                        return next();
+                    }
                 }
             }
 
+            // If we get here, the user hasn't been authenticated
             res.header("www-authenticate", 'Basic realm="cascade"');
             return next(new restify.UnauthorizedError());
         }
@@ -217,47 +226,44 @@ var cascade = function (config) {
 
         password = (password) ? password.toString() : undefined;
 
-        if ((config.admin_username || config.admin_password) && (username === config.admin_username && password === config.admin_password)) {
-            client.user = "admin";
+        // If no users are defined, then it's open season
+        if (_.isUndefined(config.users)) {
+            client.user = {
+                can_read: true,
+                can_write: true
+            };
+            return callback(null, true);
         }
-        else if (config.read_only_username || config.read_only_password) {
-            if (username === config.read_only_username && password === config.read_only_password) {
-                client.user = "read_only";
-            }
+
+        client.user = config.users[username];
+
+        if (_.isUndefined(client.user)) {
+            callback(null, false);
         }
         else {
-            client.user = "read_only";
+            callback(null, (client.user.password === password));
         }
-
-        var authorized = !_.isUndefined(client.user);
-
-        if (authorized) {
-            self.log_info("MQTT Client " + client.id + " logged in as " + client.user);
-        }
-
-        callback(null, authorized);
     };
 
     this.mqtt_server.authorizePublish = function (client, topic, payload, callback) {
-        callback(null, (client.user === "admin")); // Must be an admin user to publish
+        callback(null, client.user.can_write);
     };
 
     this.mqtt_server.authorizeSubscribe = function (client, topic, callback) {
-        callback(null, (client.user === "admin" || client.user === "read_only"));
+        callback(null, client.user.can_read);
     };
 
     this.mqtt_server.on('published', function (packet, client) {
 
-        if (client) {
+        if (client && client.user.can_write) {
             // Look for messages to tell us to change our component value
-            var component_id = common.get_component_id_from_topic(packet.topic);
-            var component = self.components[component_id];
+            var topic_info = common.parse_write_topic(packet.topic);
 
-            if (component) {
-                if (/\/set$/.test(packet.topic)) {
-                    if (!component.read_only) {
-                        component.value = packet.payload.toString();
-                    }
+            if (topic_info && topic_info.component_id) {
+                var component = self.components[topic_info.component_id];
+
+                if (component && !component.read_only) {
+                    component.value = JSON.parse(packet.payload.toString());
                 }
             }
         }
@@ -296,27 +302,38 @@ var cascade = function (config) {
 };
 util.inherits(cascade, event_emitter);
 
+cascade.prototype.publish_component_update = function (component, publish_value_update, publish_detail_update) {
+    var topic = "read/" + component.group + "/" + component.class + "/" + component.id;
+    var message = JSON.stringify(component.get_serializable_object());
+
+    if (publish_value_update) {
+        this.publish_mqtt_message(topic, JSON.stringify(component.value), false);
+    }
+
+    if (publish_detail_update) {
+        this.publish_mqtt_message(topic + "/detail", message, true);
+    }
+};
+
 cascade.prototype.create_component = function (config, process_id) {
     var self = this;
+
+    config.group = config.group || process_id;
+
     var new_component = new component_class(config);
-    new_component.process_id = process_id;
 
     if (new_component.id) {
 
         self.components[new_component.id] = new_component;
 
-        self.publish_mqtt_message(common.COMPONENT_BY_ID_BASE + new_component.id + "/info", JSON.stringify(new_component.get_serializable_object()), true);
+        self.publish_component_update(new_component, false, true);
 
-        if (new_component.class) {
-            self.publish_mqtt_message(common.COMPONENT_BY_CLASS_BASE + new_component.class + "/" + new_component.id + "/info", JSON.stringify(new_component.get_serializable_object()), true);
-        }
-
-        new_component.on("value_updated", function () {
-
-            self.publish_mqtt_message(common.COMPONENT_BY_ID_BASE + new_component.id, new_component.value.toString(), false);
-
-            if (new_component.class) {
-                self.publish_mqtt_message(common.COMPONENT_BY_CLASS_BASE + new_component.class + "/" + new_component.id, new_component.value.toString(), false);
+        new_component.on("updated", function (the_component, value_name) {
+            if (value_name === "value") {
+                self.publish_component_update(the_component, true, true);
+            }
+            else {
+                self.publish_component_update(the_component, false, true);
             }
         });
     }

@@ -97,7 +97,8 @@ function create_pid(name, description, cascade)
 
 module.exports.setup = function (cascade)
 {
-    pids["preheater"] = create_pid("preheater", "Preheater", cascade);
+    pids["pre_heater_pid"] = create_pid("pre_heater_pid", "Preheater", cascade);
+    pids["main_heater_pid"] = create_pid("main_heater_pid", "Main Heater", cascade);
 };
 
 module.exports.loop = function (cascade)

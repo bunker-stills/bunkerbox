@@ -27,7 +27,7 @@ var component_cache = function(server)
         var component = self.components_by_id[component_id];
 
         // This is the definition of a component
-        if(/\/info$/.test(topic))
+        if(/\/detail$/.test(topic))
         {
             if(!component)
             {
@@ -53,7 +53,7 @@ var component_cache = function(server)
 
                         self.mqtt_client.publish(
                             common.COMPONENT_BY_ID_BASE + this.id + "/set",
-                            this.value.toString(),
+                            JSON.stringify(this.value),
                             {
                                 qos: 1,
                                 retain: false
@@ -74,7 +74,7 @@ var component_cache = function(server)
             if(component) // Component should always be here, but just check to make sure
             {
                 component.prevent_update = true;
-                component.value = message;
+                component.value = JSON.parse(message);
                 delete component.prevent_update;
             }
         }
@@ -84,13 +84,13 @@ util.inherits(component_cache, event_emitter);
 
 component_cache.prototype.get_components_by_class = function(component_class)
 {
-    this.mqtt_client.subscribe(common.COMPONENT_BY_CLASS_BASE + component_class + "/+/info");
+    this.mqtt_client.subscribe(common.COMPONENT_BY_CLASS_BASE + component_class + "/+/detail");
     return this.components_by_class[component_class] || {};
 };
 
 component_cache.prototype.get_components_by_id = function(component_id)
 {
-    this.mqtt_client.subscribe(common.COMPONENT_BY_ID_BASE + component_id + "/info");
+    this.mqtt_client.subscribe(common.COMPONENT_BY_ID_BASE + component_id + "/detail");
     return this.components_by_id[component_id] || {};
 };
 
@@ -140,15 +140,27 @@ var component_bundle = function(cascade)
     var components = {};
     var required_components = {};
     var required_classes = {};
+    var class_mappers = {};
 
-    function add_component(component)
+    function process_add_component(component)
     {
         if(_.isUndefined(component))
         {
             return;
         }
 
-        if(required_components[component.id] || required_classes[component.class])
+        var callbacks_to_run = [];
+
+        if(required_components[component.id]) {
+            callbacks_to_run = callbacks_to_run.concat(required_components[component.id]);
+        }
+
+        if(required_classes[component.class])
+        {
+            callbacks_to_run = callbacks_to_run.concat(required_classes[component.class]);
+        }
+
+        if(callbacks_to_run.length > 0)
         {
             components[component.id] = component;
 
@@ -156,64 +168,96 @@ var component_bundle = function(cascade)
             {
                 self[component.id] = component;
             }
+
+            _.each(callbacks_to_run, function(callback){
+                callback(component);
+            });
         }
     }
 
-    function attach_to_new_component_event(cache)
+    cascade.on("new_component", process_add_component);
+
+    this.require_component = function(component_id, callback)//, options, server)
     {
-        // Only allow it to be attached once.
-        if(cache.listeners("new_component").indexOf(add_component) == -1) {
-            cache.on("new_component", add_component);
-        }
-    }
-
-    this.require_component = function(component_id, options, server)
-    {
-        required_components[component_id] = component_id;
-
-        var existing_component;
-
-        if(!server)
+        if(!required_components[component_id])
         {
-            attach_to_new_component_event(cascade);
-            existing_component = cascade.components[component_id];
-        }
-        else
-        {
-            var cache = component_cache.get_cache_for_server(server);
-            attach_to_new_component_event(cache);
-
-            existing_component = cache.get_components_by_id(component_id);
+            required_components[component_id] = [];
         }
 
-        if(existing_component)
+        if(required_components[component_id].indexOf(callback) === -1)
         {
-            add_component(existing_component);
+            required_components[component_id].push(callback);
         }
+
+        // If this component already exists, go ahead and call the callback
+        process_add_component(cascade.components[component_id]);
     };
 
-    this.require_component_class = function(component_class, server)
+    function mapper_class_callback(new_component)
     {
-        required_classes[component_class] = true;
+        var mappers = class_mappers[new_component.class];
 
-        var existing_components;
-
-        if(!server)
+        if(mappers)
         {
-            attach_to_new_component_event(cascade);
-            existing_components = _.where(cascade.components, {class:component_class});
+            _.each(mappers, function(mapper){
+                var options = mapper.info.options;
+
+                if(_.isUndefined(options))
+                {
+                    options = [];
+                }
+
+                if(options.indexOf(new_component.id) == -1)
+                {
+                    options.push(new_component.id);
+                }
+
+                mapper.info = { options : options };
+            });
         }
-        else
+    }
+
+    // This allows you to take one component called a mapper, which is a dropdown of other components that correspond
+    // to a class. When a component from the dropdown is selected, the value_component will start to mirror the values
+    // in the selected component
+    this.create_mapper_value_pair_for_class = function(mapper_component, component_class, value_component)
+    {
+        var mappers = class_mappers[component_class];
+
+        if(!mappers)
         {
-            var cache = component_cache.get_cache_for_server(server);
-            attach_to_new_component_event(cache);
-            existing_components = cache.get_components_by_class(component_class);
+            mappers = [];
+            class_mappers[component_class] = mappers;
         }
 
-        _.each(existing_components, function(component){
-            add_component(component);
+        mappers.push(mapper_component);
+
+        mapper_component.on("value_updated", function(){
+            value_component.mirror_component(components[mapper_component.value]);
+        });
+
+        this.require_component_class(component_class, mapper_class_callback);
+    };
+
+    this.require_component_class = function(component_class, callback)//, server)
+    {
+        if(!required_classes[component_class])
+        {
+            required_classes[component_class] = [];
+        }
+
+        if(required_classes[component_class].indexOf(callback) === -1)
+        {
+            required_classes[component_class].push(callback);
+        }
+
+        // If this component already exists, go ahead and call the callback
+        _.each(cascade.components, function(component){
+            if(component.class === component_class) {
+                process_add_component(component);
+            }
         });
     };
 };
-
+util.inherits(component_bundle, event_emitter);
 module.exports = component_bundle;

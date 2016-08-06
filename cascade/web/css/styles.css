@@ -1,11 +1,19 @@
+@font-face {
+    font-family: 'Archivo Narrow';
+    font-style: normal;
+    font-weight: 400;
+    src: url('archivonarrow.ttf') format('truetype');
+}
+
 body
 {
     padding-top: 50px;
     background-color: #D0D0D0;
     margin-bottom: 50px;
+    font-family: "Archivo Narrow", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-a.process {
+a.group {
     background: #EEE;
     text-align: center;
     border-radius: 4px;
@@ -20,13 +28,13 @@ a.process {
     text-decoration: none;
 }
 
-a.process:hover
+a.group:hover
 {
     background: #1EAEDB;
     color: #fff;
 }
 
-a.process.active
+a.group.active
 {
     background: #1EAEDB;
     color: #fff;

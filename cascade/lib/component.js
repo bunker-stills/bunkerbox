@@ -14,6 +14,8 @@ var component = function (config) {
         id: "",
         name: "",
         description : "",
+        group : "",
+        class : "basic_value",
         type: component.TYPES.TEXT,
         read_only : false,
         persist : false,
@@ -46,6 +48,7 @@ var component = function (config) {
             prop_config.set = function(value)
             {
                 _config[name] = value;
+                self.emit("updated", self, name);
             };
         }
 
@@ -53,14 +56,15 @@ var component = function (config) {
     }
 
     create_getter_setter("id", true);
-    create_getter_setter("name");
-    create_getter_setter("description");
-    create_getter_setter("type");
-    create_getter_setter("class");
-    create_getter_setter("read_only");
-    create_getter_setter("persist");
+    create_getter_setter("name", true);
+    create_getter_setter("description", true);
+    create_getter_setter("type", true);
+    create_getter_setter("group");
+    create_getter_setter("class", true);
+    create_getter_setter("read_only", true);
+    create_getter_setter("persist", true);
     create_getter_setter("info");
-    create_getter_setter("units", true);
+    create_getter_setter("units");
 
     Object.defineProperty(this, "value", {
         configurable : true,
@@ -76,6 +80,12 @@ var component = function (config) {
                 switch (_config.type) {
                     case component.TYPES.NUMBER:
                     {
+                        if(value === "")
+                        {
+                            _current_value = null;
+                            break;
+                        }
+
                         if (!utils.is_numeric(value)) {
                             throw "Value is not numeric";
                         }
@@ -103,12 +113,14 @@ var component = function (config) {
 
             _value_last_updated = new Date();
 
-            this.emit("value_updated", this);
+            self.emit("value_updated", self);
+            self.emit("updated", self, "value");
 
-            if(self.referenced_component && !self._prevent_reference_update)
+
+            /*if(self.referenced_component && !self._prevent_reference_update)
             {
                 self.referenced_component.value = convert_value(_current_value, self.units, self.referenced_component.units);
-            }
+            }*/
         }
     });
 
@@ -118,8 +130,43 @@ var component = function (config) {
             return _value_last_updated;
         }
     });
+
+    self.mirrored_component = null;
 };
 util.inherits(component, event_emitter);
+
+component.prototype.mirror_component = function(component)
+{
+    var self = this;
+
+    // Detach from a previously mirrored component
+    if(self.mirrored_component)
+    {
+        self.mirrored_component.removeListener("updated", self._mirrored_component_callback);
+        self.mirrored_component = null;
+        delete self._mirrored_component_callback;
+    }
+
+    if(component) {
+
+        self._mirrored_component_callback = function(updated_component, value_name)
+        {
+            if(value_name === "value")
+            {
+                self.value = convert_value(updated_component.value, updated_component.units, self.units);
+            }
+            else {
+                self[value_name] = updated_component[value_name];
+            }
+        };
+
+        component.on("updated", self._mirrored_component_callback);
+        self.mirrored_component = component;
+    }
+    else {
+        self.value = null;
+    }
+};
 
 component.prototype.get_serializable_object = function()
 {
@@ -128,6 +175,7 @@ component.prototype.get_serializable_object = function()
         name : this.name,
         description : this.description,
         type : this.type,
+        group : this.group,
         class : this.class,
         read_only : this.read_only,
         info : this.info,
