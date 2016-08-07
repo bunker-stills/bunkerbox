@@ -66,7 +66,7 @@ h3.title
     text-transform: uppercase;
     letter-spacing: .2rem;
     font-weight: 600;
-    margin-bottom: 50px;
+    margin-bottom: 15px;
 }
 
 .component
@@ -252,4 +252,32 @@ input:checked + .slider:before {
     line-height: 38px;
     color: #F03333;
     text-align: center;
+}
+
+.component-toolbar
+{
+    text-align: right;
+}
+
+.series-toggle
+{
+    cursor: pointer;
+    color: darkgray;
+}
+
+.series-toggle:hover
+{
+    color: #1EAEDB;
+}
+
+.series-toggle.active
+{
+    color: #1EAEDB;
+}
+
+#chart
+{
+    display: none;
+    margin-top: 10px;
+    margin-bottom: 15px;
 }

@@ -3,9 +3,9 @@ var _ = require("underscore");
 var start_time;
 var start_process_value;
 var cv_delta;
+var start_cv;
 
 var start_component;
-var process_value_sensor_component;
 var process_value_component;
 var dac_output_component;
 var dac_cv_offset;
@@ -18,8 +18,6 @@ module.exports.setup = function (cascade) {
     cascade.require_process("process_temps");
     cascade.require_process("process_controls");
 
-    return;
-
     start_component = cascade.create_component({
         id: "tuner_start",
         name: "Start",
@@ -28,22 +26,38 @@ module.exports.setup = function (cascade) {
     });
 
     start_component.on("value_updated", function () {
+
+        var dac_component = cascade.components[dac_output_component.value];
+
+        // Reset all of our values
         if (this.value) {
             measurement_points = [];
             start_time = Date.now() / 1000;
             start_process_value = process_value_component.value;
             cv_delta = dac_cv_offset.value;
-            dac_output_component.value += dac_cv_offset.value;
+
+            if(dac_component)
+            {
+                start_cv = dac_component.value;
+                dac_component.value += dac_cv_offset.value;
+            }
+        }
+        else {
+            if(dac_component && !_.isUndefined(start_cv))
+            {
+                dac_component.value = start_cv;
+                start_cv = undefined;
+            }
         }
     });
 
-    process_value_sensor_component = cascade.create_component({
+    var process_value_sensor_component = cascade.create_component({
         id: "tuner_process_value_sensor",
         name: "Process Temp. Sensor",
         type: cascade.TYPES.OPTIONS,
+        persist: true,
         group : "pid_tuner"
     });
-    cascade.components.create_options_for_components_of_class(process_value_sensor_component, "process_temperature");
 
     process_value_component = cascade.create_component({
         id: "tuner_process_value",
@@ -52,74 +66,36 @@ module.exports.setup = function (cascade) {
         units: cascade.UNITS.F,
         read_only : true
     });
+    cascade.components.create_mapper_value_pair_for_class(process_value_sensor_component, "process_temperature", process_value_component);
 
-    /*var process_values = _.keys(_.pick(temp_interface.components, function (temp_component, key) {
-        return (temp_component.class == "temperature");
-    })).sort();
-
-    process_value_sensor_component = cascade.define_component({
-        id: "tuner_process_value_sensor",
-        name: "Process Temp. Sensor",
+    dac_output_component = cascade.create_component({
+        id: "tuner_output_control",
+        name: "Output Control",
         type: cascade.TYPES.OPTIONS,
-        info: {
-            options: process_values
-        }
-    });
-
-    process_value_sensor_component.on("value_updated", function () {
-        process_value_component.create_value_reference(temp_interface.components[this.value]);
-    });
-
-    process_value_component = cascade.define_component({
-        id: "tuner_process_value",
-        name: "Process Temp.",
-        type : cascade.TYPES.NUMBER,
-        units: cascade.UNITS.F,
-        read_only : true
-    });
-
-    var dac_component_chooser = cascade.define_component({
-        id: "dac",
-        name: "DAC",
-        type: cascade.TYPES.OPTIONS,
-        info: {
-            options: ["preheater"]
-        }
-    });
-
-    dac_component_chooser.on("value_updated", function () {
-        dac_output_component.create_value_reference(dac_interface.components[this.value + "_output"]);
-    });
-
-    dac_output_component = cascade.define_component({
-        id: "dac_output",
-        name: "DAC Output",
-        type: cascade.TYPES.NUMBER
-    });
-
-    dac_cv_offset = cascade.define_component({
-        id: "dac_cv_offset",
-        name: "DAC Output Change",
         persist: true,
-        type: cascade.TYPES.NUMBER
+        group : "pid_tuner"
+    });
+    cascade.components.create_mapper_for_class(dac_output_component, "dac_output");
+
+    dac_cv_offset = cascade.create_component({
+        id: "tuner_output_change",
+        name: "DAC Output Change",
+        group : "pid_tuner",
+        persist: true,
+        type: cascade.TYPES.NUMBER,
+        units : "%"
     });
 
-    pid_values_component = cascade.define_component({
-        id: "pid_values",
-        name: "PID Values",
+    pid_values_component = cascade.create_component({
+        id: "tuner_pid_values",
+        name: "Tuner Results",
+        group : "pid_tuner",
         read_only: true,
-        value : "See Info"
-    });*/
+        value : "See Details"
+    });
 };
 
 module.exports.loop = function (cascade) {
-
-    /*if(temp_component.mapper.value !== process_value_component.mirrored_component)
-    {
-        temp_component.value.mirror_component(cascade.components[temp_component.mapper.value]);
-    }*/
-
-    return;
 
     if (start_component.value) {
         measurement_points.push({

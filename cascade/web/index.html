@@ -26,6 +26,7 @@
     <!--<link rel="icon" type="image/png" href="images/favicon.png">-->
 
     <script src="js/jquery.js"></script>
+    <script src="js/highcharts/highcharts.js"></script>
     <script src="js/modal.js"></script>
     <script src="js/underscore.js"></script>
     <script src="js/mqtt.js"></script>
@@ -42,6 +43,12 @@
 <div class="container">
     <div class="row">
         <h3 class="title">{{ title }}</h3>
+    </div>
+    <div class="row" id="toolbar">
+        <button onclick="toggle_chart();"><i class="fa fa-area-chart"></i></button>
+    </div>
+    <div class="row">
+        <div class="twelve columns" id="chart">Test</div>
     </div>
     <div class="row">
         <div class="four columns header">

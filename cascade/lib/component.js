@@ -162,6 +162,8 @@ component.prototype.mirror_component = function(component)
 
         component.on("updated", self._mirrored_component_callback);
         self.mirrored_component = component;
+        // Initialize the value
+        self._mirrored_component_callback(component, "value");
     }
     else {
         self.value = null;

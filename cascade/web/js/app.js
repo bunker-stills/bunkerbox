@@ -1,28 +1,16 @@
 var mqtt_client;
 var client_was_connected = false;
 var components = {};
+var chart;
+var chart_components = {};
 
 function initialize() {
     window.addEventListener("hashchange", function () {
         filter_for_group(get_current_group());
     }, false);
     display_login_screen();
+    initialize_chart();
 }
-
-/*var read_topic_regex = new RegExp("^read\/([^\/]+)\/([^\/]+)\/([^\/]+)");
-parse_read_topic = function (topic) {
-    var matches = read_topic_regex.exec(topic);
-
-    if (_.isArray(matches) && matches.length >= 4) {
-        return {
-            group: matches[1],
-            class: matches[2],
-            component_id: matches[3]
-        };
-    }
-
-    return null;
-};*/
 
 function disconnect_mqtt_client() {
     if (mqtt_client) {
@@ -162,7 +150,13 @@ function update_component_value(component) {
 }
 
 function update_component_ui(component) {
-    
+
+    if(chart_components[component.id])
+    {
+        var shift = (chart_components[component.id].data.length > 7200); // 12 hours
+        chart_components[component.id].addPoint([Date.now(), component.value], true, shift);
+    }
+
     var component_row = $("#components .row[data-component='" + component.id + "']");
     var component_field = $("#component_field_" + component.id);
     var group_row = $("#groups .row[data-group='" + component.group + "']");
@@ -179,8 +173,7 @@ function update_component_ui(component) {
         link.attr("href", "#" + component.group);
         link.text(component.group);
 
-        if(component.group === get_current_group())
-        {
+        if (component.group === get_current_group()) {
             link.addClass("active");
         }
 
@@ -193,9 +186,11 @@ function update_component_ui(component) {
 
     // Create our component UI
     if (component_row.length == 0) {
-        component_row = $('<div class="row"><div class="twelve columns component"><label class="component_label"></label></div></div>')
+        component_row = $('<div class="row"><div class="twelve columns component"><div class="ten columns"><label class="component_label" id="component_label_' + component.id + '"></label></div><div class="two columns component-toolbar"><i class="fa fa-area-chart series-toggle" onclick="toggle_series(\'' + component.id + '\');"></i></div></div></div>')
             .attr("data-component", component.id)
             .attr("data-group", component.group);
+
+        component_row.find("i.series-toggle").toggle(component.type === "NUMBER");
 
         component_row.find("label.component_label").on("click", function () {
             toggle_component_info(component);
@@ -242,11 +237,10 @@ function update_component_ui(component) {
             }
         }
 
-        if(component.group != get_current_group())
-        {
+        if (component.group != get_current_group()) {
             component_row.hide();
         }
-        
+
         $("#components").append(component_row);
 
         tinysort('#components>row', 'label.component_label');
@@ -312,7 +306,7 @@ function commit_edit_component(component_element) {
     end_edit_component();
 
     mqtt_client.publish("write/" + component_data.id, JSON.stringify(new_value), {
-        qos : 2
+        qos: 2
     }, function () {
     });
 }
@@ -391,6 +385,75 @@ function toggle_component_info(component) {
     component_detail_div.append(details);
 
     $("#component_label_" + component.id).after(component_detail_div);
+}
+
+function initialize_chart()
+{
+    Highcharts.setOptions({
+        global: {
+            useUTC: false
+        },
+        chart: {
+            style: {
+                fontFamily: 'Archivo Narrow',
+                fontSize: '15px'
+            }
+        }
+    });
+
+    chart = new Highcharts.Chart({
+        chart: {
+            type: 'spline',
+            renderTo : 'chart',
+            zoomType : "x",
+            backgroundColor:"rgba(255, 255, 255, 0.0)"
+        },
+        title : {
+            text : ""
+        },
+        legend:
+        {
+            itemHiddenStyle : {
+                color : "#AAAAAA"
+            }
+        },
+        xAxis: {
+            type: 'datetime',
+            title: {
+                text: 'Date'
+            }
+        },
+        plotOptions: {
+            spline: {
+                marker: {
+                    enabled: false
+                },
+                connectNulls : true
+            }
+        }
+    });
+}
+
+function toggle_series(component_id)
+{
+    var is_on = $("div[data-component='" + component_id + "'] .series-toggle").toggleClass("active").hasClass("active");
+
+    if(is_on)
+    {
+        chart_components[component_id] = chart.addSeries({
+            name:component_id,
+            connectNulls : true
+        }, true, true);
+    }
+    else {
+        chart_components[component_id].remove(true);
+        delete chart_components[component_id];
+    }
+}
+
+function toggle_chart() {
+    $("#chart").toggle();
+    chart.reflow();
 }
 
 function loading_indicator(show) {

@@ -222,6 +222,19 @@ var component_bundle = function(cascade)
     // in the selected component
     this.create_mapper_value_pair_for_class = function(mapper_component, component_class, value_component)
     {
+        this.create_mapper_for_class(mapper_component, component_class);
+
+        function update_value()
+        {
+            value_component.mirror_component(components[mapper_component.value]);
+        }
+
+        mapper_component.on("value_updated", update_value);
+        update_value();
+    };
+
+    this.create_mapper_for_class = function(mapper_component, component_class)
+    {
         var mappers = class_mappers[component_class];
 
         if(!mappers)
@@ -231,11 +244,6 @@ var component_bundle = function(cascade)
         }
 
         mappers.push(mapper_component);
-
-        mapper_component.on("value_updated", function(){
-            value_component.mirror_component(components[mapper_component.value]);
-        });
-
         this.require_component_class(component_class, mapper_class_callback);
     };
 
