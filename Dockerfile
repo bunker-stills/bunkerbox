@@ -8,16 +8,16 @@ RUN wget http://download.tinkerforge.com/tools/brickd/linux/brickd_linux_latest_
 # Allow services to start
 RUN echo "exit 0" > /usr/sbin/policy-rc.d
 
-#ADD package.json /tmp/package.json
-#RUN cd /tmp && npm install
-#RUN mkdir -p /app && cp -a /tmp/node_modules /app
+ADD package.json /tmp/package.json
+RUN cd /tmp && npm install
+RUN mkdir -p /app && cp -a /tmp/node_modules /app
 
 COPY . /app
 
 WORKDIR /app
 
 # RUN npm install pm2 -g
-RUN npm install && npm cache clean && rm -rf /tmp/*
+#RUN npm install && npm cache clean && rm -rf /tmp/*
 
 #Start our BunkerBox App
 CMD ["node", "server.js"]

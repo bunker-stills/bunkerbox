@@ -1,5 +1,7 @@
 module.exports.setup = function (cascade) {
-    cascade.components.require_component_class("temperature", "ws://localhost");
+    cascade.components.require_component_class("calibrated_temperature", "ws://admin:admin@localhost:3030", function(component){
+
+    });
 };
 
 module.exports.loop = function (cascade)

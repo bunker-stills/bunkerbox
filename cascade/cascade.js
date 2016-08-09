@@ -246,6 +246,13 @@ var cascade = function (config) {
     };
 
     this.mqtt_server.authorizePublish = function (client, topic, payload, callback) {
+
+        // Don't allow any external services to publish to any topic starting with "read/"
+        if(topic.indexOf("read/") === 0)
+        {
+            return callback(null, false);
+        }
+
         callback(null, client.user.can_write);
     };
 
