@@ -186,11 +186,18 @@ function update_component_ui(component) {
 
     // Create our component UI
     if (component_row.length == 0) {
-        component_row = $('<div class="row"><div class="twelve columns component"><div class="ten columns"><label class="component_label" id="component_label_' + component.id + '"></label></div><div class="two columns component-toolbar"><i class="fa fa-area-chart series-toggle" onclick="toggle_series(\'' + component.id + '\');"></i></div></div></div>')
-            .attr("data-component", component.id)
-            .attr("data-group", component.group);
+        component_row = $('<div class="row component-row"></div>').attr("data-component", component.id).attr("data-group", component.group);;
 
-        component_row.find("i.series-toggle").toggle(component.type === "NUMBER");
+        var component_label_row = $('<div class="row">' +
+            '<div class="ten columns">' +
+            '<label class="component_label" id="component_label_' + component.id + '"></label>' +
+            '</div>' +
+            '<div class="two columns component-toolbar">' +
+            '<i class="fa fa-area-chart series-toggle" onclick="toggle_series(\'' + component.id + '\');"></i>' +
+            '</div>' +
+            '</div>');
+        component_row.append(component_label_row);
+        component_row.append($('<div class="twelve columns component"></div>'));
 
         component_row.find("label.component_label").on("click", function () {
             toggle_component_info(component);
@@ -249,6 +256,7 @@ function update_component_ui(component) {
     component_field.prop("disabled", component.read_only);
     component_field.data("details", component);
 
+    component_row.find("i.series-toggle").toggle(component.type === "NUMBER");
     component_row.find("label.component_label").text(component.name || component.id);
 
     update_component_value(component);
@@ -258,8 +266,8 @@ function filter_for_group(group_id) {
     $("#groups").find(".active").removeClass("active");
     $("#groups").find("#group_" + group_id).addClass("active");
 
-    $("#components .row[data-group!='" + group_id + "']").hide();
-    $("#components .row[data-group='" + group_id + "']").show();
+    $("#components .component-row[data-group!='" + group_id + "']").hide();
+    $("#components .component-row[data-group='" + group_id + "']").show();
 }
 
 function display_modal_message(message, prevent_close) {

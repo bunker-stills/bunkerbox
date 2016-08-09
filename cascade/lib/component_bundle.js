@@ -10,17 +10,12 @@ var component_cache = function(server)
 {
     var self = this;
 
-    this.components_by_id = {};
-    this.components_by_class = {};
-
     this.mqtt_client = mqtt.connect(server);
     this.mqtt_client.on('error', function (err) {
-
     });
 
     this.mqtt_client.on('message', function (topic, message) {
-
-        var component_id = common.get_component_id_from_topic(topic);
+        /*var component_id = common.get_component_id_from_topic(topic);
         var component_value_topic = common.COMPONENT_BY_ID_BASE + component_id;
         message = message.toString();
 
@@ -77,40 +72,20 @@ var component_cache = function(server)
                 component.value = JSON.parse(message);
                 delete component.prevent_update;
             }
-        }
+        }*/
     });
 };
 util.inherits(component_cache, event_emitter);
 
 component_cache.prototype.get_components_by_class = function(component_class)
 {
-    this.mqtt_client.subscribe(common.COMPONENT_BY_CLASS_BASE + component_class + "/+/detail");
-    return this.components_by_class[component_class] || {};
+    this.mqtt_client.subscribe("get/+/detail");
 };
 
 component_cache.prototype.get_components_by_id = function(component_id)
 {
     this.mqtt_client.subscribe(common.COMPONENT_BY_ID_BASE + component_id + "/detail");
-    return this.components_by_id[component_id] || {};
-};
-
-component_cache.prototype.add_component = function(component)
-{
-    this.components_by_id[component.id] = component;
-
-    this.emit("new_component", component);
-
-    if(component.class)
-    {
-        var class_components = this.components_by_class[component.class];
-        if(!class_components)
-        {
-            class_components = {};
-            this.components_by_class[component.class] = class_components;
-        }
-
-        class_components[component.id] = component;
-    }
+    //return this.components_by_id[component_id] || {};
 };
 
 component_cache.get_cache_for_server = function(server)

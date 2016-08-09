@@ -29,7 +29,8 @@ var cascade_server = new cascade({
     data_recorder_enabled : false,
     data_recorder_host : "influx.bunkerstills.com",
     data_recorder_port : 8089,
-    web_port : process.env.WEB_PORT || 3000,
+    web_port : Number(process.env.WEB_PORT) || 3000,
+    mqtt_port : Number(process.env.MQTT_PORT) || 1883,
     data_storage_location : process.env.DATA_PATH,
     processes : process_list
 });
