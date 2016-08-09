@@ -8,11 +8,14 @@ RUN wget http://download.tinkerforge.com/tools/brickd/linux/brickd_linux_latest_
 # Allow services to start
 RUN echo "exit 0" > /usr/sbin/policy-rc.d
 
+COPY . /app
+
+RUN mkdir -p /tmp/cascade
+ADD cascade/package.json /tmp/cascade/package.json
+
 ADD package.json /tmp/package.json
 RUN cd /tmp && npm install
-RUN mkdir -p /app && cp -a /tmp/node_modules /app
-
-COPY . /app
+RUN cp -a /tmp/node_modules /app && cp -a /tmp/cascade/node_modules /app/cascade/node_modules
 
 WORKDIR /app
 
