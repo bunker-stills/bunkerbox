@@ -1,14 +1,24 @@
-module.exports.setup = function (cascade) {
-    cascade.components.require_component_class("calibrated_temperature", "ws://admin:admin@localhost:3030", function(component){
+var another_temp;
 
+module.exports.setup = function (cascade) {
+    cascade.require_process("test2");
+
+    cascade.components.require_component("some_temp", function(component){
+        another_temp.mirror_component(component);
     });
+
+    another_temp = cascade.create_component({
+        id: "another_temp",
+        name: "Another Temp",
+        units: cascade.UNITS.C,
+        group : "sensors",
+        class: "temp",
+        read_only : true,
+        type: cascade.TYPES.NUMBER
+    });
+
 };
 
 module.exports.loop = function (cascade)
 {
-    /*if(cascade.components.test)
-    {
-        cascade.components.test.value = "Test 123";
-        //console.log(cascade.components.barometer.value)
-    }*/
 };

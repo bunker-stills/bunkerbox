@@ -4,6 +4,8 @@ var components = {};
 var chart;
 var chart_components = {};
 
+var log_topic_regex = new RegExp("^log\/([^\/]+)\/([^\/]+)");
+
 function initialize() {
     window.addEventListener("hashchange", function () {
         filter_for_group(get_current_group());
@@ -49,6 +51,9 @@ function connect_mqtt_client(username, password) {
 
         // Get all the info for our components
         mqtt_client.subscribe("read/+/+/+/detail");
+
+        // Get any log updates
+        mqtt_client.subscribe("log/#")
     });
 
     mqtt_client.on("close", function () {
@@ -58,18 +63,49 @@ function connect_mqtt_client(username, password) {
             display_modal_message("The server went offline. Trying to reconnect.", true);
         }
 
-        client_was_connected = false;
-
-        components = {};
-        $("#groups").empty();
-        $("#components").empty();
+        reset_ui();
     });
 
     mqtt_client.on("message", function (topic, payload) {
-        //var topic_info = parse_topic(topic);
-        payload = JSON.parse(payload.toString());
-        update_component_ui(payload);
+
+        if(topic.indexOf("read/") === 0)
+        {
+            payload = JSON.parse(payload.toString());
+            update_component_ui(payload);
+        }
+        else if(topic.indexOf("log/") === 0)
+        {
+            var matches = log_topic_regex.exec(topic);
+
+            if(matches.length >= 3)
+            {
+                var type = matches[1];
+                var process_id = matches[2];
+                log_update(type, process_id, payload.toString());
+            }
+        }
     });
+}
+
+function reset_ui()
+{
+    client_was_connected = false;
+    components = {};
+    chart_components = {};
+
+    while( chart.series.length > 0 ) {
+        chart.series[0].remove( false );
+    }
+
+    chart.redraw();
+
+    $("#groups").empty();
+    $("#components").empty();
+}
+
+function log_update(type, process, message)
+{
+
 }
 
 function display_login_screen() {
@@ -456,6 +492,17 @@ function toggle_series(component_id)
     else {
         chart_components[component_id].remove(true);
         delete chart_components[component_id];
+    }
+}
+
+function reset_chart() {
+    if(confirm("Are you sure you want to clear the data in the chart?"))
+    {
+        for(var series_index in chart.series)
+        {
+            var series = chart.series[series_index];
+            series.setData([]);
+        }
     }
 }
 

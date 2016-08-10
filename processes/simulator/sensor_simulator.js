@@ -36,6 +36,8 @@ module.exports.setup = function (cascade) {
         value: ATMO_PRESSURE
     });
 
+    setTimeout(function(){
+
     _.each(["FF4435641403", "FFED5694403"], function(probe_id){
 
         var probe_components = {};
@@ -76,6 +78,7 @@ module.exports.setup = function (cascade) {
 
         temp_components[probe_id] = probe_components;
     });
+    }, 3000);
 };
 
 module.exports.loop = function (cascade) {

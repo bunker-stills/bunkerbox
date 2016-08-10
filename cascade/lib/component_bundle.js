@@ -95,8 +95,8 @@ var component_bundle = function (cascade) {
             });
         }
 
-        mapper_component.on("value_updated", update_value);
         update_value();
+        mapper_component.on("value_updated", update_value);
     };
 
     this.create_mapper_for_class = function (mapper_component, component_class) {
@@ -125,10 +125,8 @@ var component_bundle = function (cascade) {
                 callback(cascade.components[component_id]);
             }
             else {
-                cascade.once("new_component", function (component) {
-                    if (component.id === component_id) {
-                        callback(component);
-                    }
+                cascade.once("new_component_" + component_id, function (component) {
+                    callback(component);
                 });
             }
         }
@@ -154,10 +152,8 @@ var component_bundle = function (cascade) {
             server_interface.get_components_by_class(component_class);
 
             // Any new components
-            server_interface.on("new_component", function (component) {
-                if (component.class === component_class) {
-                    callback(component);
-                }
+            server_interface.on("new_component_class_" + component_class, function (component) {
+                callback(component);
             });
         }
         else {

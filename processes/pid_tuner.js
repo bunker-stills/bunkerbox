@@ -16,7 +16,6 @@ var measurement_points = [];
 module.exports.setup = function (cascade) {
 
     cascade.require_process("process_temps");
-    cascade.require_process("process_controls");
 
     start_component = cascade.create_component({
         id: "tuner_start",

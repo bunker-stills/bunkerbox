@@ -1,14 +1,24 @@
-var barometer_component;
+var temp;
 
 module.exports.setup = function (cascade) {
-    cascade.get_component("barometer", "mqtt://localhost:1883", function(err, component){
-        barometer_component = component;
-    });
+
+    setTimeout(function(){
+        temp = cascade.create_component({
+            id: "some_temp",
+            name: "Some Temp",
+            units: cascade.UNITS.C,
+            group : "sensors",
+            class: "raw_temperature",
+            read_only : true,
+            type: cascade.TYPES.NUMBER
+        });
+    }, 10000);
+
 };
 
 module.exports.loop = function (cascade) {
-    if(barometer_component)
+    if(temp)
     {
-        console.log("Test2: " + barometer_component.value);
+        temp.value = Date.now();
     }
 };

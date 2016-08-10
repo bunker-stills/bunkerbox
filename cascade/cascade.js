@@ -345,7 +345,11 @@ cascade.prototype.create_component = function (config, process_id) {
         });
     }
 
-    this.emit("new_component", new_component);
+    this.emit("new_component_" + new_component.id, new_component);
+
+    if(new_component.class) {
+        this.emit("new_component_class_" + new_component.class, new_component);
+    }
 
     return new_component;
 };

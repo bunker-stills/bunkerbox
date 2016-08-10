@@ -254,6 +254,13 @@ input:checked + .slider:before {
     text-align: center;
 }
 
+#toolbar>button
+{
+    padding: 0;
+    width: 40px;
+    height: 40px;
+}
+
 .component-toolbar
 {
     text-align: right;

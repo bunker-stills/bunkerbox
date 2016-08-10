@@ -42,29 +42,30 @@ function get_temp_loop(cascade)
                         {
                             probe_component = {};
 
-                            probe_component.raw_value = cascade.define_component({
-                                id: probe_id,
+                            probe_component.raw = cascade.create_component({
+                                id: probe_id + "_raw",
                                 name: "Temp. Probe " + probe_id + " Raw",
                                 units: cascade.UNITS.C,
-                                class: "temperature",
+                                group : "sensors",
+                                class: "raw_temperature",
                                 read_only : true,
                                 type: cascade.TYPES.NUMBER
                             });
 
-                            probe_component.calibration = cascade.define_component({
+                            probe_component.calibration = cascade.create_component({
                                 id: probe_id + "_calibration",
-                                name: "Temp. Probe " + probe_id + " Calibration Offset",
+                                name: "Temp. Probe " + probe_id + " Calibration",
+                                group : "sensors",
                                 units: cascade.UNITS.C,
-                                class: "calibration_offset",
-                                read_only : false,
                                 persist : true,
                                 type: cascade.TYPES.NUMBER
                             });
 
-                            probe_component.calibrated_value = cascade.define_component({
+                            probe_component.calibrated = cascade.create_component({
                                 id: probe_id + "_calibrated",
                                 name: "Temp. Probe " + probe_id + " Calibrated",
                                 units: cascade.UNITS.C,
+                                group : "sensors",
                                 class: "calibrated_temperature",
                                 read_only : true,
                                 type: cascade.TYPES.NUMBER
@@ -77,8 +78,8 @@ function get_temp_loop(cascade)
 
                         temp_value = Number(temp_value);
 
-                        probe_component.raw_value.value = temp_value;
-                        probe_component.calibrated_value.value = temp_value + (probe_component.calibration.value || 0);
+                        probe_component.raw.value = temp_value;
+                        probe_component.calibrated.value = temp_value + (probe_component.calibration.value || 0);
 
                         current_probes.push(probe_id);
                     }
@@ -105,9 +106,9 @@ module.exports.setup = function(cascade)
     var ow_host = process.env.OW_HOST || 'localhost';
 
     // Spawn the OWFS daemon if this should be running locally
-    /*if (ow_host == "localhost" || ow_host == "127.0.0.1") {
-        cascade.require_process("./owserver");
-    }*/
+    if (ow_host == "localhost" || ow_host == "127.0.0.1") {
+        cascade.require_process("./../servers/owserver");
+    }
 
     connection = new owfs({host: ow_host, port: 4304});
 

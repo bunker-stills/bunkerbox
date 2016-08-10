@@ -115,12 +115,6 @@ var component = function (config) {
 
             self.emit("value_updated", self);
             self.emit("updated", self, "value");
-
-
-            /*if(self.referenced_component && !self._prevent_reference_update)
-            {
-                self.referenced_component.value = convert_value(_current_value, self.units, self.referenced_component.units);
-            }*/
         }
     });
 
