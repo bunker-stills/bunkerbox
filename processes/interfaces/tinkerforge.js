@@ -1,6 +1,6 @@
 var _ = require("underscore");
 var map_range = require("map-range");
-var control_interface = require("./lib/tinkerforge");
+var control_interface = require("./../lib/tinkerforge");
 
 var PUMP_DAC_POSITION = "A";
 var PRE_HEATER_DAC_POSITION = "C";
@@ -145,9 +145,9 @@ module.exports.setup = function (cascade) {
     create_dac(cascade, "pre_heater", "Preheater", PRE_HEATER_DAC_POSITION, control_interface.VOLTAGE_RANGE_0_TO_10V);
     create_dac(cascade, "main_heater", "Main Heater", MAIN_HEATER_DAC_POSITION, control_interface.VOLTAGE_RANGE_0_TO_10V);
 
-    create_relay(cascade, "hearts_reflux", "Hearts Reflux", HEARTS_REFLUX_RELAY_POSITION);
-    create_relay(cascade, "tails_reflux", "Tails Reflux", TAILS_REFLUX_RELAY_POSITION);
-    create_relay(cascade, "wash_input", "Wash Input", WASH_INPUT_RELAY_POSITION);
+    create_relay(cascade, "hearts_reflux_relay", "Hearts Reflux Relay", HEARTS_REFLUX_RELAY_POSITION);
+    create_relay(cascade, "tails_reflux_relay", "Tails Reflux Relay", TAILS_REFLUX_RELAY_POSITION);
+    create_relay(cascade, "wash_input_relay", "Wash Input Relay", WASH_INPUT_RELAY_POSITION);
 };
 
 module.exports.loop = function (cascade)

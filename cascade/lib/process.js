@@ -53,13 +53,16 @@ var process_class = function (cascade, process_path, root_path) {
             cascade.load_process(process_path, path.dirname(path_location));
         },
         create_component: function (config) {
-            if (config.persist) {
-                config.value = self.storage.get(config.id);
-            }
-
             var component = cascade.create_component(config, process_id);
 
             if (config.persist) {
+
+                var stored_value = self.storage.get(config.id);
+
+                if (!_.isUndefined(stored_value)) {
+                    component.value = stored_value;
+                }
+
                 component.on("value_updated", function () {
                     self.storage.set(this.id, this.value);
                 });

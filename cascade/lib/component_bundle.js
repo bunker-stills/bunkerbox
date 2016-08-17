@@ -165,7 +165,7 @@ var component_bundle = function (cascade) {
             });
 
             // Any new components
-            cascade.on("new_component", function (component) {
+            cascade.on("new_component_class_" + component_class, function (component) {
                 if (component.class === component_class) {
                     callback(component);
                 }

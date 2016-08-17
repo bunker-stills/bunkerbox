@@ -7,9 +7,10 @@ var start_cv;
 
 var start_component;
 var process_value_component;
-var dac_output_component;
+var dac_selector_component;
 var dac_cv_offset;
 var pid_values_component;
+var dac_component;
 
 var measurement_points = [];
 
@@ -25,8 +26,6 @@ module.exports.setup = function (cascade) {
     });
 
     start_component.on("value_updated", function () {
-
-        var dac_component = cascade.components[dac_output_component.value];
 
         // Reset all of our values
         if (this.value) {
@@ -67,14 +66,19 @@ module.exports.setup = function (cascade) {
     });
     cascade.components.create_mapper_value_pair_for_class(process_value_sensor_component, "process_temperature", process_value_component);
 
-    dac_output_component = cascade.create_component({
+    dac_selector_component = cascade.create_component({
         id: "tuner_output_control",
         name: "Output Control",
         type: cascade.TYPES.OPTIONS,
         persist: true,
         group : "pid_tuner"
     });
-    cascade.components.create_mapper_for_class(dac_output_component, "dac_output");
+    cascade.components.create_mapper_for_class(dac_selector_component, "dac_output");
+    dac_selector_component.on("value_updated", function(){
+        cascade.components.require_component(dac_selector_component.value, function(component){
+            dac_component = component;
+        });
+    });
 
     dac_cv_offset = cascade.create_component({
         id: "tuner_output_change",

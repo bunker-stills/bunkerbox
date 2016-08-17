@@ -292,7 +292,7 @@ function update_component_ui(component) {
     component_field.prop("disabled", component.read_only);
     component_field.data("details", component);
 
-    component_row.find("i.series-toggle").toggle(component.type === "NUMBER");
+    component_row.find("i.series-toggle").toggle(component.type === "NUMBER" || component.type === "BOOLEAN");
     component_row.find("label.component_label").text(component.name || component.id);
 
     update_component_value(component);
