@@ -86,7 +86,7 @@ module.exports.setup = function (cascade) {
         group : "pid_tuner",
         persist: true,
         type: cascade.TYPES.NUMBER,
-        units : "%"
+        units : cascade.UNITS.PERCENTAGE
     });
 
     pid_values_component = cascade.create_component({

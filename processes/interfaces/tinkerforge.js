@@ -2,13 +2,13 @@ var _ = require("underscore");
 var map_range = require("map-range");
 var control_interface = require("./../lib/tinkerforge");
 
-var PUMP_DAC_POSITION = "A";
-var PRE_HEATER_DAC_POSITION = "C";
-var MAIN_HEATER_DAC_POSITION = "B";
+var PUMP_DAC_POSITION = "C";
+var PRE_HEATER_DAC_POSITION = "B";
+var MAIN_HEATER_DAC_POSITION = "A";
 
-var HEARTS_REFLUX_RELAY_POSITION = 0;
-var TAILS_REFLUX_RELAY_POSITION = 1;
-var WASH_INPUT_RELAY_POSITION = 2;
+var HEARTS_REFLUX_RELAY_POSITION = 2;
+var TAILS_REFLUX_RELAY_POSITION = 3;
+var WASH_INPUT_RELAY_POSITION = 0;
 
 var dacs = {};
 var relays = {};
@@ -87,7 +87,7 @@ function create_dac(cascade, id, description, dac_position, output_type)
         group : "process_controls",
         class: "dac_output",
         type: cascade.TYPES.NUMBER,
-        units : "%",
+        units : cascade.UNITS.PERCENTAGE,
         value : 0
     });
 

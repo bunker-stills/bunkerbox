@@ -2,6 +2,11 @@ var reflux_controls = {};
 
 function process_reflux_cycle(reflux_control)
 {
+    if(reflux_control.enable.value === false)
+    {
+        return;
+    }
+
     var cycle_time_in_ms = reflux_control.cycle_length.value * 1000.0;
 
     // If anything less than 1 second, let's ignore it
@@ -18,17 +23,32 @@ function process_reflux_cycle(reflux_control)
         reflux_control.relay_component.value = true; // Start our reflux
     }
 
-    setTimeout(function(){
+    reflux_control.timer = setTimeout(function(){
+
         if(ms_off > 0 && reflux_control.relay_component)
         {
             reflux_control.relay_component.value = false; // Stop our reflux
         }
 
-        setTimeout(function(){
+        reflux_control.timer = setTimeout(function(){
             process_reflux_cycle(reflux_control); // Start all over again
         }, ms_off);
 
     }, ms_on);
+}
+
+function stop_timer(reflux_control)
+{
+    if(reflux_control.timer)
+    {
+        clearTimeout(reflux_control.timer);
+        delete reflux_control.timer;
+    }
+
+    if(reflux_control.relay_component)
+    {
+        reflux_control.relay_component.value = false;
+    }
 }
 
 function create_reflux_controller(cascade, relay_id, id, description)
@@ -37,6 +57,24 @@ function create_reflux_controller(cascade, relay_id, id, description)
 
     cascade.components.require_component(relay_id, function(component){
         reflux_control.relay_component = component;
+    });
+
+    reflux_control.enable = cascade.create_component({
+        id: id + "_enable",
+        name: description + " Enable",
+        group : "reflux_control",
+        class: "enable",
+        type: cascade.TYPES.BOOLEAN,
+        units: "seconds",
+        value: false
+    });
+    reflux_control.enable.on("value_updated", function(){
+        stop_timer(reflux_control);
+
+        if(reflux_control.enable.value)
+        {
+            process_reflux_cycle(reflux_control);
+        }
     });
 
     reflux_control.cycle_length = cascade.create_component({
@@ -50,10 +88,9 @@ function create_reflux_controller(cascade, relay_id, id, description)
         persist: true
     });
     reflux_control.cycle_length.on("value_updated", function(){
-        if(reflux_control.timer)
+        stop_timer(reflux_control);
+        if(reflux_control.enable.value)
         {
-            clearTimeout(reflux_control.timer);
-            delete reflux_control.timer;
             process_reflux_cycle(reflux_control);
         }
     });
@@ -64,7 +101,7 @@ function create_reflux_controller(cascade, relay_id, id, description)
         group : "reflux_control",
         class: "reflux_percent",
         type: cascade.TYPES.NUMBER,
-        units: "%",
+        units: cascade.UNITS.PERCENTAGE,
         value: 100
     });
 
@@ -77,4 +114,5 @@ module.exports.setup = function (cascade) {
     cascade.require_process("process_temps");
 
     create_reflux_controller(cascade, "hearts_reflux_relay", "hearts_reflux", "Hearts Reflux");
+    create_reflux_controller(cascade, "tails_reflux_relay", "tails_reflux", "Tails Reflux");
 };

@@ -111,24 +111,51 @@ var component_bundle = function (cascade) {
         this.require_component_class(component_class, mapper_class_callback);
     };
 
-    this.require_component = function (component_id, server, callback) {
+    this.require_component = function (component_ids, server, callback) {
         if (_.isFunction(server)) {
             callback = server;
             server = null;
+        }
+
+        if(!_.isArray(component_ids))
+        {
+            component_ids = [component_ids];
         }
 
         if (server) {
 
         }
         else {
-            if (cascade.components[component_id]) {
-                callback(cascade.components[component_id]);
+
+            var components_retrieved = {};
+
+            function process_return()
+            {
+                if(_.keys(components_retrieved).length === component_ids.length)
+                {
+                    if(component_ids.length === 1)
+                    {
+                        callback(components_retrieved[component_ids[0]]);
+                    }
+                    else
+                    {
+                        callback(components_retrieved);
+                    }
+                }
             }
-            else {
-                cascade.once("new_component_" + component_id, function (component) {
-                    callback(component);
-                });
-            }
+
+            _.each(component_ids, function(component_id){
+                if (cascade.components[component_id]) {
+                    components_retrieved[component_id] = cascade.components[component_id];
+                    process_return();
+                }
+                else {
+                    cascade.once("new_component_" + component_id, function (component) {
+                        components_retrieved[component_id] = component;
+                        process_return();
+                    });
+                }
+            });
         }
     };
 

@@ -20,7 +20,7 @@ function create_dac(cascade, id, description)
         group : "process_controls",
         class: "dac_output",
         type: cascade.TYPES.NUMBER,
-        units : "%",
+        units : cascade.UNITS.PERCENTAGE,
         value : 0
     });
 

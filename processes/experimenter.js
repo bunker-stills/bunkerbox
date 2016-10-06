@@ -1,23 +1,14 @@
 var _ = require("underscore");
 var utils = require("./lib/utils");
+var vm = require("vm");
 
 // Set to true if we want to continually send values to our process outputs. Otherwise we only send values if they change.
 // This is good if we want to be sure our outputs are always set, but can cause more load on the system.
 var FORCE_UPDATES = false;
 
-// If a temperature component hasn't been updated in this amount of time, we should stop execution
-var MAX_TEMP_COMPONENT_OFFLINE_TIMEOUT_IN_SECONDS = 30;
-
-// The temp in which we can move out of cooldown mode
-var SUMP_TEMP_SAFE_TEMP = 100;
-
 var run_mode;
-var boiling_point;
+var functions = {};
 var components;
-
-function is_everything_online() {
-    return !_.isUndefined(components);
-}
 
 function check_temp(cascade, temp_component) {
     if (temp_component.seconds_since_last_updated() >= MAX_TEMP_COMPONENT_OFFLINE_TIMEOUT_IN_SECONDS) {
@@ -34,6 +25,43 @@ function update_component_if_needed(component, new_value) {
     }
 }
 
+function create_script(cascade, function_info){
+    if(!function_info.code.value)
+    {
+        function_info.script = undefined;
+        return;
+    }
+
+    try
+    {
+        var script_code = "var _return_value; function custom(){" + function_info.code.value + "}; _return_value = custom();";
+        function_info.script = vm.createScript(script_code);
+    }
+    catch(e)
+    {
+        cascade.log_error("ERROR: " + e.toString());
+    }
+}
+
+function create_function_component(cascade, id)
+{
+    var function_info = {};
+
+    function_info.code = cascade.create_component({
+        id: id + "_code",
+        name: id + " Code",
+        group: "functions",
+        type: cascade.TYPES.TEXT,
+        persist: true
+    });
+    create_script(cascade, function_info);
+    function_info.code.on("value_updated", function(){
+        create_script(cascade, function_info);
+    });
+
+    functions[id] = function_info;
+}
+
 module.exports.setup = function (cascade) {
     cascade.require_process("process_temps");
     cascade.require_process("reflux_control");
@@ -43,18 +71,8 @@ module.exports.setup = function (cascade) {
         "pump_enable",
         "pre_heater_enable",
         "pre_heater_pid_enable",
-        "pre_heater_pid_p_gain",
-        "pre_heater_pid_i_gain",
-        "pre_heater_pid_d_gain",
-        "pre_heater_pid_set_point",
         "main_heater_enable",
         "main_heater_pid_enable",
-        "main_heater_pid_p_gain",
-        "main_heater_pid_i_gain",
-        "main_heater_pid_d_gain",
-        "main_heater_pid_set_point",
-        "pre_heater_temp",
-        "sump_temp",
         "tails_reflux_enable",
         "tails_reflux_relay",
         "hearts_reflux_enable",
@@ -70,10 +88,14 @@ module.exports.setup = function (cascade) {
         group: "run",
         type: cascade.TYPES.OPTIONS,
         info: {
-            options: ["Idle", "Warmup", "Continuous", "Cooldown", "Manual"]
+            options: ["Idle", "Manual", "Functions"]
         },
         value: "Idle"
     });
+
+    create_function_component(cascade, "function1");
+    create_function_component(cascade, "function2");
+    create_function_component(cascade, "function3");
 };
 
 function during_idle(cascade) {
@@ -94,55 +116,7 @@ function during_idle(cascade) {
     update_component_if_needed(components.wash_input_relay, false);
 }
 
-/*var WARMUP_PRE_HEATER_P_GAIN = 0.1;
-var WARMUP_PRE_HEATER_I_GAIN = 0.001;
-var WARMUP_PRE_HEATER_D_GAIN = 0.0;
-var WARMUP_PRE_HEATER_SET_POINT = 100;
-var WARMUP_MAIN_HEATER_P_GAIN = 0.637;
-var WARMUP_MAIN_HEATER_I_GAIN = 0.008;
-var WARMUP_MAIN_HEATER_D_GAIN = 0.051;
-var WARMUP_MAIN_HEATER_SET_POINT = 210;*/
-function during_warmup(cascade) {
-    // Run our pump
-    update_component_if_needed(components.pump_enable, true);
-
-    // Turn on full reflux
-    update_component_if_needed(components.tails_reflux_enable, false);
-    update_component_if_needed(components.tails_reflux_relay, true);
-    update_component_if_needed(components.hearts_reflux_enable, false);
-    update_component_if_needed(components.hearts_reflux_relay, true);
-
-    // Set our Heater PID values
-    update_component_if_needed(components.pre_heater_pid_p_gain, WARMUP_PRE_HEATER_P_GAIN);
-    update_component_if_needed(components.pre_heater_pid_i_gain, WARMUP_PRE_HEATER_I_GAIN);
-    update_component_if_needed(components.pre_heater_pid_d_gain, WARMUP_PRE_HEATER_D_GAIN);
-    update_component_if_needed(components.main_heater_pid_p_gain, WARMUP_MAIN_HEATER_P_GAIN);
-    update_component_if_needed(components.main_heater_pid_i_gain, WARMUP_MAIN_HEATER_I_GAIN);
-    update_component_if_needed(components.main_heater_pid_d_gain, WARMUP_MAIN_HEATER_D_GAIN);
-
-    update_component_if_needed(components.pre_heater_pid_set_point, WARMUP_PRE_HEATER_SET_POINT);
-    update_component_if_needed(components.pre_heater_pid_enable, true);
-    update_component_if_needed(components.pre_heater_enable, true);
-
-    // If the preheater has reached 90% of its set point then we should be able to start up the main heater.
-    // Once it's turned on it won't go back (to prevent from fluctuating)
-    if (components.main_heater_enable.value == false && components.pre_heater_temp.value >= components.pre_heater_pid_set_point.value * 0.9) {
-        update_component_if_needed(components.main_heater_enable, true);
-    }
-
-    if (components.main_heater_enable.value == true) {
-        update_component_if_needed(components.main_heater_pid_set_point, WARMUP_MAIN_HEATER_SET_POINT);
-        update_component_if_needed(components.main_heater_pid_enable, true);
-        update_component_if_needed(components.main_heater_enable, true);
-    }
-    else {
-        update_component_if_needed(components.main_heater_pid_set_point, 0.0);
-        update_component_if_needed(components.main_heater_pid_enable, false);
-        update_component_if_needed(components.main_heater_enable, false);
-    }
-}
-
-function during_cooldown(cascade) {
+/*function during_cooldown(cascade) {
     // Run our pump
     update_component_if_needed(components.pump_enable, true);
 
@@ -164,20 +138,48 @@ function during_cooldown(cascade) {
         run_mode.value = "Idle";
         cascade.log_info("Moving to idle after sufficient cooldown phase.");
     }
-}
+}*/
 
 function during_manual(cascade) {
     // Anything goes
 }
 
+function during_functions(cascade) {
+    // Get the current values of all of our components
+    var component_values = {};
+    _.each(cascade.components.all_current, function (component) {
+
+        // Remove any functions themselves from the list
+        if(_.find(functions, function(custom_function){
+                return (component === custom_function.code);
+            })){
+            return;
+        }
+
+        component_values[component.id] = component.value;
+    });
+
+    // Evaluate our custom functions
+    _.each(functions, function (custom_function) {
+        if (custom_function.script) {
+            component_values = _.omit(component_values, ["_return_value", "custom"]);
+            try {
+                custom_function.script.runInNewContext(component_values);
+
+                _.each(cascade.components.all_current, function (component) {
+                    if (!component.read_only && !_.isUndefined(component_values[component.id]) && component.value !== component_values[component.id]) {
+                        component.value = (component_values[component.id]);
+                    }
+                });
+            }
+            catch (e) {
+                cascade.log_error("ERROR: " + e.toString());
+            }
+        }
+    });
+}
+
 module.exports.loop = function (cascade) {
-
-    if (!is_everything_online()) {
-        // TODO add some debugging output
-        return;
-    }
-
-    // Calculate
 
     // Check to make sure all of our temperature probes have valid values if we're in a critical state
     if (run_mode.value === "Warmup" || run_mode.value === "Continuous") {
@@ -186,16 +188,16 @@ module.exports.loop = function (cascade) {
     }
 
     switch (run_mode.value) {
-        case "Warmup": {
-            during_warmup(cascade);
-            break;
-        }
         case "Manual": {
             during_manual(cascade);
             break;
         }
+        case "Functions": {
+            during_functions(cascade);
+            break;
+        }
         case "Cooldown": {
-            during_cooldown(cascade);
+            //during_cooldown(cascade);
             break;
         }
         default: {

@@ -89,6 +89,9 @@ function connect_mqtt_client(username, password) {
 
 function reset_ui()
 {
+    $("#groups").empty();
+    $("#components").empty();
+
     client_was_connected = false;
     components = {};
     chart_components = {};
@@ -98,14 +101,11 @@ function reset_ui()
     }
 
     chart.redraw();
-
-    $("#groups").empty();
-    $("#components").empty();
 }
 
 function log_update(type, process, message)
 {
-
+    console.log(message);
 }
 
 function display_login_screen() {
@@ -350,7 +350,7 @@ function commit_edit_component(component_element) {
     end_edit_component();
 
     mqtt_client.publish("write/" + component_data.id, JSON.stringify(new_value), {
-        qos: 2
+        qos: 1
     }, function () {
     });
 }

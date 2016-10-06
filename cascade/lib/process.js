@@ -75,6 +75,7 @@ var process_class = function (cascade, process_path, root_path) {
     };
 
     this.cascade_context.components = new component_bundle(cascade);
+    this.cascade_context.components.all_current = cascade.components;
 
     if (_.isFunction(self.process_instance.setup)) {
         self.process_instance.setup.call(self.process_instance, self.cascade_context);

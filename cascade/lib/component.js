@@ -184,7 +184,12 @@ component.prototype.get_serializable_object = function()
 
 component.prototype.seconds_since_last_updated = function()
 {
-    return (new Date() - this.last_updated) / 1000;
+    if(this.updated == null)
+    {
+        return Infinity;
+    }
+
+    return (new Date() - this.updated) / 1000;
 };
 
 component.TYPES = {
