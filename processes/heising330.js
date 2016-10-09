@@ -94,8 +94,8 @@ function during_idle(cascade) {
     update_component_if_needed(components.wash_input_relay, false);
 }
 
-/*var WARMUP_PRE_HEATER_P_GAIN = 0.1;
-var WARMUP_PRE_HEATER_I_GAIN = 0.001;
+/*var WARMUP_PRE_HEATER_P_GAIN = 1.0;
+var WARMUP_PRE_HEATER_I_GAIN = 0.004;
 var WARMUP_PRE_HEATER_D_GAIN = 0.0;
 var WARMUP_PRE_HEATER_SET_POINT = 100;
 var WARMUP_MAIN_HEATER_P_GAIN = 0.637;
