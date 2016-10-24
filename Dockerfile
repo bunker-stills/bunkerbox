@@ -9,7 +9,7 @@ ADD package.json /app/package.json
 RUN cd /app && npm install
 
 ADD cascade/package.json /app/cascade/package.json
-RUN cd /app/cascade && npm install 
+RUN cd /app/cascade && npm install
 
 ADD . /app
 
