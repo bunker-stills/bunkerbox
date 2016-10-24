@@ -11,7 +11,7 @@ var throttled_get_temp_loop = _.throttle(get_temp_loop, 1000);
 
 function get_temp_loop(cascade) {
     connection.write("/bus.0/simultaneous/temperature", "1", function () {
-        connection.readFamily(TEMP_FAMILY_CODE, 'temperature10', function (err, temps) {
+        connection.readFamily(TEMP_FAMILY_CODE, 'temperature12', function (err, temps) {
             if (err) {
                 cascade.log_error("Unable to read temperatures.");
                 cascade.log_error(err);
@@ -100,9 +100,9 @@ module.exports.setup = function (cascade) {
     var ow_host = process.env.OW_HOST || 'localhost';
 
     // Spawn the OWFS daemon if this should be running locally
-    if (ow_host == "localhost" || ow_host == "127.0.0.1") {
+    //if (ow_host == "localhost" || ow_host == "127.0.0.1") {
         //cascade.require_process("./../servers/owserver");
-    }
+    //}
 
     connection = new owfs({host: ow_host, port: 4304});
 

@@ -30,6 +30,10 @@ function create_pid(name, description, temp_component_name, output_component_nam
                 definition.output_component.value = 0;
             }
         }
+        else
+        {
+            definition.pid.setITerm(definition.i_term.value);
+        }
     });
 
     definition.set_point = cascade.create_component({
@@ -153,6 +157,5 @@ module.exports.loop = function (cascade)
 
             pid_definition.i_term.value = pid_definition.pid.getITerm();
         }
-
     });
 };

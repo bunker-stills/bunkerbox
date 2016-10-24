@@ -5,19 +5,29 @@ RUN wget http://download.tinkerforge.com/tools/brickd/linux/brickd_linux_latest_
 
 # TODO: Check out http://bitjudo.com/blog/2014/03/13/building-efficient-dockerfiles-node-dot-js/
 
-# Allow services to start
-RUN echo "exit 0" > /usr/sbin/policy-rc.d
+ADD package.json /app/package.json
+RUN cd /app && npm install
 
-COPY . /app
+ADD cascade/package.json /app/cascade/package.json
+RUN cd /app/cascade && npm install 
 
-RUN mkdir -p /tmp/cascade
-ADD cascade/package.json /tmp/cascade/package.json
-
-ADD package.json /tmp/package.json
-RUN cd /tmp && npm install
-RUN cp -a /tmp/node_modules /app && cp -a /tmp/cascade/node_modules /app/cascade/node_modules
+ADD . /app
 
 WORKDIR /app
+
+# Allow services to start
+#RUN echo "exit 0" > /usr/sbin/policy-rc.d
+
+#COPY . /app
+
+#RUN mkdir -p /tmp/cascade
+#ADD cascade/package.json /tmp/cascade/package.json
+
+#ADD package.json /tmp/package.json
+#RUN cd /tmp && npm install
+#RUN cp -a /tmp/node_modules /app && cp -a /tmp/cascade/node_modules /app/cascade/node_modules
+
+#WORKDIR /app
 
 # RUN npm install pm2 -g
 #RUN npm install && npm cache clean && rm -rf /tmp/*

@@ -15,8 +15,8 @@ function process_reflux_cycle(reflux_control)
         return;
     }
 
-    var ms_on = (reflux_control.reflux_percent.value / 100.0) * cycle_time_in_ms;
-    var ms_off = cycle_time_in_ms - ms_on;
+    var ms_off = (reflux_control.reflux_percent.value / 100.0) * cycle_time_in_ms;
+    var ms_on = cycle_time_in_ms - ms_off;
 
     if(ms_on > 0 && reflux_control.relay_component)
     {
