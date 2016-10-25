@@ -26,8 +26,10 @@ function connect_mqtt_client(username, password) {
 
     loading_indicator(true);
 
+    var wsProtocol = (location.protocol === "https:") ? "wss:" : "ws:";
+
     mqtt_client = mqtt.connect(
-        "ws://" + location.host,
+        wsProtocol + "//" + location.host,
         {
             username: username,
             password: password
