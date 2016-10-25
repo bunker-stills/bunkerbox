@@ -5,11 +5,12 @@ RUN wget http://download.tinkerforge.com/tools/brickd/linux/brickd_linux_latest_
 
 # TODO: Check out http://bitjudo.com/blog/2014/03/13/building-efficient-dockerfiles-node-dot-js/
 
-ADD package.json /app/package.json
-RUN cd /app && npm install
+COPY package.json /tmp/package.json
+COPY cascade/package.json /tmp/cascade/package.json
+RUN cd /tmp && npm install
+RUN cd /tmp/cascade && npm install
 
-ADD cascade/package.json /app/cascade/package.json
-RUN cd /app/cascade && npm install
+RUN mkdir -p /app && cp -a /tmp/node_modules /app/ && cp -a /tmp/cascade/node_modules /app/cascade/
 
 COPY . /app
 
