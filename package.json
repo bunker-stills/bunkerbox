@@ -3,15 +3,17 @@
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
-  "scripts": {
-  },
+  "scripts": {},
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "commander": "^2.9.0",
-    "map-range": "^0.1.2",
-    "owjs": "^0.1.1",
-    "tinkerforge": "^2.0.9",
-    "underscore": "^1.8.3"
+    "commander": "2.9.0",
+    "map-range": "0.1.2",
+    "owjs": "0.1.1",
+    "tinkerforge": "2.0.9",
+    "underscore": "1.8.3"
+  },
+  "devDependencies": {
+    "chance": "1.0.4"
   }
 }
