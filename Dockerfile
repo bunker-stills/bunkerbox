@@ -15,4 +15,4 @@ RUN DEBIAN_FRONTEND=noninteractive JOBS=MAX npm install --unsafe-perm
 
 COPY . /usr/src/app
 
-CMD [ "npm", "start" ]
+CMD ["node", "server.js"]
