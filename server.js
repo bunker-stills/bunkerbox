@@ -1,6 +1,3 @@
-setInterval(function(){console.log("yo")}, 1000);
-return;
-
 var cascade = require("./cascade/cascade");
 var commander = require("commander");
 var package_info = require("./package.json");
