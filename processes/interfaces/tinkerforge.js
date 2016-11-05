@@ -151,10 +151,11 @@ module.exports.setup = function (cascade) {
     create_relay(cascade, "wash_input_relay", "Wash Input Relay", WASH_INPUT_RELAY_POSITION);
 
     barometer_component = cascade.create_component({
-        id: barometer,
+        id: "barometer",
         name: "Barometer",
         group : "sensors",
         class: "barometer",
+        units: "mbar",
         type: cascade.TYPES.NUMBER
     });
 };
