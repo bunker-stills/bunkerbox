@@ -4,7 +4,7 @@ RUN apt-get update && apt-get install -y libusb-1.0-0 libudev0 pm-utils owserver
 RUN wget http://download.tinkerforge.com/tools/brickd/linux/brickd_linux_latest_armhf.deb && dpkg -i brickd_linux_latest_armhf.deb && rm brickd_linux_latest_armhf.deb
 
 WORKDIR /usr/src/app/cascade
-COPY package.json package.json
+COPY cascade/package.json package.json
 RUN JOBS=MAX npm install --production --unsafe-perm
 
 WORKDIR /usr/src/app
