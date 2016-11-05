@@ -12,6 +12,7 @@ var WASH_INPUT_RELAY_POSITION = 0;
 
 var dacs = {};
 var relays = {};
+var barometer_component;
 var is_online;
 
 function linear(x) {
@@ -148,6 +149,14 @@ module.exports.setup = function (cascade) {
     create_relay(cascade, "hearts_reflux_relay", "Hearts Reflux Relay", HEARTS_REFLUX_RELAY_POSITION);
     create_relay(cascade, "tails_reflux_relay", "Tails Reflux Relay", TAILS_REFLUX_RELAY_POSITION);
     create_relay(cascade, "wash_input_relay", "Wash Input Relay", WASH_INPUT_RELAY_POSITION);
+
+    barometer_component = cascade.create_component({
+        id: barometer,
+        name: "Barometer",
+        group : "sensors",
+        class: "barometer",
+        type: cascade.TYPES.NUMBER
+    });
 };
 
 module.exports.loop = function (cascade)
@@ -169,6 +178,14 @@ module.exports.loop = function (cascade)
             set_dac(dac_info);
         }
     });
+
+    if(control_interface.devices["barometer"])
+    {
+        //barometer_component.value = control_interface.devices["barometer"].
+        control_interface.devices["barometer"].getAirPressure(function(airPressure){
+            barometer_component.value = airPressure / 1000;
+        });
+    }
 
     if(!control_interface.devices["relays"])
     {
