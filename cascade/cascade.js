@@ -160,7 +160,6 @@ var cascade = function (config) {
         var component = req.user_data.component;
         res.json(format_component(component));
     });
-
     this.api_server.post(API_ROOT + "/components/:component_id", authenticate_web, inject_component, function (req, res) {
         var component = req.user_data.component;
 

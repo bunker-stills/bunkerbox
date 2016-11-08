@@ -79,16 +79,6 @@ function get_temp_loop(cascade) {
                         current_probes.push(probe_id);
                     }
                 });
-
-                var missing_probes = _.difference(_.keys(found_probes), current_probes);
-
-                if (missing_probes.length > 0) {
-                    _.each(missing_probes, function (missing_probe) {
-                        cascade.log_warning("Unable to read temp probe '" + missing_probe + "'");
-                        //delete found_probes[missing_probe];
-                        //cascade.remove_component(missing_probe);
-                    });
-                }
             }
 
             throttled_get_temp_loop(cascade);
@@ -97,33 +87,19 @@ function get_temp_loop(cascade) {
 }
 
 module.exports.setup = function (cascade) {
+
     var ow_host = process.env.OW_HOST || 'localhost';
-
-    // Spawn the OWFS daemon if this should be running locally
-    //if (ow_host == "localhost" || ow_host == "127.0.0.1") {
-        //cascade.require_process("./../servers/owserver");
-    //}
-
     connection = new owfs({host: ow_host, port: 4304});
+
+    if(ow_host === "localhost" && !process.env.PREVENT_SERVERS)
+    {
+        cascade.require_process("../servers/owserver");
+    }
 
     connection.write('/bus.0/interface/settings/usb/flexible_timing', "1");
     connection.write('/bus.0/interface/settings/usb/datasampleoffset', "7");
     connection.write('/bus.0/interface/settings/usb/pulldownslewrate', "3");
     connection.write('/bus.0/interface/settings/usb/writeonelowtime', "3");
-
-    /*connection.read('/bus.0/interface/settings/usb/pulldownslewrate', function (err, result) {
-        if (err) {
-            return console.error(err);
-        }
-        console.log(result);
-    });*/
-
-    /*connection.list('/bus.0/interface/settings/usb', function (err, result) {
-        if (err) {
-            return console.error(err);
-        }
-        console.log(result);
-    });*/
 
     // Start getting our temps in a loop. The reason we do this is here as opposed to the main cascade loop function is that we
     // want to make sure this is only run once at a time as not to overwhelm our OWFS server.

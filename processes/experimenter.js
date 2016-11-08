@@ -10,15 +10,6 @@ var run_mode;
 var functions = {};
 var components;
 
-function check_temp(cascade, temp_component) {
-    if (temp_component.seconds_since_last_updated() >= MAX_TEMP_COMPONENT_OFFLINE_TIMEOUT_IN_SECONDS) {
-        // Set to the cooldown state
-        run_mode.value = "Cooldown";
-        cascade.log_warning("The temperature probe named '" + temp_component.id + "' went offline for more than "
-            + MAX_TEMP_COMPONENT_OFFLINE_TIMEOUT_IN_SECONDS + " seconds. Moving to cooldown state.")
-    }
-}
-
 function update_component_if_needed(component, new_value) {
     if (FORCE_UPDATES || component.value != new_value) {
         component.value = new_value; // Let's always update the value for now.
@@ -62,41 +53,16 @@ function create_function_component(cascade, id)
     functions[id] = function_info;
 }
 
-module.exports.setup = function (cascade) {
-    cascade.require_process("process_temps");
-    cascade.require_process("reflux_control");
-    cascade.require_process("pids");
-
-    cascade.components.require_component([
-        "pump_enable",
-        "pre_heater_enable",
-        "pre_heater_pid_enable",
-        "main_heater_enable",
-        "main_heater_pid_enable",
-        "tails_reflux_enable",
-        "tails_reflux_relay",
-        "hearts_reflux_enable",
-        "hearts_reflux_relay",
-        "wash_input_relay"
-    ], function (comps) {
-        components = comps;
+function create_variable_component(cascade, id)
+{
+    cascade.create_component({
+        id: id,
+        name: id,
+        group: "functions",
+        type: cascade.TYPES.TEXT,
+        persist: true
     });
-
-    run_mode = cascade.create_component({
-        id: "run_mode",
-        name: "Run Mode",
-        group: "run",
-        type: cascade.TYPES.OPTIONS,
-        info: {
-            options: ["Idle", "Manual", "Functions"]
-        },
-        value: "Idle"
-    });
-
-    create_function_component(cascade, "function1");
-    create_function_component(cascade, "function2");
-    create_function_component(cascade, "function3");
-};
+}
 
 function during_idle(cascade) {
     // Turn off our pump
@@ -115,30 +81,6 @@ function during_idle(cascade) {
     update_component_if_needed(components.hearts_reflux_relay, false);
     update_component_if_needed(components.wash_input_relay, false);
 }
-
-/*function during_cooldown(cascade) {
-    // Run our pump
-    update_component_if_needed(components.pump_enable, true);
-
-    // Make sure our heaters are turned off
-    update_component_if_needed(components.pre_heater_enable, false);
-    update_component_if_needed(components.pre_heater_pid_enable, false);
-    update_component_if_needed(components.main_heater_enable, false);
-    update_component_if_needed(components.main_heater_pid_enable, false);
-
-    // Make sure all of our relays are in the off state
-    update_component_if_needed(components.tails_reflux_enable, false);
-    update_component_if_needed(components.tails_reflux_relay, false);
-    update_component_if_needed(components.hearts_reflux_enable, false);
-    update_component_if_needed(components.hearts_reflux_relay, false);
-    update_component_if_needed(components.wash_input_relay, false);
-
-    // If the sump temp is at or below the safe value, we can move to the idle state
-    if (components.sump_temp.value <= SUMP_TEMP_SAFE_TEMP) {
-        run_mode.value = "Idle";
-        cascade.log_info("Moving to idle after sufficient cooldown phase.");
-    }
-}*/
 
 function during_manual(cascade) {
     // Anything goes
@@ -179,25 +121,65 @@ function during_functions(cascade) {
     });
 }
 
-module.exports.loop = function (cascade) {
+module.exports.setup = function (cascade) {
 
-    // Check to make sure all of our temperature probes have valid values if we're in a critical state
-    if (run_mode.value === "Warmup" || run_mode.value === "Continuous") {
-        check_temp(cascade, components.pre_heater_temp);
-        check_temp(cascade, components.sump_temp);
+    if(process.env.SIMULATE)
+    {
+        cascade.require_process("simulator/simulator");
+    }
+    else
+    {
+        cascade.require_process("interfaces/ds9490r");
+        cascade.require_process("interfaces/tinkerforge");
     }
 
-    switch (run_mode.value) {
-        case "Manual": {
+    cascade.require_process("process_temps");
+    cascade.require_process("reflux_control");
+    cascade.require_process("pids");
+
+    cascade.components.require_component([
+        "pump_enable",
+        "pre_heater_enable",
+        "pre_heater_pid_enable",
+        "main_heater_enable",
+        "main_heater_pid_enable",
+        "tails_reflux_enable",
+        "tails_reflux_relay",
+        "hearts_reflux_enable",
+        "hearts_reflux_relay",
+        "wash_input_relay"
+    ], function (comps) {
+        components = comps;
+    });
+
+    run_mode = cascade.create_component({
+        id: "run_mode",
+        name: "Run Mode",
+        group: "run",
+        type: cascade.TYPES.OPTIONS,
+        info: {
+            options: ["IDLE", "MANUAL", "FUNCTIONS"]
+        },
+        value: "IDLE"
+    });
+
+    create_function_component(cascade, "function1");
+    create_function_component(cascade, "function2");
+    create_function_component(cascade, "function3");
+
+    create_variable_component(cascade, "variable1");
+    create_variable_component(cascade, "variable2");
+    create_variable_component(cascade, "variable3");
+};
+
+module.exports.loop = function (cascade) {
+    switch (run_mode.value.toUpperCase()) {
+        case "MANUAL": {
             during_manual(cascade);
             break;
         }
-        case "Functions": {
+        case "FUNCTIONS": {
             during_functions(cascade);
-            break;
-        }
-        case "Cooldown": {
-            //during_cooldown(cascade);
             break;
         }
         default: {

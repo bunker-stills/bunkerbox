@@ -1,10 +1,13 @@
 var _ = require("underscore");
 var map_range = require("map-range");
-var control_interface = require("./../lib/tinkerforge");
+var tinkerforge = require('tinkerforge');
+var util = require("util");
 
-var PUMP_DAC_POSITION = "C";
-var PRE_HEATER_DAC_POSITION = "B";
+var devices = {};
+
 var MAIN_HEATER_DAC_POSITION = "A";
+var PRE_HEATER_DAC_POSITION = "B";
+var PUMP_DAC_POSITION = "C";
 
 var HEARTS_REFLUX_RELAY_POSITION = 3;
 var TAILS_REFLUX_RELAY_POSITION = 2;
@@ -13,7 +16,6 @@ var WASH_INPUT_RELAY_POSITION = 0;
 var dacs = {};
 var relays = {};
 var barometer_component;
-var is_online;
 
 function linear(x) {
     return x;
@@ -38,8 +40,8 @@ function set_dac(dac_info)
 
         switch(dac_info.output_type)
         {
-            case control_interface.VOLTAGE_RANGE_0_TO_5V:
-            case control_interface.VOLTAGE_RANGE_0_TO_10V:
+            case tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_5V:
+            case tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V:
             {
                 dac_info.interface.setVoltage(output_value);
                 break;
@@ -57,12 +59,12 @@ function create_dac(cascade, id, description, dac_position, output_type)
 
     switch(output_type)
     {
-        case control_interface.VOLTAGE_RANGE_0_TO_5V:
+        case tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_5V:
         {
             dac_info.value_map = map_range(linear, 0, 100, 0, 5000);
             break;
         }
-        case control_interface.VOLTAGE_RANGE_0_TO_10V:
+        case tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V:
         {
             dac_info.value_map = map_range(linear, 0, 100, 0, 10000);
             break;
@@ -101,7 +103,7 @@ function create_dac(cascade, id, description, dac_position, output_type)
 
 function set_relays()
 {
-    var relay_interface = control_interface.devices["relays"];
+    var relay_interface = devices["relays"];
 
     if(relay_interface) {
 
@@ -133,18 +135,67 @@ function create_relay(cascade, id, description, position)
 
 module.exports.setup = function (cascade) {
 
-    is_online = cascade.create_component({
-        id: "process_control_online",
-        name: "Is Online",
-        group : "process_controls",
-        class: "online_state",
-        read_only: true,
-        type: cascade.TYPES.BOOLEAN
-    });
+    var tfHost = process.env.TF_HOST || 'localhost';
 
-    create_dac(cascade, "pump", "Pump", PUMP_DAC_POSITION, control_interface.VOLTAGE_RANGE_0_TO_5V);
-    create_dac(cascade, "pre_heater", "Preheater", PRE_HEATER_DAC_POSITION, control_interface.VOLTAGE_RANGE_0_TO_10V);
-    create_dac(cascade, "main_heater", "Main Heater", MAIN_HEATER_DAC_POSITION, control_interface.VOLTAGE_RANGE_0_TO_10V);
+    if(tfHost == "localhost" && !process.env.PREVENT_SERVERS)
+    {
+        cascade.require_process("../servers/tfserver");
+    }
+
+    var ipcon = new tinkerforge.IPConnection();
+    ipcon.connect(tfHost, 4223);
+
+    ipcon.on(tinkerforge.IPConnection.CALLBACK_CONNECTED,
+        function (connectReason) {
+            ipcon.enumerate();
+        }
+    );
+
+    ipcon.on(tinkerforge.IPConnection.CALLBACK_ENUMERATE,
+        function (uid, connectedUid, position, hardwareVersion, firmwareVersion, deviceIdentifier, enumerationType) {
+
+            if(enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_DISCONNECTED) {
+                for(var key in devices)
+                {
+                    var device = devices[key];
+
+                    if(device.uid_string === uid)
+                    {
+                        delete devices[key];
+                        return;
+                    }
+                }
+            }
+            else if (enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_CONNECTED || enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_AVAILABLE) {
+                switch (deviceIdentifier) {
+                    case tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER : {
+                        var dac = new tinkerforge.BrickletIndustrialAnalogOut(uid, ipcon);
+                        dac.uid_string = uid;
+                        dac.position = position;
+                        devices["dac_" + position.toUpperCase()] = dac;
+                        break;
+                    }
+                    case tinkerforge.BrickletBarometer.DEVICE_IDENTIFIER : {
+                        var barometer = new tinkerforge.BrickletBarometer(uid, ipcon);
+                        barometer.uid_string = uid;
+                        barometer.position = position;
+                        devices["barometer"] = barometer;
+                        break;
+                    }
+                    case tinkerforge.BrickletIndustrialQuadRelay.DEVICE_IDENTIFIER : {
+                        var relay = new tinkerforge.BrickletIndustrialQuadRelay(uid, ipcon);
+                        relay.uid_string = uid;
+                        relay.position = position;
+                        devices["relays"] = relay;
+                        break;
+                    }
+                }
+            }
+        });
+
+    create_dac(cascade, "pump", "Pump", PUMP_DAC_POSITION, tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_5V);
+    create_dac(cascade, "pre_heater", "Preheater", PRE_HEATER_DAC_POSITION, tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V);
+    create_dac(cascade, "main_heater", "Main Heater", MAIN_HEATER_DAC_POSITION, tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V);
 
     create_relay(cascade, "hearts_reflux_relay", "Hearts Reflux Relay", HEARTS_REFLUX_RELAY_POSITION);
     create_relay(cascade, "tails_reflux_relay", "Tails Reflux Relay", TAILS_REFLUX_RELAY_POSITION);
@@ -166,7 +217,7 @@ module.exports.loop = function (cascade)
 
     _.each(dacs, function(dac_info){
 
-        var dac_interface = control_interface.devices["dac_" + dac_info.position];
+        var dac_interface = devices["dac_" + dac_info.position];
 
         if(!dac_interface)
         {
@@ -180,18 +231,15 @@ module.exports.loop = function (cascade)
         }
     });
 
-    if(control_interface.devices["barometer"])
+    if(devices["barometer"])
     {
-        //barometer_component.value = control_interface.devices["barometer"].
-        control_interface.devices["barometer"].getAirPressure(function(airPressure){
+        devices["barometer"].getAirPressure(function(airPressure){
             barometer_component.value = airPressure / 1000;
         });
     }
 
-    if(!control_interface.devices["relays"])
+    if(!devices["relays"])
     {
         online = false;
     }
-
-    is_online.value = online;
 };

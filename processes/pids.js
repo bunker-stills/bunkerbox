@@ -3,7 +3,7 @@ var pid_controller = require("./lib/pid");
 
 var pids = {};
 
-function create_pid(name, description, temp_component_name, output_component_name, cascade)
+function create_pid(name, description, output_component_name, cascade)
 {
     var pid = new pid_controller(0,0,0,0,0,'direct');
     pid.setSampleTime(1000);
@@ -16,6 +16,7 @@ function create_pid(name, description, temp_component_name, output_component_nam
 
     definition.enable = cascade.create_component({
         id: name + "_pid_enable",
+        group : description,
         name: description + " Enable",
         type: cascade.TYPES.BOOLEAN
     });
@@ -39,25 +40,46 @@ function create_pid(name, description, temp_component_name, output_component_nam
     definition.set_point = cascade.create_component({
         id: name + "_pid_set_point",
         name : description + " Set Point",
+        group : description,
         read_only : false,
         type: cascade.TYPES.NUMBER,
         units : cascade.UNITS.F
     });
 
     definition.process_value = cascade.create_component({
-        id: name + "_pid_process_sensor",
-        name : description + " Process Sensor",
+        id: name + "_pid_process_value",
+        name : description + " Process Value",
+        group : description,
         read_only : true,
         type: cascade.TYPES.NUMBER,
         units : cascade.UNITS.F
     });
-    cascade.components.require_component(temp_component_name, function(temp_component){
-        definition.process_value.mirror_component(temp_component);
+
+    definition.process_component = cascade.create_component({
+        id: name + "_pid_process_component",
+        name : description + " Process Component",
+        group : description,
+        persist : true,
+        type: cascade.TYPES.TEXT
     });
+    definition.process_component.on("value_updated", function(){
+
+        if(!definition.process_component.value)
+        {
+            definition.process_value.mirror_component(null);
+        }
+        else {
+            cascade.components.require_component(definition.process_component.value, function(temp_component){
+                definition.process_value.mirror_component(temp_component);
+            });
+        }
+    });
+    definition.process_component.value = definition.process_component.value;
 
     definition.control_value = cascade.create_component({
         id: name + "_pid_control_value",
         name: description + " Control Value",
+        group : description,
         read_only : true,
         type: cascade.TYPES.NUMBER
     });
@@ -65,6 +87,7 @@ function create_pid(name, description, temp_component_name, output_component_nam
     definition.i_term = cascade.create_component({
         id: name + "_pid_i_term",
         name: description + " I Term",
+        group : description,
         read_only : false,
         type: cascade.TYPES.NUMBER
     });
@@ -72,6 +95,7 @@ function create_pid(name, description, temp_component_name, output_component_nam
     definition.p_gain = cascade.create_component({
         id: name + "_pid_p_gain",
         name: description + " P Gain",
+        group : description,
         class_name: "pid_gain",
         persist : true,
         type: cascade.TYPES.NUMBER
@@ -80,6 +104,7 @@ function create_pid(name, description, temp_component_name, output_component_nam
     definition.i_gain = cascade.create_component({
         id: name + "_pid_i_gain",
         name: description + " I Gain",
+        group : description,
         class_name: "pid_gain",
         persist : true,
         type: cascade.TYPES.NUMBER
@@ -88,6 +113,7 @@ function create_pid(name, description, temp_component_name, output_component_nam
     definition.d_gain = cascade.create_component({
         id: name + "_pid_d_gain",
         name: description + " D Gain",
+        group : description,
         class_name: "pid_gain",
         persist : true,
         type: cascade.TYPES.NUMBER
@@ -96,6 +122,7 @@ function create_pid(name, description, temp_component_name, output_component_nam
     definition.min_cv = cascade.create_component({
         id: name + "_pid_min_cv",
         name: description + " Minimum Control Value",
+        group : description,
         persist : true,
         type: cascade.TYPES.NUMBER,
         units: cascade.UNITS.PERCENTAGE
@@ -104,6 +131,7 @@ function create_pid(name, description, temp_component_name, output_component_nam
     definition.max_cv = cascade.create_component({
         id: name + "_pid_max_cv",
         name: description + " Maximum Control Value",
+        group : description,
         persist : true,
         type: cascade.TYPES.NUMBER,
         units: cascade.UNITS.PERCENTAGE
@@ -118,10 +146,11 @@ function create_pid(name, description, temp_component_name, output_component_nam
 
 module.exports.setup = function (cascade)
 {
-    pids["pre_heater_pid"] = create_pid("pre_heater", "Preheater PID", "pre_heater_temp", "pre_heater_output", cascade);
-    pids["main_heater_pid"] = create_pid("main_heater", "Main Heater PID", "sump_temp", "main_heater_output", cascade);
-    pids["hearts_reflux_pid"] = create_pid("hearts_reflux", "Hearts Reflux PID", "heads_temp", "hearts_reflux_percent", cascade);
-    pids["tails_reflux_pid"] = create_pid("tails_reflux", "Tails Reflux PID", "tails_temp", "tails_reflux_percent", cascade);
+    pids["pre_heater_pid"] = create_pid("pre_heater", "Preheater PID", "pre_heater_output", cascade);
+    pids["main_heater_pid"] = create_pid("main_heater", "Main Heater PID", "main_heater_output", cascade);
+    pids["pump"] = create_pid("pump", "Pump PID", "pump_output", cascade);
+    pids["hearts_reflux_pid"] = create_pid("hearts_reflux", "Hearts Reflux PID", "hearts_reflux_percent", cascade);
+    pids["tails_reflux_pid"] = create_pid("tails_reflux", "Tails Reflux PID", "tails_reflux_percent", cascade);
 };
 
 module.exports.loop = function (cascade)
