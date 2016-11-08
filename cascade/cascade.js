@@ -213,6 +213,34 @@ var cascade = function (config) {
         self.log_info("Web server started on port " + config.web_port);
     });
 
+    function begin_cascade()
+    {
+        // Load our processes
+        var processes_to_load = config.processes;
+
+        if (!_.isArray(processes_to_load)) {
+            processes_to_load = [];
+            processes_to_load.push(config.processes);
+        }
+
+        _.each(processes_to_load, function (process_to_load) {
+            self.load_process(process_to_load);
+        });
+
+        // Setup our run loop
+        setInterval(function () {
+
+            _.each(self.processes, function (ps) {
+
+                if (_.isFunction(ps.process_instance.loop)) {
+                    ps.process_instance.loop.call(ps.process_instance, ps.cascade_context);
+                }
+
+            });
+
+        }, config.run_loop_time_in_seconds * 1000);
+    }
+
     if(config.enable_mqtt)
     {
         this.mqtt_server = new mosca.Server({
@@ -281,33 +309,11 @@ var cascade = function (config) {
         this.mqtt_server.on('ready', function () {
             self.log_info("MQTTT broker started on port " + config.mqtt_port);
             self.log_info("Web Socket MQTTT broker started on port " + config.web_port);
-
-            // Load our processes
-            var processes_to_load = config.processes;
-
-            if (!_.isArray(processes_to_load)) {
-                processes_to_load = [];
-                processes_to_load.push(config.processes);
-            }
-
-            _.each(processes_to_load, function (process_to_load) {
-                self.load_process(process_to_load);
-            });
-
-            // Setup our run loop
-            setInterval(function () {
-
-                _.each(self.processes, function (ps) {
-
-                    if (_.isFunction(ps.process_instance.loop)) {
-                        ps.process_instance.loop.call(ps.process_instance, ps.cascade_context);
-                    }
-
-                });
-
-            }, config.run_loop_time_in_seconds * 1000);
-
+            begin_cascade();
         });
+    }
+    else {
+        begin_cascade();
     }
 };
 util.inherits(cascade, event_emitter);

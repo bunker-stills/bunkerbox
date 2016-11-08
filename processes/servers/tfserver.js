@@ -9,6 +9,6 @@ module.exports.setup = function(cascade)
     tf_process = spawn('/etc/init.d/brickd', ['start']);
 
     tf_process.on("error", function (error) {
-        cascade.log_info.error("TinkerForge Daemon Failed: " + error);
+        cascade.log_error("TinkerForge Daemon Failed: " + error);
     });
 };
