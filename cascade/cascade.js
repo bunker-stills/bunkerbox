@@ -35,6 +35,7 @@ var cascade = function (config) {
         data_storage_location: process.cwd() + "/data",
         device_id: "development",
         web_port: 3000,
+        enable_mqtt: false,
         mqtt_port: 1883,
         users: {
             "admin": {
@@ -212,99 +213,102 @@ var cascade = function (config) {
         self.log_info("Web server started on port " + config.web_port);
     });
 
-    this.mqtt_server = new mosca.Server({
-        port: config.mqtt_port,
-        persistence: {
-            factory: mosca.persistence.Memory
-        }
-    });
-
-    this.mqtt_server.attachHttpServer(this.api_server);
-
-    this.mqtt_server.authenticate = function (client, username, password, callback) {
-
-        password = (password) ? password.toString() : undefined;
-
-        // If no users are defined, then it's open season
-        if (_.isUndefined(config.users)) {
-            client.user = {
-                can_read: true,
-                can_write: true
-            };
-            return callback(null, true);
-        }
-
-        client.user = config.users[username];
-
-        if (_.isUndefined(client.user)) {
-            callback(null, false);
-        }
-        else {
-            callback(null, (client.user.password === password));
-        }
-    };
-
-    this.mqtt_server.authorizePublish = function (client, topic, payload, callback) {
-
-        // Don't allow any external services to publish to any topic starting with "read/"
-        if(topic.indexOf("read/") === 0)
-        {
-            return callback(null, false);
-        }
-
-        callback(null, client.user.can_write);
-    };
-
-    this.mqtt_server.authorizeSubscribe = function (client, topic, callback) {
-        callback(null, client.user.can_read);
-    };
-
-    this.mqtt_server.on('published', function (packet, client) {
-
-        if (client && client.user.can_write) {
-            // Look for messages to tell us to change our component value
-            var topic_info = common.parse_write_topic(packet.topic);
-
-            if (topic_info && topic_info.component_id) {
-                var component = self.components[topic_info.component_id];
-
-                if (component && !component.read_only) {
-                    component.value = JSON.parse(packet.payload.toString());
-                }
+    if(config.enable_mqtt)
+    {
+        this.mqtt_server = new mosca.Server({
+            port: config.mqtt_port,
+            persistence: {
+                factory: mosca.persistence.Memory
             }
-        }
-    });
-
-    this.mqtt_server.on('ready', function () {
-        self.log_info("MQTTT broker started on port " + config.mqtt_port);
-        self.log_info("Web Socket MQTTT broker started on port " + config.web_port);
-
-        // Load our processes
-        var processes_to_load = config.processes;
-
-        if (!_.isArray(processes_to_load)) {
-            processes_to_load = [];
-            processes_to_load.push(config.processes);
-        }
-
-        _.each(processes_to_load, function (process_to_load) {
-            self.load_process(process_to_load);
         });
 
-        // Setup our run loop
-        setInterval(function () {
+        this.mqtt_server.attachHttpServer(this.api_server);
 
-            _.each(self.processes, function (ps) {
+        this.mqtt_server.authenticate = function (client, username, password, callback) {
 
-                if (_.isFunction(ps.process_instance.loop)) {
-                    ps.process_instance.loop.call(ps.process_instance, ps.cascade_context);
+            password = (password) ? password.toString() : undefined;
+
+            // If no users are defined, then it's open season
+            if (_.isUndefined(config.users)) {
+                client.user = {
+                    can_read: true,
+                    can_write: true
+                };
+                return callback(null, true);
+            }
+
+            client.user = config.users[username];
+
+            if (_.isUndefined(client.user)) {
+                callback(null, false);
+            }
+            else {
+                callback(null, (client.user.password === password));
+            }
+        };
+
+        this.mqtt_server.authorizePublish = function (client, topic, payload, callback) {
+
+            // Don't allow any external services to publish to any topic starting with "read/"
+            if(topic.indexOf("read/") === 0)
+            {
+                return callback(null, false);
+            }
+
+            callback(null, client.user.can_write);
+        };
+
+        this.mqtt_server.authorizeSubscribe = function (client, topic, callback) {
+            callback(null, client.user.can_read);
+        };
+
+        this.mqtt_server.on('published', function (packet, client) {
+
+            if (client && client.user.can_write) {
+                // Look for messages to tell us to change our component value
+                var topic_info = common.parse_write_topic(packet.topic);
+
+                if (topic_info && topic_info.component_id) {
+                    var component = self.components[topic_info.component_id];
+
+                    if (component && !component.read_only) {
+                        component.value = JSON.parse(packet.payload.toString());
+                    }
                 }
+            }
+        });
 
+        this.mqtt_server.on('ready', function () {
+            self.log_info("MQTTT broker started on port " + config.mqtt_port);
+            self.log_info("Web Socket MQTTT broker started on port " + config.web_port);
+
+            // Load our processes
+            var processes_to_load = config.processes;
+
+            if (!_.isArray(processes_to_load)) {
+                processes_to_load = [];
+                processes_to_load.push(config.processes);
+            }
+
+            _.each(processes_to_load, function (process_to_load) {
+                self.load_process(process_to_load);
             });
 
-        }, config.run_loop_time_in_seconds * 1000);
+            // Setup our run loop
+            setInterval(function () {
 
-    });
+                _.each(self.processes, function (ps) {
+
+                    if (_.isFunction(ps.process_instance.loop)) {
+                        ps.process_instance.loop.call(ps.process_instance, ps.cascade_context);
+                    }
+
+                });
+
+            }, config.run_loop_time_in_seconds * 1000);
+
+        });
+    }
 };
 util.inherits(cascade, event_emitter);
 
