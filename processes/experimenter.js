@@ -104,19 +104,29 @@ function during_functions(cascade) {
     // Evaluate our custom functions
     _.each(functions, function (custom_function) {
         if (custom_function.script) {
-            component_values = _.omit(component_values, ["_return_value", "custom"]);
             try {
                 custom_function.script.runInNewContext(component_values);
-
-                _.each(cascade.components.all_current, function (component) {
-                    if (!component.read_only && !_.isUndefined(component_values[component.id]) && component.value !== component_values[component.id]) {
-                        component.value = (component_values[component.id]);
-                    }
-                });
             }
             catch (e) {
                 cascade.log_error("ERROR: " + e.toString());
+                return;
             }
+
+            _.each(component_values, function(value, id){
+
+                var component = cascade.components.all_current[id];
+
+                if(component && !component.read_only && value != component.value)
+                {
+                    component.value = value;
+                }
+
+            });
+            /*_.each(cascade.components.all_current, function (component) {
+                if (!component.read_only && !_.isUndefined(component_values[component.id]) && component.value !== component_values[component.id]) {
+                    component.value = (component_values[component.id]);
+                }
+            });*/
         }
     });
 }
@@ -164,8 +174,8 @@ module.exports.setup = function (cascade) {
     });
 
     create_function_component(cascade, "function1");
-    create_function_component(cascade, "function2");
-    create_function_component(cascade, "function3");
+    //create_function_component(cascade, "function2");
+    //create_function_component(cascade, "function3");
 
     create_variable_component(cascade, "variable1");
     create_variable_component(cascade, "variable2");
