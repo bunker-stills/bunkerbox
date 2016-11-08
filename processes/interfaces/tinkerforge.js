@@ -11,7 +11,7 @@ var PUMP_DAC_POSITION = "C";
 
 var HEARTS_REFLUX_RELAY_POSITION = 3;
 var TAILS_REFLUX_RELAY_POSITION = 2;
-var WASH_INPUT_RELAY_POSITION = 0;
+var FEED_RELAY_POSITION = 0;
 
 var dacs = {};
 var relays = {};
@@ -199,7 +199,7 @@ module.exports.setup = function (cascade) {
 
     create_relay(cascade, "hearts_reflux_relay", "Hearts Reflux Relay", HEARTS_REFLUX_RELAY_POSITION);
     create_relay(cascade, "tails_reflux_relay", "Tails Reflux Relay", TAILS_REFLUX_RELAY_POSITION);
-    create_relay(cascade, "wash_input_relay", "Wash Input Relay", WASH_INPUT_RELAY_POSITION);
+    create_relay(cascade, "feed_relay", "Feed Relay", FEED_RELAY_POSITION);
 
     barometer_component = cascade.create_component({
         id: "barometer",

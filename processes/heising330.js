@@ -59,7 +59,7 @@ module.exports.setup = function (cascade) {
         "tails_reflux_relay",
         "hearts_reflux_enable",
         "hearts_reflux_relay",
-        "wash_input_relay"
+        "feed_relay"
     ], function (comps) {
         components = comps;
     });
@@ -91,7 +91,7 @@ function during_idle(cascade) {
     update_component_if_needed(components.tails_reflux_relay, false);
     update_component_if_needed(components.hearts_reflux_enable, false);
     update_component_if_needed(components.hearts_reflux_relay, false);
-    update_component_if_needed(components.wash_input_relay, false);
+    update_component_if_needed(components.feed_relay, false);
 }
 
 /*var WARMUP_PRE_HEATER_P_GAIN = 1.0;
@@ -157,7 +157,7 @@ function during_cooldown(cascade) {
     update_component_if_needed(components.tails_reflux_relay, false);
     update_component_if_needed(components.hearts_reflux_enable, false);
     update_component_if_needed(components.hearts_reflux_relay, false);
-    update_component_if_needed(components.wash_input_relay, false);
+    update_component_if_needed(components.feed_relay, false);
 
     // If the sump temp is at or below the safe value, we can move to the idle state
     if (components.sump_temp.value <= SUMP_TEMP_SAFE_TEMP) {

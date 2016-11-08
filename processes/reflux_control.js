@@ -115,4 +115,5 @@ module.exports.setup = function (cascade) {
 
     create_reflux_controller(cascade, "hearts_reflux_relay", "hearts_reflux", "Hearts Reflux");
     create_reflux_controller(cascade, "tails_reflux_relay", "tails_reflux", "Tails Reflux");
+    create_reflux_controller(cascade, "feed_relay", "feed_water_ratio", "Feed/Water Ratio");
 };

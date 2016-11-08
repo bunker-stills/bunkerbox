@@ -48,7 +48,7 @@ module.exports.setup = function (cascade) {
 
     create_relay(cascade, "hearts_reflux_relay", "Hearts Reflux Relay");
     create_relay(cascade, "tails_reflux_relay", "Tails Reflux Relay");
-    create_relay(cascade, "wash_input_relay", "Wash Input Relay");
+    create_relay(cascade, "feed_relay", "Feed Relay");
 };
 
 module.exports.loop = function (cascade) {
