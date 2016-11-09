@@ -142,6 +142,16 @@ module.exports.setup = function (cascade) {
 
     ipcon.on(tinkerforge.IPConnection.CALLBACK_CONNECTED,
         function (connectReason) {
+
+            ipcon.authenticate("4fac4508112d42b4b7dbf5680e83c875",
+                function() {
+                    ipcon.enumerate();
+                },
+                function(error) {
+                    cascade.log_error('Could not authenticate to brickd');
+                }
+            );
+
             ipcon.enumerate();
         }
     );

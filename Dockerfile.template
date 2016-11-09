@@ -13,8 +13,9 @@ RUN JOBS=MAX npm install --production --unsafe-perm && npm cache clean && rm -rf
 
 COPY . ./
 
-# Copy our owfs configuration
+# Copy our services configuration
 COPY ./services/owfs.conf /etc/owfs.conf
+COPY ./services/brickd.conf /etc/brickd.conf
 
 ENV INITSYSTEM on
 
