@@ -105,7 +105,7 @@ function during_functions(cascade) {
     _.each(functions, function (custom_function) {
         if (custom_function.script) {
             try {
-                custom_function.script.runInNewContext(component_values);
+                custom_function.script.runInNewContext(component_values, {timeout:3000});
             }
             catch (e) {
                 cascade.log_error("ERROR: " + e.toString());
@@ -113,20 +113,12 @@ function during_functions(cascade) {
             }
 
             _.each(component_values, function(value, id){
-
                 var component = cascade.components.all_current[id];
-
                 if(component && !component.read_only && value != component.value)
                 {
                     component.value = value;
                 }
-
             });
-            /*_.each(cascade.components.all_current, function (component) {
-                if (!component.read_only && !_.isUndefined(component_values[component.id]) && component.value !== component_values[component.id]) {
-                    component.value = (component_values[component.id]);
-                }
-            });*/
         }
     });
 }
