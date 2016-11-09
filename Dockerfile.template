@@ -13,4 +13,4 @@ RUN JOBS=MAX npm install --production --unsafe-perm --legacy-bundling && npm cac
 
 COPY . ./
 
-CMD ["node", "server.js"]
+CMD ["node", "--max-old-space-size=300", "server.js"]
