@@ -213,8 +213,7 @@ var cascade = function (config) {
         self.log_info("Web server started on port " + config.web_port);
     });
 
-    function begin_cascade()
-    {
+    function begin_cascade() {
         // Load our processes
         var processes_to_load = config.processes;
 
@@ -241,80 +240,73 @@ var cascade = function (config) {
         }, config.run_loop_time_in_seconds * 1000);
     }
 
-    if(config.enable_mqtt)
-    {
-        this.mqtt_server = new mosca.Server({
-            port: config.mqtt_port,
-            persistence: {
-                factory: mosca.persistence.Memory
-            }
-        });
+    this.mqtt_server = new mosca.Server({
+        port: config.mqtt_port,
+        persistence: {
+            factory: mosca.persistence.Memory
+        }
+    });
 
-        this.mqtt_server.attachHttpServer(this.api_server);
+    this.mqtt_server.attachHttpServer(this.api_server);
 
-        this.mqtt_server.authenticate = function (client, username, password, callback) {
+    this.mqtt_server.authenticate = function (client, username, password, callback) {
 
-            password = (password) ? password.toString() : undefined;
+        password = (password) ? password.toString() : undefined;
 
-            // If no users are defined, then it's open season
-            if (_.isUndefined(config.users)) {
-                client.user = {
-                    can_read: true,
-                    can_write: true
-                };
-                return callback(null, true);
-            }
+        // If no users are defined, then it's open season
+        if (_.isUndefined(config.users)) {
+            client.user = {
+                can_read: true,
+                can_write: true
+            };
+            return callback(null, true);
+        }
 
-            client.user = config.users[username];
+        client.user = config.users[username];
 
-            if (_.isUndefined(client.user)) {
-                callback(null, false);
-            }
-            else {
-                callback(null, (client.user.password === password));
-            }
-        };
+        if (_.isUndefined(client.user)) {
+            callback(null, false);
+        }
+        else {
+            callback(null, (client.user.password === password));
+        }
+    };
 
-        this.mqtt_server.authorizePublish = function (client, topic, payload, callback) {
+    this.mqtt_server.authorizePublish = function (client, topic, payload, callback) {
 
-            // Don't allow any external services to publish to any topic starting with "read/"
-            if(topic.indexOf("read/") === 0)
-            {
-                return callback(null, false);
-            }
+        // Don't allow any external services to publish to any topic starting with "read/"
+        if (topic.indexOf("read/") === 0) {
+            return callback(null, false);
+        }
 
-            callback(null, client.user.can_write);
-        };
+        callback(null, client.user.can_write);
+    };
 
-        this.mqtt_server.authorizeSubscribe = function (client, topic, callback) {
-            callback(null, client.user.can_read);
-        };
+    this.mqtt_server.authorizeSubscribe = function (client, topic, callback) {
+        callback(null, client.user.can_read);
+    };
 
-        this.mqtt_server.on('published', function (packet, client) {
+    this.mqtt_server.on('published', function (packet, client) {
 
-            if (client && client.user.can_write) {
-                // Look for messages to tell us to change our component value
-                var topic_info = common.parse_write_topic(packet.topic);
+        if (client && client.user.can_write) {
+            // Look for messages to tell us to change our component value
+            var topic_info = common.parse_write_topic(packet.topic);
 
-                if (topic_info && topic_info.component_id) {
-                    var component = self.components[topic_info.component_id];
+            if (topic_info && topic_info.component_id) {
+                var component = self.components[topic_info.component_id];
 
-                    if (component && !component.read_only) {
-                        component.value = JSON.parse(packet.payload.toString());
-                    }
+                if (component && !component.read_only) {
+                    component.value = JSON.parse(packet.payload.toString());
                 }
             }
-        });
+        }
+    });
 
-        this.mqtt_server.on('ready', function () {
-            self.log_info("MQTTT broker started on port " + config.mqtt_port);
-            self.log_info("Web Socket MQTTT broker started on port " + config.web_port);
-            begin_cascade();
-        });
-    }
-    else {
+    this.mqtt_server.on('ready', function () {
+        self.log_info("MQTTT broker started on port " + config.mqtt_port);
+        self.log_info("Web Socket MQTTT broker started on port " + config.web_port);
         begin_cascade();
-    }
+    });
 };
 util.inherits(cascade, event_emitter);
 
@@ -356,7 +348,7 @@ cascade.prototype.create_component = function (config, process_id) {
 
     this.emit("new_component_" + new_component.id, new_component);
 
-    if(new_component.class) {
+    if (new_component.class) {
         this.emit("new_component_class_" + new_component.class, new_component);
     }
 
