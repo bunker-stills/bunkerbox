@@ -13,4 +13,8 @@ RUN JOBS=MAX npm install --production --unsafe-perm && npm cache clean && rm -rf
 
 COPY . ./
 
+ENV INITSYSTEM on
+#COPY ./services/owserver.service /etc/systemd/system/owserver.service
+#RUN systemctl enable /etc/systemd/system/owserver.service
+
 CMD ["node", "--max-old-space-size=300", "server.js"]
