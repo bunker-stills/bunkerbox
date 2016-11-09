@@ -91,11 +91,6 @@ module.exports.setup = function (cascade) {
     var ow_host = process.env.OW_HOST || 'localhost';
     connection = new owfs({host: ow_host, port: 4304});
 
-    if(ow_host === "localhost" && !process.env.PREVENT_SERVERS)
-    {
-        cascade.require_process("../servers/owserver");
-    }
-
     connection.write('/bus.0/interface/settings/usb/flexible_timing', "1");
     connection.write('/bus.0/interface/settings/usb/datasampleoffset', "7");
     connection.write('/bus.0/interface/settings/usb/pulldownslewrate', "3");

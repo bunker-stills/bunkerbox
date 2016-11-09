@@ -137,11 +137,6 @@ module.exports.setup = function (cascade) {
 
     var tfHost = process.env.TF_HOST || 'localhost';
 
-    if(tfHost == "localhost" && !process.env.PREVENT_SERVERS)
-    {
-        cascade.require_process("../servers/tfserver");
-    }
-
     var ipcon = new tinkerforge.IPConnection();
     ipcon.connect(tfHost, 4223);
 
