@@ -5,11 +5,11 @@ RUN wget http://download.tinkerforge.com/tools/brickd/linux/brickd_linux_latest_
 
 WORKDIR /usr/src/app/cascade
 COPY cascade/package.json package.json
-RUN JOBS=MAX npm install --production --unsafe-perm --legacy-bundling
+RUN JOBS=MAX npm install --production --unsafe-perm
 
 WORKDIR /usr/src/app
 COPY package.json package.json
-RUN JOBS=MAX npm install --production --unsafe-perm --legacy-bundling && npm cache clean && rm -rf /tmp/*
+RUN JOBS=MAX npm install --production --unsafe-perm && npm cache clean && rm -rf /tmp/*
 
 COPY . ./
 
