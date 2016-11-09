@@ -1,6 +1,6 @@
 FROM resin/%%RESIN_MACHINE_NAME%%-node:6.9.1-slim
 
-RUN apt-get update && apt-get install -y wget owserver && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y wget pm-utils owserver && apt-get clean && rm -rf /var/lib/apt/lists/*
 RUN wget http://download.tinkerforge.com/tools/brickd/linux/brickd_linux_latest_armhf.deb && dpkg -i brickd_linux_latest_armhf.deb && rm brickd_linux_latest_armhf.deb
 
 WORKDIR /usr/src/app/cascade
