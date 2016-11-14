@@ -51,8 +51,7 @@ function create_pid(name, description, output_component_name, cascade)
         name : description + " Process Value",
         group : description,
         read_only : true,
-        type: cascade.TYPES.NUMBER,
-        units : cascade.UNITS.F
+        type: cascade.TYPES.NUMBER
     });
 
     definition.process_component = cascade.create_component({
@@ -64,7 +63,7 @@ function create_pid(name, description, output_component_name, cascade)
     });
     definition.process_component.on("value_updated", function(){
 
-        if(!definition.process_component.value)
+        if(_.isUndefined(definition.process_component.value) || _.isNull(definition.process_component.value))
         {
             definition.process_value.mirror_component(null);
         }
