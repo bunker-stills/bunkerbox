@@ -51,7 +51,7 @@ pid.prototype.update = function(measuredValue)
     }
 
     var dt = (now - this.lastMeasurementTime) / 1000.0;
-    var input = measuredValue
+    var input = measuredValue;
     var integral = this.integral;
 
     var error = this.setPoint - input;
@@ -67,13 +67,13 @@ pid.prototype.update = function(measuredValue)
         CV += this.CVOffset;
     }
 
-    if(!_.isUndefined(this.CVUpperLimit) && CV > this.CVUpperLimit)
+    if(!_.isUndefined(this.CVUpperLimit) && CV > this.CVUpperLimit && integral > this.integral)
     {
         integral = this.integral;
         CV = this.CVUpperLimit;
     }
 
-    if(!_.isUndefined(this.CVLowerLimit) && CV < this.CVLowerLimit)
+    if(!_.isUndefined(this.CVLowerLimit) && CV < this.CVLowerLimit && integral < this.integral)
     {
         integral = this.integral;
         CV = this.CVLowerLimit;
