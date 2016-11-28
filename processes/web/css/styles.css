@@ -1,0 +1,35 @@
+.big-number
+{
+    font-size: 90px;
+    font-weight: 100;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.pressable:active
+{
+    transform: scale(0.75);
+    opacity: 0.5;
+}
+
+.big-number.editing
+{
+    animation: blinker 0.5s linear infinite;
+}
+
+@keyframes blinker {
+    50% { opacity: 0; }
+}
+
+.degrees-c:after
+{
+    font-size: 0.55em;
+    content: "\00b0 C";
+}
+
+.degrees-f:after
+{
+    font-size: 0.55em;
+    content: "\00b0 F";
+}

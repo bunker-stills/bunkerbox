@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+
+if [ -z ${DEVICE_ID+x} ]; then
+
 DBUS_SYSTEM_BUS_ADDRESS=unix:path=/host_run/dbus/system_bus_socket \
   dbus-send \
   --system \
@@ -8,4 +11,6 @@ DBUS_SYSTEM_BUS_ADDRESS=unix:path=/host_run/dbus/system_bus_socket \
   --dest=org.freedesktop.hostname1 \
   /org/freedesktop/hostname1 \
   org.freedesktop.hostname1.SetStaticHostname \
-  string:$DEVICE_ID boolean:true
+  string:"${DEVICE_ID}" boolean:true
+
+fi

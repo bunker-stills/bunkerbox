@@ -10,6 +10,7 @@ var path = require("path");
 var url = require("url");
 var nunjucks = require("nunjucks");
 var mqtt = require('mqtt');
+var os = require('os');
 
 var proc = require("./lib/process");
 var common = require("./lib/common");
@@ -133,6 +134,31 @@ var cascade = function (config) {
         return component_info;
     }
 
+    function get_system_info() {
+        var ipAddresses = [];
+
+        var ifaces = os.networkInterfaces();
+        _.each(ifaces, function (ifaceArray) {
+            _.each(ifaceArray, function (iface) {
+                if ('IPv4' !== iface.family || iface.internal !== false) {
+                    // skip over internal (i.e. 127.0.0.1) and non-ipv4 addresses
+                    return;
+                }
+
+                ipAddresses.push(iface.address);
+            })
+        });
+
+        return {
+            free_memory: os.freemem(),
+            load: os.loadavg(),
+            network: {
+                hostname: os.hostname(),
+                ip_addresses: ipAddresses
+            }
+        }
+    }
+
     this.api_server.get(API_ROOT + "/", authenticate_web, function (req, res) {
 
         var processes = {};
@@ -152,9 +178,14 @@ var cascade = function (config) {
 
         res.json({
             version: package_info.version,
+            system: get_system_info(),
             processes: processes,
             components: components
         });
+    });
+
+    this.api_server.get(API_ROOT + "/system", authenticate_web, function (req, res) {
+        res.json(get_system_info());
     });
 
     this.api_server.get(API_ROOT + "/components/:component_id", authenticate_web, inject_component, function (req, res) {

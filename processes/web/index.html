@@ -1,336 +1,42 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <title>SVG Preview</title>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
+    <title>Bunker Stills</title>
     <link rel="stylesheet" href="css/font-awesome.css">
-    <style>
-        body {
-            margin: 0;
-            background-color: #d6d6d6;
-        }
+    <link rel="stylesheet" href="css/bulma.css">
+    <link rel="stylesheet" href="css/styles.css">
 
-        #process-diagram {
-            position: absolute;
-            top: 0;
-            right: -25%;
-            bottom: 0;
-            left: -25%;
-            margin: auto;
-            display: block;
-        }
-
-        #grid
-        {
-            fill: transparent;
-            stroke-opacity: 0.05;
-            stroke: #000;
-        }
-
-        #iso-left-face {
-            transform: rotateX(30deg) rotateY(50deg) translateZ(0);
-            transform-style: preserve-3d;
-            position: absolute;
-        }
-
-        #pump-icon {
-            fill: url(#pump-icon-pattern);
-            transform-origin: center center;
-        }
-
-        @keyframes pump-spin {
-            100% {
-                transform: rotate(-360deg) translateZ(0);
-            }
-        }
-
-        #column-outline {
-            fill: url(#temp-gradient);
-        }
-
-        #heater-outline {
-            fill: url(#heater-power);
-        }
-
-        @keyframes move-flow-line {
-            0% {
-                transform: translate3d(0px, 0, 0);
-            }
-            100% {
-                transform: translate3d(10px, 0, 0);
-            }
-        }
-
-        .flow-line {
-            transform: translateZ(0);
-            animation: move-flow-line 0.5s linear infinite;
-        }
-    </style>
-    <svg id="svg-defs">
-        <defs>
-            <pattern id="pump-icon-pattern" x="0" y="0" width="25" height="25">
-                <text x="7" y="39" style="font-family: FontAwesome; font-size: 41px;">&#xf013;</text>
-            </pattern>
-            <pattern id="flow-lines-up" patternUnits="userSpaceOnUse" x="0" y="0" width="10" height="10" fill="#fff">
-                <rect id="flow-lines-color" width="10" height="10" style="fill:rgb(139, 217, 255);"/>
-                <line class='flow-line' x1='0' y1='0' x2='20' y2='20' stroke='#fff' stroke-width='2'/>
-                <line class='flow-line' x1='-10' y1='0' x2='10' y2='20' stroke='#fff' stroke-width='2'/>
-            </pattern>
-            <pattern id="flow-lines-down-right" xlink:href="#flow-lines-up" patternTransform="rotate(30)">
-            </pattern>
-            <pattern id="flow-lines-right" xlink:href="#flow-lines-up" patternTransform="rotate(-15)">
-            </pattern>
-            <pattern id="flow-lines-down" xlink:href="#flow-lines-up" patternTransform="rotate(180)">
-            </pattern>
-            <linearGradient id="heater-power" x1="0%" y1="0%" x2="0%" y2="100%" gradientUnits="objectBoundingBox">
-                <stop offset="0%" stop-color="white"/>
-                <stop offset="50%" stop-color="red"/>
-            </linearGradient>
-            <linearGradient id="temp-gradient" x1="0%" y1="0%" x2="0%" y2="100%" gradientUnits="objectBoundingBox">
-                <stop id="pre-heater-temp-color" offset="0%"
-                      style="stop-color:hsl(0, 100%, 50%); stop-opacity:1"></stop>
-                <stop id="heads-temp-color" offset="16%" style="stop-color:hsl(50, 100%, 50%); stop-opacity:1"></stop>
-                <stop id="hearts-temp-color" offset="38%" style="stop-color:hsl(100, 100%, 50%); stop-opacity:1"></stop>
-                <stop id="tails-temp-color" offset="67%" style="stop-color:hsl(100, 100%, 50%); stop-opacity:1"></stop>
-                <stop id="sump-temp-color" offset="100%" style="stop-color:hsl(100, 100%, 50%); stop-opacity:1"></stop>
-            </linearGradient>
-        </defs>
-    </svg>
+    <script src="js/jquery.js"></script>
+    <script src="js/knockout.js"></script>
+    <script src="js/app.js"></script>
 </head>
 <body>
-<svg id="process-diagram" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="937.24"
-     height="790.6" viewBox="0 0 937.24 790.6">
-    <defs>
-        <style>.cls-1, .cls-4, .cls-6 {
-            fill: #fff;
-        }
+<!-- ko foreach: sections -->
+<section class="hero is-dark">
+    <div class="hero-body">
+        <div class="container" data-bind="template: { name: type + 'Template' }">
+        </div>
+    </div>
+</section>
+<!-- /ko -->
 
-        .cls-1, .cls-13, .cls-14, .cls-15, .cls-16, .cls-2, .cls-3, .cls-4, .cls-5, .cls-6, .cls-7, .cls-8, .cls-9 {
-            stroke: #000;
-        }
+<!-------- TEMPLATES -------->
+<script type="text/html" id="setPointTemplate">
+    <div class="columns is-vcentered">
+        <div class="column has-text-centered is-one-third">
+            <h1 class="title" data-bind="text:name"></h1>
+        </div>
+        <div class="column has-text-right big-number is-one-third" data-bind="css:displayClass, text:displaySetPoint">
+        </div>
+        <div class="column has-text-centered is-one-quarter">
+            <div class="icon is-large pressable" data-bind="event:{mousedown: clickIncreaseSetPoint}"><i class="fa fa-chevron-up"></i></div><hr><div class="icon is-large pressable" data-bind="event:{mousedown: clickDecreaseSetPoint}"><i class="fa fa-chevron-down"></i></div>
+        </div>
+        <div class="column has-text-centered">
+            <div class="icon is-large pressable" data-bind="visible:editing, click: commitSetPoint"><i class="fa fa-check-circle-o"></i></div><div class="icon is-large" data-bind="visible:editing, click: cancelSetPoint"><i class="fa fa-times-circle-o"></i></div>
+        </div>
+    </div>
+</script>
 
-        .cls-1, .cls-2, .cls-3, .cls-5 {
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-
-        .cls-1, .cls-2, .cls-3 {
-            stroke-width: 2px;
-        }
-
-        .cls-2 {
-            fill: none;
-        }
-
-        .cls-3, .cls-5 {
-            fill: #7f7f7f;
-        }
-
-        .cls-13, .cls-14, .cls-15, .cls-16, .cls-4, .cls-6, .cls-7, .cls-8, .cls-9 {
-            stroke-miterlimit: 10;
-        }
-
-        .cls-4 {
-            stroke-width: 3px;
-        }
-
-        .cls-7 {
-            fill: url(#linear-gradient);
-        }
-
-        .cls-8 {
-            fill: url(#linear-gradient-2);
-        }
-
-        .cls-9 {
-            fill: url(#linear-gradient-3);
-        }
-
-        .cls-10 {
-            fill: url(#linear-gradient-4);
-        }
-
-        .cls-11 {
-            fill: url(#linear-gradient-5);
-        }
-
-        .cls-12 {
-            fill: url(#linear-gradient-6);
-        }
-
-        .cls-13 {
-            fill: url(#linear-gradient-7);
-        }
-
-        .cls-14 {
-            fill: url(#linear-gradient-8);
-        }
-
-        .cls-15 {
-            fill: url(#linear-gradient-9);
-        }
-
-        .cls-16 {
-            fill: url(#linear-gradient-10);
-        }</style>
-        <linearGradient id="linear-gradient" x1="482.09" y1="92.94" x2="518.19" y2="182.31"
-                        gradientUnits="userSpaceOnUse">
-            <stop offset="0" stop-color="#fff" stop-opacity="0"/>
-            <stop offset="0.08" stop-opacity="0.5"/>
-            <stop offset="0.48" stop-color="#fff" stop-opacity="0"/>
-            <stop offset="0.56" stop-color="#fff" stop-opacity="0"/>
-            <stop offset="0.91" stop-opacity="0.5"/>
-        </linearGradient>
-        <linearGradient id="linear-gradient-2" x1="482.08" y1="212.54" x2="518.19" y2="301.91"
-                        xlink:href="#linear-gradient"/>
-        <linearGradient id="linear-gradient-3" x1="482.08" y1="377.4" x2="518.19" y2="466.77"
-                        xlink:href="#linear-gradient"/>
-        <linearGradient id="linear-gradient-4" x1="503.85" y1="113.3" x2="500.91" y2="197.33"
-                        gradientUnits="userSpaceOnUse">
-            <stop offset="0" stop-opacity="0.5"/>
-            <stop offset="0.21" stop-color="#fff" stop-opacity="0"/>
-            <stop offset="0.64" stop-color="#fff" stop-opacity="0"/>
-            <stop offset="1" stop-opacity="0.5"/>
-        </linearGradient>
-        <linearGradient id="linear-gradient-5" x1="503.84" y1="232.9" x2="500.91" y2="316.93"
-                        xlink:href="#linear-gradient-4"/>
-        <linearGradient id="linear-gradient-6" x1="503.84" y1="397.76" x2="500.91" y2="481.8"
-                        xlink:href="#linear-gradient-4"/>
-        <linearGradient id="linear-gradient-7" x1="455.7" y1="94.25" x2="483.17" y2="94.25"
-                        gradientUnits="userSpaceOnUse">
-            <stop offset="0.06" stop-opacity="0.5"/>
-            <stop offset="0.27" stop-color="#fff" stop-opacity="0"/>
-            <stop offset="0.46" stop-color="#fff" stop-opacity="0"/>
-            <stop offset="0.83" stop-opacity="0.5"/>
-        </linearGradient>
-        <linearGradient id="linear-gradient-8" x1="455.7" y1="212.35" x2="483.17" y2="212.35"
-                        xlink:href="#linear-gradient-7"/>
-        <linearGradient id="linear-gradient-9" x1="455.7" y1="354.63" x2="483.17" y2="354.63"
-                        xlink:href="#linear-gradient-7"/>
-        <linearGradient id="linear-gradient-10" x1="455.7" y1="528.12" x2="483.17" y2="528.12"
-                        xlink:href="#linear-gradient-7"/>
-    </defs>
-    <title>Side Drawing Iso</title>
-    <g id="grid">
-        <path d="M857.59,474l0.35-.2,0.72,0.41-0.35.2,77.53,44.76-77,44.77,0.35,0.2-0.7.41-0.35-.2-77,44.76,0.35,0.2-0.7.41-0.35-.2-77,44.76,0.35,0.2-0.7.41-0.35-.2-77,44.77,0.35,0.2-0.7.41-0.35-.2-77,44.76,0.35,0.2-0.7.41-0.35-.2-77,44.76L392.62,745l-0.36.21-0.72-.41,0.36-.21-77.53-44.76L314,700l-0.71-.41,0.36-.21-77.53-44.76-0.36.21-0.71-.41,0.36-.21L157.89,609.5l-0.36.21-0.71-.41,0.36-.21L79.66,564.32l-0.36.21-0.71-.41,0.36-.21L1.42,519.15l77-44.76-0.36-.21,0.7-.41L79.15,474l77-44.76-0.36-.21,0.7-.41,0.36,0.21,77-44.77-0.36-.21,0.7-.41,0.36,0.21,77-44.76-0.36-.21,0.7-.41,0.36,0.21,77-44.76L389,293.5l0.7-.41,0.36,0.21,77-44.77,77.53,44.76,0.35-.2,0.71,0.41-0.35.2,77.53,44.76,0.35-.2,0.71,0.41-0.35.2,77.54,44.77,0.35-.2,0.71,0.41-0.35.2,77.53,44.76,0.35-.2,0.71,0.41-0.35.2L857.59,474m79.66,45.17L467.1,247.71,0,519.16,470.15,790.6l467.1-271.45"/>
-        <path d="M156.68,518.74L79.15,474l-0.36-.21-0.7.41,0.36,0.21L156,519.15l0.7-.41m78.24,45.17-77.53-44.76-0.7.41,77.53,44.76,0.7-.41m78.24,45.17-77.54-44.77-0.7.41,77.54,44.77,0.7-.41m78.24,45.17L313.87,609.5l-0.7.41,77.53,44.76,0.7-.41m78.24,45.17-77.53-44.76-0.7.41,77.53,44.76,0.7-.41m78.6,45.38-0.35-.2-77.53-44.76-0.7.41L547.17,745l0.35,0.2,0.7-.41"/>
-        <path d="M234.41,473.57l-77.53-44.76-0.36-.21-0.7.41,0.36,0.21L233.7,474l0.7-.41m78.24,45.17L235.11,474l-0.7.41,77.53,44.76,0.7-.41m78.24,45.17-77.54-44.77-0.7.41,77.54,44.77,0.7-.41m78.24,45.17L391.6,564.33l-0.7.41,77.53,44.76,0.7-.41m78.24,45.17L469.83,609.5l-0.7.41,77.53,44.76,0.7-.41M626,699.64l-0.35-.2-77.53-44.76-0.7.41,77.53,44.76,0.35,0.2,0.7-.41"/>
-        <path d="M312.14,428.4l-77.53-44.76-0.36-.21-0.7.41,0.36,0.21,77.53,44.76,0.7-.41m78.24,45.17-77.53-44.76-0.7.41L389.68,474l0.7-.41m78.24,45.17L391.09,474l-0.7.41,77.54,44.77,0.7-.41m78.24,45.17-77.53-44.76-0.7.41,77.53,44.76,0.7-.41m78.24,45.17-77.53-44.76-0.7.41,77.53,44.76,0.7-.41m78.6,45.38-0.35-.2L625.81,609.5l-0.7.41,77.53,44.76,0.35,0.2,0.7-.41"/>
-        <path d="M389.87,383.23l-77.53-44.76-0.36-.21-0.7.41,0.36,0.21,77.53,44.76,0.7-.41m78.24,45.17-77.53-44.76-0.7.41,77.53,44.76,0.7-.41m78.24,45.17-77.54-44.77-0.7.41L545.65,474l0.7-.41m78.24,45.17L547.06,474l-0.7.41,77.53,44.76,0.7-.41m78.24,45.17L625.3,519.15l-0.7.41,77.53,44.76,0.7-.41m78.6,45.38-0.35-.2-77.53-44.76-0.7.41,77.53,44.76,0.35,0.2,0.7-.41"/>
-        <path d="M467.6,338.06l-77.53-44.76-0.36-.21-0.7.41,0.36,0.21,77.53,44.76,0.7-.41m78.24,45.17-77.53-44.76-0.7.41,77.53,44.76,0.7-.41m78.24,45.17-77.54-44.77-0.7.41,77.54,44.77,0.7-.41m78.24,45.17-77.53-44.76-0.7.41L701.61,474l0.7-.41m78.24,45.17L703,474l-0.7.41,77.53,44.76,0.7-.41m78.6,45.38-0.35-.2-77.53-44.76-0.7.41,77.53,44.76,0.35,0.2,0.7-.41"/>
-        <polyline
-                points="858.65 474.19 857.94 473.77 857.59 473.98 780.56 518.74 779.85 519.15 702.83 563.91 702.12 564.32 625.1 609.08 624.39 609.49 547.36 654.26 546.66 654.67 469.63 699.43 468.93 699.84 391.9 744.6 391.55 744.81 392.26 745.22 392.62 745.01 469.64 700.25 470.35 699.84 547.37 655.08 548.08 654.67 625.11 609.91 625.81 609.5 702.84 564.74 703.54 564.33 780.57 519.56 781.27 519.15 858.3 474.39 858.65 474.19"/>
-        <polyline
-                points="780.41 429.01 779.7 428.6 779.35 428.81 702.32 473.57 701.62 473.98 624.59 518.74 623.89 519.15 546.86 563.91 546.16 564.32 469.13 609.09 468.42 609.5 391.4 654.26 390.69 654.67 313.67 699.43 313.31 699.64 314.02 700.05 314.38 699.84 391.4 655.08 392.11 654.67 469.13 609.91 469.83 609.5 546.87 564.73 547.57 564.32 624.6 519.56 625.3 519.15 702.32 474.39 703.03 473.98 780.06 429.21 780.41 429.01"/>
-        <polyline
-                points="702.17 383.84 701.46 383.43 701.11 383.63 624.08 428.4 623.38 428.81 546.35 473.57 545.65 473.98 468.62 518.74 467.92 519.15 390.89 563.92 390.18 564.33 313.16 609.09 312.45 609.5 235.43 654.26 235.07 654.47 235.78 654.88 236.14 654.67 313.16 609.91 313.87 609.5 390.89 564.74 391.6 564.33 468.63 519.56 469.33 519.15 546.36 474.39 547.06 473.98 624.09 429.22 624.79 428.81 701.82 384.04 702.17 383.84"/>
-        <polyline
-                points="623.93 338.67 623.22 338.26 622.87 338.46 545.84 383.23 545.13 383.63 468.11 428.4 467.4 428.81 390.38 473.57 389.68 473.98 312.64 518.74 311.94 519.15 234.91 563.91 234.21 564.32 157.19 609.09 156.83 609.29 157.54 609.7 157.89 609.5 234.92 564.73 235.62 564.32 312.65 519.56 313.35 519.15 390.38 474.39 391.09 473.98 468.11 429.22 468.82 428.81 545.84 384.05 546.55 383.63 623.58 338.87 623.93 338.67"/>
-        <polyline
-                points="545.69 293.5 544.98 293.09 544.63 293.29 467.6 338.06 466.9 338.46 389.87 383.23 389.17 383.64 312.14 428.4 311.44 428.81 234.41 473.57 233.7 473.98 156.68 518.74 155.97 519.15 78.95 563.92 78.59 564.12 79.3 564.53 79.66 564.33 156.68 519.56 157.39 519.15 234.41 474.39 235.12 473.98 312.15 429.22 312.85 428.81 389.88 384.05 390.58 383.64 467.61 338.87 468.31 338.46 545.34 293.7 545.69 293.5"/>
-    </g>
-    <g id="heater">
-        <path id="heater-outline" class="cls-1"
-              d="M438.72,603.6h10.89c0-5.91,8.75-10.7,19.54-10.7s19.54,4.79,19.54,10.7h10.89V552.17c0-9.2-13.62-16.66-30.43-16.66s-30.43,7.46-30.43,16.66V603.6Z"/>
-        <line id="heater-line" class="cls-2" x1="449.61" y1="552.17" x2="449.61" y2="603.6"/>
-        <line id="heater-line-2" data-name="heater-line" class="cls-2" x1="488.68" y1="552.17" x2="488.68" y2="603.6"/>
-        <path id="heater-cap" class="cls-3"
-              d="M499.57,552.17c0-9.2-13.62-16.66-30.43-16.66s-30.43,7.46-30.43,16.66h10.89c0-5.91,8.75-10.7,19.54-10.7s19.54,4.79,19.54,10.7h10.89Z"/>
-    </g>
-    <g id="feed-container">
-        <path id="feed-container-2" data-name="feed-container" class="cls-4"
-              d="M251.37,399.34c0,17,25.19,30.81,56.27,30.81s56.27-13.8,56.27-30.81V283.54c0-17-25.19-30.81-56.27-30.81s-56.27,13.8-56.27,30.81v115.8Z"/>
-        <ellipse id="feed-container-top" class="cls-5" cx="307.64" cy="283.54" rx="56.27" ry="30.81"/>
-    </g>
-    <path id="feed-input" class="cls-6"
-          d="M305.5,423.49c0-.75,1.19-1.28,2.56-1.19s2.43,0.76,2.38,1.51l-0.73,64.87-4.94-.32Z"/>
-    <path id="water-input" class="cls-6"
-          d="M213.24,493.26c-0.75,0-1.3-1.18-1.23-2.54s0.74-2.44,1.48-2.4l79.87-.23L293.11,493Z"/>
-    <g id="input-solenoid">
-        <path id="input-solenoid-container" class="cls-4"
-              d="M291.37,499.26c0,4.91,7.27,8.89,16.23,8.89s16.23-4,16.23-8.89V486c0-4.91-7.27-8.89-16.23-8.89s-16.23,4-16.23,8.89v13.22Z"/>
-        <ellipse id="input-solenoid-top" class="cls-5" cx="307.6" cy="486.05" rx="16.23" ry="8.89"/>
-    </g>
-    <path id="pump-entry-pipe" class="cls-6"
-          d="M317.29,500.87c-0.62-.41-0.52-1.67.24-2.81s1.87-1.73,2.5-1.32l68.93,40.36-2.73,4.13Z"/>
-    <g id="pump">
-        <path id="pump-container" class="cls-4"
-              d="M412.72,548.77c5.51-3.18,5.26-13.91-.54-24s-15-15.63-20.48-12.45L360,531.1c-5.51,3.18-5.26,13.91.54,24s15,15.63,20.48,12.45Z"/>
-        <ellipse id="pump-front" class="cls-5" cx="370.49" cy="549.31" rx="11.51" ry="21.02"
-                 transform="translate(-225.02 258.84) rotate(-30)"/>
-    </g>
-    <path id="pre-heater-entry-pipe" class="cls-6"
-          d="M390.86,525.1c0,0.7-1,1.27-2.32,1.27s-2.32-.57-2.32-1.27V48.93h4.68Z"/>
-    <g id="pre-heater">
-        <path id="pre-heater-container" class="cls-4"
-              d="M379.55,48c0,2.72,4,4.92,9,4.92s9-2.2,9-4.92V6.42c0-2.72-4-4.92-9-4.92s-9,2.2-9,4.92V48Z"/>
-        <ellipse id="pre-heater-top" class="cls-5" cx="388.54" cy="6.42" rx="8.99" ry="4.92"/>
-    </g>
-    <path id="pre-heater-exit-pipe" class="cls-6"
-          d="M392.15,23.86c-0.63-.4-0.54-1.67.2-2.82s1.85-1.76,2.48-1.35l69.47,39.42-2.68,4.17Z"/>
-    <path id="column-outline" class="cls-4"
-          d="M482.58,93.33l4.56-2.24C511,78.7,535.2,95.2,534.42,121.57v6c-2.3,23.25-14.54,45.24-33.84,58.56q-9,5.31-18,10.56v16.24l4.56-2.24c23.81-12.4,48.05,4.11,47.28,30.48v6c-2.3,23.25-14.54,45.24-33.84,58.56q-9,5.31-18,10.56v61.5l4.56-2.24c23.81-12.4,48.05,4.11,47.28,30.48v6c-2.3,23.25-14.54,45.24-33.84,58.56q-9,5.31-18,10.56V607.09c0,10.27-26.88,10.27-26.88,0V449.15c0-10.27,26.88-10.27,26.88,0v2c16.12-9.27,22.69-25.18,24.72-39.35l0.24-5.76c0.49-6.35-1.63-9.19-7.2-6.72q-9,4.75-17.76,10.08v15.39c0,10.27-26.88,10.27-26.88,0V283.85c0-10.27,26.88-10.27,26.88,0v2.44c16.12-9.27,22.69-25.18,24.72-39.35l0.24-5.76c0.49-6.35-1.63-9.19-7.2-6.72q-9,4.75-17.76,10.08,0,7.7,0,15.39c0,10.27-26.88,10.27-26.88,0V164.77c0-10.27,26.88-10.27,26.88,0v1.91c16.12-9.27,22.69-25.18,24.72-39.35l0.24-5.76c0.49-6.35-1.63-9.19-7.2-6.72q-9,4.75-17.76,10.08v14.64c0,10.27-26.88,10.27-26.88,0V48.93c0-10.27,26.88-10.27,26.88,0v44.4"/>
-    <g id="column">
-        <g id="bypass-pipes">
-            <path id="bypass-pipe" class="cls-7"
-                  d="M482.78,166.57a52.88,52.88,0,0,1-4,27.72q1.85,1,3.6,2.16l0.24,0.24,12.72-7.44,5.28-3.12c19.3-13.32,31.54-35.31,33.84-58.56v-6C535.2,95.2,511,78.7,487.14,91.09l-4.56,2.24a53,53,0,0,1-3.84,29.2q1.85,1,3.6,2.16l0.24,0.24,12.72-7.44,5-2.64c5.57-2.47,7.69.37,7.2,6.72l-0.24,5.76c-2,14.14-8.47,30-24.52,39.24"/>
-            <path id="bypass-pipe-2" data-name="bypass-pipe" class="cls-8"
-                  d="M482.78,286.17a52.88,52.88,0,0,1-4,27.72q1.85,1,3.6,2.16l0.24,0.24,12.72-7.44,5.28-3.12c19.3-13.32,31.54-35.31,33.84-58.56v-6c0.77-26.37-23.47-42.88-47.28-30.48l-4.56,2.24a53,53,0,0,1-3.84,29.2q1.85,1,3.6,2.16l0.24,0.24,12.72-7.44,5-2.64c5.57-2.47,7.69.37,7.2,6.72l-0.24,5.76c-2,14.14-8.47,30-24.52,39.24"/>
-            <path id="bypass-pipe-3" data-name="bypass-pipe" class="cls-9"
-                  d="M482.78,451a52.88,52.88,0,0,1-4,27.72q1.85,1,3.6,2.16l0.24,0.24,12.72-7.44,5.28-3.12c19.3-13.32,31.54-35.31,33.84-58.56v-6c0.77-26.37-23.47-42.88-47.28-30.48l-4.56,2.24a53,53,0,0,1-3.84,29.2q1.85,1,3.6,2.16l0.24,0.24L495.3,402l5-2.64c5.57-2.47,7.69.37,7.2,6.72l-0.24,5.76c-2,14.14-8.47,30-24.52,39.24"/>
-        </g>
-        <g id="bypass-glare">
-            <path id="glare" class="cls-10"
-                  d="M500.34,114.85c5.57-2.47,7.69.37,7.2,6.72l-0.24,5.76c-2,14.14-8.47,30-24.52,39.24a52.88,52.88,0,0,1-4,27.72q1.85,1,3.6,2.16l0.24,0.24s40.3-22,42.71-60.25C526.86,111.58,508.86,111.88,500.34,114.85Z"/>
-            <path id="glare-2" data-name="glare" class="cls-11"
-                  d="M500.34,234.45c5.57-2.47,7.69.37,7.2,6.72l-0.24,5.76c-2,14.14-8.47,30-24.52,39.24a52.88,52.88,0,0,1-4,27.72q1.85,1,3.6,2.16l0.24,0.24s40.3-22,42.71-60.25C526.86,231.18,508.86,231.48,500.34,234.45Z"/>
-            <path id="glare-3" data-name="glare" class="cls-12"
-                  d="M500.34,399.32c5.57-2.47,7.69.37,7.2,6.72l-0.24,5.76c-2,14.14-8.47,30-24.52,39.24a52.88,52.88,0,0,1-4,27.72q1.85,1,3.6,2.16l0.24,0.24s40.3-22,42.71-60.25C526.86,396,508.86,396.35,500.34,399.32Z"/>
-        </g>
-        <g id="column-uprights">
-            <path class="cls-13"
-                  d="M482.58,124.93v14.64c0,4.06-6,7.36-13.44,7.36s-13.44-3.3-13.44-7.36V48.93c0-4.06,6-7.36,13.44-7.36s13.44,3.3,13.44,7.36v44.4a53,53,0,0,1-3.84,29.2q1.85,1,3.6,2.16Z"/>
-            <path class="cls-14"
-                  d="M482.58,164.77c0-4.06-6-7.36-13.44-7.36s-13.44,3.3-13.44,7.36v95.15c0,4.06,6,7.36,13.44,7.36s13.44-3.3,13.44-7.36l-0.24-15.63q-1.75-1.16-3.6-2.16a53,53,0,0,0,3.84-29.2l-0.24-16.48q-1.75-1.16-3.6-2.16a53,53,0,0,0,3.84-29.2v-0.32Z"/>
-            <path class="cls-15"
-                  d="M482.58,284.46c0-4.06-6-7.36-13.44-7.36s-13.44,3.3-13.44,7.36V424.79c0,4.06,6,7.36,13.44,7.36s13.44-3.3,13.44-7.36l-0.24-15.63q-1.75-1.16-3.6-2.16a53,53,0,0,0,3.84-29.2l-0.24-61.66q-1.75-1.16-3.6-2.16a53,53,0,0,0,3.84-29.2v-0.32Z"/>
-            <path class="cls-16"
-                  d="M482.58,481.16V607.09c0,4.06-6,7.36-13.44,7.36s-13.44-3.3-13.44-7.36V449.15c0-4.06,6-7.36,13.44-7.36s13.44,3.3,13.44,7.36v0.41a53,53,0,0,1-3.84,29.2q1.85,1,3.6,2.16Z"/>
-        </g>
-        <ellipse id="cap" class="cls-3" cx="469.14" cy="48.93" rx="13.44" ry="7.36"/>
-        <ellipse id="cap-2" data-name="cap" class="cls-3" cx="469.14" cy="283.85" rx="13.44" ry="7.36"/>
-        <ellipse id="cap-3" data-name="cap" class="cls-3" cx="469.14" cy="449.15" rx="13.44" ry="7.36"/>
-        <ellipse id="cap-4" data-name="cap" class="cls-3" cx="469.14" cy="165.09" rx="13.44" ry="7.36"/>
-    </g>
-    <g id="hearts-reflux">
-        <path class="cls-6" d="M466.49,284.89c0,0.8,1.19,1.45,2.65,1.45s2.65-.65,2.65-1.45v-11h-5.31v11Z"/>
-        <path class="cls-6"
-              d="M469.14,268.29a23,23,0,0,1-5.66-.69v10.13c0,1.71,2.53,3.1,5.66,3.1s5.66-1.39,5.66-3.1V267.6A23,23,0,0,1,469.14,268.29Z"/>
-    </g>
-    <g id="tails-reflux">
-        <path class="cls-6" d="M466.49,449.71c0,0.8,1.19,1.45,2.65,1.45s2.65-.65,2.65-1.45v-11h-5.31v11Z"/>
-        <path class="cls-6"
-              d="M469.14,433.11a23,23,0,0,1-5.66-.69v10.13c0,1.71,2.53,3.1,5.66,3.1s5.66-1.39,5.66-3.1V432.42A23,23,0,0,1,469.14,433.11Z"/>
-    </g>
-    <g id="hearts-flux">
-        <path class="cls-6"
-              d="M459.25,265.9l-23.67,15c-0.7.4-.66,1.76,0.07,3s1.89,2,2.59,1.57L465.78,268A17.72,17.72,0,0,1,459.25,265.9Z"/>
-        <ellipse class="cls-6" cx="436.91" cy="283.18" rx="1.45" ry="2.65"
-                 transform="translate(-83.05 256.4) rotate(-30)"/>
-    </g>
-    <g id="tails-flux">
-        <path class="cls-6"
-              d="M459.25,430.7l-23.67,15c-0.7.4-.66,1.76,0.07,3s1.89,2,2.59,1.57l27.54-17.43A17.72,17.72,0,0,1,459.25,430.7Z"/>
-        <ellipse class="cls-6" cx="436.91" cy="447.98" rx="1.45" ry="2.65"
-                 transform="translate(-165.46 278.47) rotate(-30)"/>
-    </g>
-    <g id="heads-flux">
-        <path class="cls-6"
-              d="M459.25,145.87l-23.67,15c-0.7.4-.66,1.76,0.07,3s1.89,2,2.59,1.57L465.78,148A17.72,17.72,0,0,1,459.25,145.87Z"/>
-        <ellipse class="cls-6" cx="436.91" cy="163.15" rx="1.45" ry="2.65"
-                 transform="translate(-23.04 240.31) rotate(-30)"/>
-    </g>
-</svg>
-<script src="http://localhost:3000/js/mqtt.js"></script>
-<script src="js/app.js"></script>
 </body>
 </html>
