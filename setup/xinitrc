@@ -31,6 +31,6 @@ while true; do
 	matchbox-window-manager -use_titlebar no -use_cursor no &
 
 	# Start the browser (See http://peter.sh/experiments/chromium-command-line-switches/)
-	chromium  --app=$( cat /app/url.txt )
+	chromium  --app=$( cat /usr/src/app/setup/startup_url.txt )
 
 done;

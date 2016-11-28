@@ -4,13 +4,11 @@
 
 ldconfig
 
-echo $URL > /app/url.txt
-
 useradd -m pi
 
 gpasswd -a pi video
 
-cp /app/xinitrc /home/pi/.xinitrc;
+cp /usr/src/app/setup/xinitrc /home/pi/.xinitrc;
 chown pi: /home/pi/.xinitrc
 
 su - pi -c startx &

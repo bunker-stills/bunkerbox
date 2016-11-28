@@ -11,16 +11,15 @@ WORKDIR /usr/src/app
 COPY package.json package.json
 RUN JOBS=MAX npm install --production --unsafe-perm && npm cache clean && rm -rf /tmp/*
 
-COPY . /app
+COPY . ./
 
 # Copy our services configuration
 COPY ./setup/owfs.conf /etc/owfs.conf
 COPY ./setup/brickd.conf /etc/brickd.conf
 
 ENV INITSYSTEM on
-ENV URL http://google.com
 
 RUN echo "allowed_users=anybody" > /etc/X11/Xwrapper.config
 
 #CMD ["node", "--max-old-space-size=300", "server.js"]
-CMD bash -C "/app/setup/run_with_screen";"bash"
+CMD bash -C "./setup/spawn_screen";"bash"
