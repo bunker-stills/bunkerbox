@@ -1,6 +1,6 @@
 FROM resin/%%RESIN_MACHINE_NAME%%-node:6.9.1-slim
 
-RUN apt-get update && apt-get install -y dbus wget pm-utils owserver && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y chromium-browser fbset htop libnss3 libraspberrypi-bin matchbox psmisc sqlite3 ttf-mscorefonts-installer x11-xserver-utils xinit xwit dbus wget pm-utils owserver && apt-get clean && rm -rf /var/lib/apt/lists/*
 RUN wget http://download.tinkerforge.com/tools/brickd/linux/brickd_linux_latest_armhf.deb && dpkg -i brickd_linux_latest_armhf.deb && rm brickd_linux_latest_armhf.deb
 
 WORKDIR /usr/src/app/cascade
@@ -11,12 +11,16 @@ WORKDIR /usr/src/app
 COPY package.json package.json
 RUN JOBS=MAX npm install --production --unsafe-perm && npm cache clean && rm -rf /tmp/*
 
-COPY . ./
+COPY . /app
 
 # Copy our services configuration
-COPY ./services/owfs.conf /etc/owfs.conf
-COPY ./services/brickd.conf /etc/brickd.conf
+COPY ./setup/owfs.conf /etc/owfs.conf
+COPY ./setup/brickd.conf /etc/brickd.conf
 
 ENV INITSYSTEM on
+ENV URL http://google.com
 
-CMD ["node", "--max-old-space-size=300", "server.js"]
+RUN echo "allowed_users=anybody" > /etc/X11/Xwrapper.config
+
+#CMD ["node", "--max-old-space-size=300", "server.js"]
+CMD bash -C "/app/setup/run_with_screen";"bash"
