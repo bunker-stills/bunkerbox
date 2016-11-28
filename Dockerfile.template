@@ -1,6 +1,6 @@
-FROM resin/%%RESIN_MACHINE_NAME%%-node:6.9.1-slim
+FROM resin/%%RESIN_MACHINE_NAME%%-node:6.9.1
 
-RUN apt-get update && apt-get install -y chromium-browser fbset htop libnss3 libraspberrypi-bin matchbox psmisc sqlite3 ttf-mscorefonts-installer x11-xserver-utils xinit xwit dbus wget pm-utils owserver && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get upgrade -y && apt-get install -y chromium-browser fbset htop libnss3 libraspberrypi-bin matchbox psmisc sqlite3 ttf-mscorefonts-installer x11-xserver-utils xinit xwit dbus wget pm-utils owserver && apt-get clean && rm -rf /var/lib/apt/lists/*
 RUN wget http://download.tinkerforge.com/tools/brickd/linux/brickd_linux_latest_armhf.deb && dpkg -i brickd_linux_latest_armhf.deb && rm brickd_linux_latest_armhf.deb
 
 WORKDIR /usr/src/app/cascade
@@ -22,4 +22,4 @@ ENV INITSYSTEM on
 RUN echo "allowed_users=anybody" > /etc/X11/Xwrapper.config
 
 #CMD ["node", "--max-old-space-size=300", "server.js"]
-CMD bash -C "./setup/spawn_screen";"bash"
+CMD bash -C "/usr/src/app/setup/run_with_screen";"bash"
