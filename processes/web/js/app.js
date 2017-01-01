@@ -1,101 +1,186 @@
-var touchTimer;
-var mouseDown = false;
-
-$(document).on("touchup mouseup", function(){
-    clearInterval(touchTimer);
-    mouseDown = false;
-});
-
-function repeatFunctionWhileMouseDown(element, func)
+function scrollPageRight()
 {
-    mouseDown = true;
-    func();
-
-    // Wait for 2 seconds
-    setTimeout(function(){
-
-        if(!mouseDown) return;
-
-        touchTimer = setInterval(function(){
-
-            if(!mouseDown)
-            {
-                clearInterval(touchTimer);
-                return;
-            }
-
-            func();
-
-        }, 100);
-
-    }, 1000);
+    var pagePane = $("#page-pane");
+    pagePane.scrollLeft(pagePane.scrollLeft() + 150);
+    processPageScrollVisibility();
 }
 
-var unitsClass = ko.observable("degrees-f");
+function scrollPageLeft()
+{
+    var pagePane = $("#page-pane");
+    pagePane.scrollLeft(pagePane.scrollLeft() - 150);
+    processPageScrollVisibility();
+}
 
-var displayModel = {
-    sections : ko.observableArray(),
-    addSection : function(section)
-    {
-        this.sections.push(section);
+function processPageScrollVisibility()
+{
+    var pagePane = $("#page-pane");
+
+    $("#prev-page-button").toggle(!(pagePane.scrollLeft() <= 0));
+    $("#next-page-button").toggle(!(pagePane.scrollLeft() >= (pagePane[0].scrollWidth - pagePane.width())));
+}
+
+ko.bindingHandlers.autoSizeToText = {
+    init: function(element, valueAccessor, allBindings, viewModel, bindingContext) {
+    },
+    update : function(element, valueAccessor, allBindings, viewModel, bindingContext) {
+        var currentValue = ko.unwrap(valueAccessor()).toString();
+
+        //$(element).css({"font-size":})
     }
 };
 
-var setPointSection = function(name)
+ko.bindingHandlers.longClick = {
+    init: function(element, valueAccessor, allBindings, viewModel, bindingContext) {
+        var pressTimer;
+        var fn = ko.unwrap(valueAccessor());
+
+        function processFN()
+        {
+            fn.apply(bindingContext.$data);
+        }
+
+        $(element).on("mouseup mouseout touchend touchleave touchcancel", function(){
+            clearTimeout(pressTimer);
+            return false;
+        }).on("mousedown touchstart", function(){
+
+            processFN();
+
+            pressTimer = setTimeout(function(){
+                pressTimer = setInterval(processFN, 100);
+            }, 1500);
+            return false;
+        });
+    }
+};
+
+var modeModel = function(id, name)
+{
+    this.id = id;
+    this.name = name;
+    this.active = ko.observable(false);
+};
+
+var setPointModel = function(id, name, units, initialValue)
 {
     var self = this;
+
+    this.id = id;
     this.name = name;
-    this.type = "setPoint";
-    this.setPoint = 0.0;
-    this.displaySetPoint = ko.observable("0.0");
-    this.editing = ko.observable(false);
+    this.units = units;
+    this.incrementAmount = 0.1;
+    this.active = ko.observable(false);
+    this.isEditing = ko.observable(false);
+    this.template = "set-point-template";
 
-    this.displayClass = ko.computed(function(){
-        return unitsClass() + (self.editing() ? ' editing' : '');
-    });
+    this.currentValue = ko.observable(initialValue || 0.0);
+    this.displayValue = ko.observable(this.currentValue());
 
-    this.setSetPoint = function(value)
+    this.increaseValue = function()
     {
-        self.setPoint = value;
-        self.displaySetPoint(value);
+        self.isEditing(true);
+
+        var value = self.displayValue();
+        value += self.incrementAmount;
+        value = Number(value.toFixed(2));
+        self.displayValue(value);
     };
 
-    this.clickIncreaseSetPoint = function(data, event)
+    this.decreaseValue = function()
     {
-        self.editing(true);
-        repeatFunctionWhileMouseDown(event.target, function(){
-            var newValue = Number(self.displaySetPoint()) + 0.25;
-            self.displaySetPoint(newValue.toFixed(2));
-        });
+        self.isEditing(true);
+
+        var value = self.displayValue();
+        value -= self.incrementAmount;
+        value = Number(value.toFixed(2));
+        self.displayValue(value);
     };
 
-    this.clickDecreaseSetPoint = function(data, event)
+    this.commitValue = function()
     {
-        self.editing(true);
-        repeatFunctionWhileMouseDown(event.target, function() {
-            var newValue = Number(self.displaySetPoint()) - 0.25;
-            self.displaySetPoint(newValue.toFixed(2));
-        });
+        self.isEditing(false);
+        self.currentValue(self.displayValue());
     };
 
-    this.commitSetPoint = function()
+    this.cancelValue = function()
     {
-        self.setPoint = self.displaySetPoint();
-        self.editing(false);
-    };
-
-    this.cancelSetPoint = function()
-    {
-        self.displaySetPoint(self.setPoint);
-        self.editing(false);
+        self.isEditing(false);
+        self.displayValue(self.currentValue());
     };
 };
 
+var uiModel = function()
+{
+    var self = this;
+
+    this.modes = ko.observableArray();
+    this.pages = ko.observableArray();
+    this.currentPage = ko.observable();
+
+    this.addMode = function(id, name)
+    {
+        self.modes.push(new modeModel(id, name));
+    };
+
+    this.addPage = function(page)
+    {
+        self.pages.push(page);
+    };
+
+    this.pageClicked = function(page)
+    {
+        self.selectPageID(page.id);
+    };
+
+    this.selectPageID = function(id)
+    {
+        var pages = self.pages();
+
+        for(var pageIndex in pages)
+        {
+            var page = pages[pageIndex];
+
+            if(page.id === id)
+            {
+                page.active(true);
+                self.currentPage(page);
+            }
+            else
+            {
+                page.active(false);
+            }
+        }
+    };
+
+    this.modeClicked = function(mode)
+    {
+        self.selectModeID(mode.id);
+    };
+
+    this.selectModeID = function(id)
+    {
+        var modes = self.modes();
+
+        for(var modeIndex in modes)
+        {
+            var mode = modes[modeIndex];
+            mode.active(mode.id === id);
+        }
+    }
+};
+
+var ui = new uiModel();
+
 $(function(){
 
-    displayModel.addSection(new setPointSection("Heads Temperature"));
-    displayModel.addSection(new setPointSection("Hearts Temperature"));
-    displayModel.addSection(new setPointSection("Tails Temperature"));
-    ko.applyBindings(displayModel);
+    ui.addMode("idle", "Idle");
+    ui.addMode("warmup", "Warmup");
 
+    ui.addPage(new setPointModel("pumpRate", "Pump Rate", "GPH", 999.99));
+
+    ko.applyBindings(ui);
+    processPageScrollVisibility();
+
+    window.addEventListener('resize', processPageScrollVisibility, true);
 });

@@ -12,28 +12,51 @@
     <script src="js/app.js"></script>
 </head>
 <body>
-<!-- ko foreach: sections -->
-<section class="hero is-dark">
-    <div class="hero-body">
-        <div class="container" data-bind="template: { name: type + 'Template' }">
-        </div>
+<div id="left-content">
+    <div id="page-content" data-bind="with:currentPage">
+        <h1 class="title" data-bind="text:name"></h1>
+        <div id="current-page" data-bind="template:{name:template}"></div>
     </div>
-</section>
-<!-- /ko -->
+    <div id="page-pane">
+        <div id="prev-page-button" onclick="scrollPageLeft()"><i class="fa fa-chevron-left adjust-button"></i></div>
+        <div id="next-page-button" onclick="scrollPageRight()"><i class="fa fa-chevron-right adjust-button"></i></div>
+        <!-- ko foreach:pages -->
+        <div class="page-button" data-bind="text:name, css:{active:active}, click:$root.pageClicked"></div>
+        <!-- /ko -->
+    </div>
+</div>
+<div id="mode-pane">
+    <!-- ko foreach:modes -->
+    <div class="mode-button-row">
+        <div class="mode-button" data-bind="text:name, css:{active:active}, click:$root.modeClicked"></div>
+    </div>
+    <!-- /ko -->
+    <div class="mode-button-row">
+        <div id="e-stop-button" class="mode-button">STOP</div>
+    </div>
+</div>
 
 <!-------- TEMPLATES -------->
-<script type="text/html" id="setPointTemplate">
+<script type="text/html" id="default-page-template">
+    <h1 data-bind="text:name">sdfsf</h1>
+</script>
+
+<script type="text/html" id="set-point-template">
     <div class="columns is-vcentered">
-        <div class="column has-text-centered is-one-third">
-            <h1 class="title" data-bind="text:name"></h1>
+        <div class="column is-2 has-text-centered up-down-adjustment">
+            <i class="fa fa-chevron-up adjust-button" data-bind="longClick:increaseValue"></i>
+            <hr>
+            <i class="fa fa-chevron-down adjust-button" data-bind="longClick:decreaseValue"></i>
         </div>
-        <div class="column has-text-right big-number is-one-third" data-bind="css:displayClass, text:displaySetPoint">
+        <div class="column is-2 has-text-centered up-down-adjustment">
+            <!-- ko if:isEditing -->
+            <a class="button is-primary is-outlined" data-bind="click:commitValue">COMMIT</a>
+            <hr>
+            <a class="button is-primary is-outlined" data-bind="click:cancelValue">CANCEL</a>
+            <!-- /ko -->
         </div>
-        <div class="column has-text-centered is-one-quarter">
-            <div class="icon is-large pressable" data-bind="event:{mousedown: clickIncreaseSetPoint}"><i class="fa fa-chevron-up"></i></div><hr><div class="icon is-large pressable" data-bind="event:{mousedown: clickDecreaseSetPoint}"><i class="fa fa-chevron-down"></i></div>
-        </div>
-        <div class="column has-text-centered">
-            <div class="icon is-large pressable" data-bind="visible:editing, click: commitSetPoint"><i class="fa fa-check-circle-o"></i></div><div class="icon is-large" data-bind="visible:editing, click: cancelSetPoint"><i class="fa fa-times-circle-o"></i></div>
+        <div class="column has-text-right">
+            <span class="big-number" data-bind="text:displayValue, autoSizeToText:displayValue, css:{blink:isEditing}"></span><span class="number-units" data-bind="text:units"></span>
         </div>
     </div>
 </script>
