@@ -41,6 +41,10 @@ function set_dac(dac_info) {
                 dac_info.interface.setVoltage(output_value);
                 break;
             }
+            case tinkerforge.BrickletIndustrialAnalogOut.CURRENT_RANGE_4_TO_20MA: {
+                dac_info.interface.setCurrent(output_value);
+                break;
+            }
         }
     }
 }
@@ -58,6 +62,10 @@ function create_dac(cascade, id, description, dac_position, output_type) {
         }
         case tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V: {
             dac_info.value_map = map_range(linear, 0, 100, 0, 10000);
+            break;
+        }
+        case tinkerforge.BrickletIndustrialAnalogOut.CURRENT_RANGE_4_TO_20MA: {
+            dac_info.value_map = map_range(linear, 0, 100, 4000, 20000);
             break;
         }
     }
@@ -204,8 +212,8 @@ module.exports.setup = function (cascade) {
         });
 
     create_dac(cascade, "pump", "Pump", PUMP_DAC_POSITION, tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_5V);
-    create_dac(cascade, "pre_heater", "Preheater", PRE_HEATER_DAC_POSITION, tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V);
-    create_dac(cascade, "main_heater", "Main Heater", MAIN_HEATER_DAC_POSITION, tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V);
+    create_dac(cascade, "pre_heater", "Preheater", PRE_HEATER_DAC_POSITION, tinkerforge.BrickletIndustrialAnalogOut.CURRENT_RANGE_4_TO_20MA);
+    create_dac(cascade, "main_heater", "Main Heater", MAIN_HEATER_DAC_POSITION, tinkerforge.BrickletIndustrialAnalogOut.CURRENT_RANGE_4_TO_20MA);
 
     create_relay(cascade, "hearts_reflux_relay", "Hearts Reflux Relay", HEARTS_REFLUX_RELAY_POSITION);
     create_relay(cascade, "tails_reflux_relay", "Tails Reflux Relay", TAILS_REFLUX_RELAY_POSITION);
