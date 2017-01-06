@@ -25,10 +25,7 @@ if(commander.process.length > 0)
 
 var cascade_server = new cascade({
     title : "Bunker Heising-330",
-    device_id : process.env.DEVICE_ID,
-    data_recorder_enabled : false,
-    data_recorder_host : "influx.bunkerstills.com",
-    data_recorder_port : 8089,
+    device_id : process.env.RESIN_DEVICE_NAME_AT_INIT || process.env.DEVICE_ID,
     web_port : Number(process.env.WEB_PORT) || 3000,
     mqtt_port : Number(process.env.MQTT_PORT) || 1883,
     data_storage_location : process.env.DATA_PATH,

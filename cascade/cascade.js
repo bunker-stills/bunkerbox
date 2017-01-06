@@ -45,9 +45,6 @@ var cascade = function (config) {
                 can_write: true
             }
         },
-        data_recorder_enabled: false,
-        data_recorder_host: "localhost",
-        data_recorder_port: 8089,
         processes: []
     });
 
@@ -66,10 +63,6 @@ var cascade = function (config) {
     });
 
     this.log_info("Starting cascade v" + package_info.version);
-
-    if (config.data_recorder_enabled) {
-        this.data_recorder = new data_recorder(config.data_recorder_host, config.data_recorder_port);
-    }
 
     this.api_server = restify.createServer();
     this.api_server.use(restify.authorizationParser());
