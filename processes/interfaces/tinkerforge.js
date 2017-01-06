@@ -2,6 +2,7 @@ var _ = require("underscore");
 var map_range = require("map-range");
 var tinkerforge = require('tinkerforge');
 var util = require("util");
+var fs = require("fs");
 
 var devices = {};
 
@@ -21,28 +22,22 @@ function linear(x) {
     return x;
 }
 
-function set_dac(dac_info)
-{
-    if(dac_info.interface)
-    {
+function set_dac(dac_info) {
+    if (dac_info.interface) {
         dac_info.interface.setConfiguration(dac_info.output_type);
 
-        if(dac_info.enable.value === true)
-        {
+        if (dac_info.enable.value === true) {
             dac_info.interface.enable();
         }
-        else
-        {
+        else {
             dac_info.interface.disable();
         }
 
         var output_value = dac_info.value_map(dac_info.output.value);
 
-        switch(dac_info.output_type)
-        {
+        switch (dac_info.output_type) {
             case tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_5V:
-            case tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V:
-            {
+            case tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V: {
                 dac_info.interface.setVoltage(output_value);
                 break;
             }
@@ -50,22 +45,18 @@ function set_dac(dac_info)
     }
 }
 
-function create_dac(cascade, id, description, dac_position, output_type)
-{
+function create_dac(cascade, id, description, dac_position, output_type) {
     var dac_info = {};
 
     dac_info.output_type = output_type;
     dac_info.position = dac_position;
 
-    switch(output_type)
-    {
-        case tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_5V:
-        {
+    switch (output_type) {
+        case tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_5V: {
             dac_info.value_map = map_range(linear, 0, 100, 0, 5000);
             break;
         }
-        case tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V:
-        {
+        case tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V: {
             dac_info.value_map = map_range(linear, 0, 100, 0, 10000);
             break;
         }
@@ -74,38 +65,37 @@ function create_dac(cascade, id, description, dac_position, output_type)
     dac_info.enable = cascade.create_component({
         id: id + "_enable",
         name: description + " Enable (Position " + dac_position + ")",
-        group : "process_controls",
+        group: "process_controls",
         class: "dac_enable",
         type: cascade.TYPES.BOOLEAN,
-        value : false
+        value: false
     });
 
-    dac_info.enable.on("value_updated", function(){
+    dac_info.enable.on("value_updated", function () {
         set_dac(dac_info);
     });
 
     dac_info.output = cascade.create_component({
         id: id + "_output",
         name: description + " Output Percent (Position " + dac_position + ")",
-        group : "process_controls",
+        group: "process_controls",
         class: "dac_output",
         type: cascade.TYPES.NUMBER,
-        units : cascade.UNITS.PERCENTAGE,
-        value : 0
+        units: cascade.UNITS.PERCENTAGE,
+        value: 0
     });
 
-    dac_info.output.on("value_updated", function(){
+    dac_info.output.on("value_updated", function () {
         set_dac(dac_info);
     });
 
     dacs[id] = dac_info;
 }
 
-function set_relays()
-{
+function set_relays() {
     var relay_interface = devices["relays"];
 
-    if(relay_interface) {
+    if (relay_interface) {
 
         var bitmask = 0;
 
@@ -117,15 +107,14 @@ function set_relays()
     }
 }
 
-function create_relay(cascade, id, description, position)
-{
+function create_relay(cascade, id, description, position) {
     var relay_component = cascade.create_component({
         id: id,
         name: description,
-        group : "process_controls",
+        group: "process_controls",
         class: "relay",
         type: cascade.TYPES.BOOLEAN,
-        value : false
+        value: false
     });
 
     relay_component.on("value_updated", set_relays);
@@ -135,6 +124,19 @@ function create_relay(cascade, id, description, position)
 
 module.exports.setup = function (cascade) {
 
+    var tfPassword = process.env.TF_PASSWORD;
+
+    // Is TF protected by a password?
+    if (fs.statSync("/etc/brickd.conf")) {
+        try
+        {
+            tfPassword = fs.readFileSync("/etc/brickd.conf", 'utf8').split("=")[1].trim();
+        }
+        catch(e)
+        {
+        }
+    }
+
     var tfHost = process.env.TF_HOST || 'localhost';
 
     var ipcon = new tinkerforge.IPConnection();
@@ -143,29 +145,32 @@ module.exports.setup = function (cascade) {
     ipcon.on(tinkerforge.IPConnection.CALLBACK_CONNECTED,
         function (connectReason) {
 
-            ipcon.authenticate("4fac4508112d42b4b7dbf5680e83c875",
-                function() {
-                    ipcon.enumerate();
-                },
-                function(error) {
-                    cascade.log_error('Could not authenticate to brickd');
-                }
-            );
-
-            ipcon.enumerate();
+            if(tfPassword)
+            {
+                ipcon.authenticate(tfPassword,
+                    function () {
+                        ipcon.enumerate();
+                    },
+                    function (error) {
+                        cascade.log_error('Could not authenticate to brickd');
+                    }
+                );
+            }
+            else
+            {
+                ipcon.enumerate();
+            }
         }
     );
 
     ipcon.on(tinkerforge.IPConnection.CALLBACK_ENUMERATE,
         function (uid, connectedUid, position, hardwareVersion, firmwareVersion, deviceIdentifier, enumerationType) {
 
-            if(enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_DISCONNECTED) {
-                for(var key in devices)
-                {
+            if (enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_DISCONNECTED) {
+                for (var key in devices) {
                     var device = devices[key];
 
-                    if(device.uid_string === uid)
-                    {
+                    if (device.uid_string === uid) {
                         delete devices[key];
                         return;
                     }
@@ -209,42 +214,37 @@ module.exports.setup = function (cascade) {
     barometer_component = cascade.create_component({
         id: "barometer",
         name: "Barometer",
-        group : "sensors",
+        group: "sensors",
         class: "barometer",
         units: "mbar",
         type: cascade.TYPES.NUMBER
     });
 };
 
-module.exports.loop = function (cascade)
-{
+module.exports.loop = function (cascade) {
     var online = true;
 
-    _.each(dacs, function(dac_info){
+    _.each(dacs, function (dac_info) {
 
         var dac_interface = devices["dac_" + dac_info.position];
 
-        if(!dac_interface)
-        {
+        if (!dac_interface) {
             online = false;
             dac_info.interface = null;
         }
-        else if(!dac_info.interface)
-        {
+        else if (!dac_info.interface) {
             dac_info.interface = dac_interface;
             set_dac(dac_info);
         }
     });
 
-    if(devices["barometer"])
-    {
-        devices["barometer"].getAirPressure(function(airPressure){
+    if (devices["barometer"]) {
+        devices["barometer"].getAirPressure(function (airPressure) {
             barometer_component.value = airPressure / 1000;
         });
     }
 
-    if(!devices["relays"])
-    {
+    if (!devices["relays"]) {
         online = false;
     }
 };
