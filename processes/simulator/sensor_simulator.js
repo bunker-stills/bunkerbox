@@ -89,7 +89,7 @@ module.exports.setup = function (cascade) {
         create_temp_probe(cascade, "heads", null, 75.55);
         create_temp_probe(cascade, "hearts", null, 77.77);
         create_temp_probe(cascade, "tails", null, 85);
-        create_temp_probe(cascade, "sump", "main_heater_output", 99.44);
+        create_temp_probe(cascade, "sump", null, 99.44);
     }, 3000);
 };
 
