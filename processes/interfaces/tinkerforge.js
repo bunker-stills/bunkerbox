@@ -18,17 +18,17 @@ function mapRange(value, in_min, in_max, out_min, out_max) {
 var OUTPUT_TYPES = {
     VOLTAGE_RANGE_0_TO_5V: function (tfInterface, outputPercent) {
         tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_5V, 0);
-        var output = mapRange(outputPercent, 0, 100, 0, 5000);
+        var output = Math.round(mapRange(outputPercent, 0, 100, 0, 5000));
         tfInterface.setVoltage(output);
     },
     VOLTAGE_RANGE_0_TO_10V: function (tfInterface, outputPercent) {
         tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V, 0);
-        var output = mapRange(outputPercent, 0, 100, 2000, 10000); // Our power controllers are 2V to 10V
+        var output = Math.round(mapRange(outputPercent, 0, 100, 2000, 10000)); // Our power controllers are 2V to 10V
         tfInterface.setVoltage(output);
     },
     CURRENT_RANGE_4_TO_20MA: function (tfInterface, outputPercent) {
         tfInterface.setConfiguration(0, tinkerforge.BrickletIndustrialAnalogOut.CURRENT_RANGE_4_TO_20MA);
-        var output = mapRange(outputPercent, 0, 100, 4000, 20000);
+        var output = Math.round(mapRange(outputPercent, 0, 100, 4000, 20000));
         tfInterface.setCurrent(output);
     }
 };
