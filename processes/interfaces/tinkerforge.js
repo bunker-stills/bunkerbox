@@ -10,7 +10,9 @@ var PRE_HEATER_DAC_POSITION = process.env.PRE_HEATER_DAC_POSITION || "B";
 var PUMP_DAC_POSITION = process.env.MAIN_HEATER_DAC_POSITION || "C";
 
 function mapRange(value, in_min, in_max, out_min, out_max) {
-    return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+    var output = (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+    return output;
+    //return Math.max(out_min, Math.min(output, out_max));
 }
 
 var OUTPUT_TYPES = {
@@ -21,7 +23,7 @@ var OUTPUT_TYPES = {
     },
     VOLTAGE_RANGE_0_TO_10V: function (tfInterface, outputPercent) {
         tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V, 0);
-        var output = mapRange(outputPercent, 0, 100, 0, 10000);
+        var output = mapRange(outputPercent, 0, 100, 2000, 10000); // Our power controllers are 2V to 10V
         tfInterface.setVoltage(output);
     },
     CURRENT_RANGE_4_TO_20MA: function (tfInterface, outputPercent) {

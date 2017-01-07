@@ -2,8 +2,6 @@ var _ = require("underscore");
 
 function pid()
 {
-    this.PV = 0;
-    this.CV = 0;
     this.Kp = 0;
     this.Ki = 0;
     this.Kd = 0;
@@ -13,7 +11,7 @@ module.exports = pid;
 
 pid.prototype.reset = function()
 {
-    this.lastMeasurementTime = 1000;
+    this.lastMeasurementTime = 0;
     this.setPoint = 0;
     this.previousError = 0;
     this.integral = 0;
@@ -42,12 +40,25 @@ pid.prototype.setDerivativeGain = function(Kd)
 pid.prototype.update = function(measuredValue)
 {
     var now = Date.now();
+    var dt;
 
-    var dt = (now - this.lastMeasurementTime) / 1000.0;
+    if(!this.lastMeasurementTime)
+    {
+        dt = 1.0;
+    }
+    else
+    {
+        dt = (now - this.lastMeasurementTime) / 1000.0;
+    }
+
     var input = measuredValue;
     var integral = this.integral;
 
     var error = this.setPoint - input;
+
+    console.log(this.setPoint + " - " + input + " = " + error);
+    console.log("dt: " + dt);
+    console.log("------------------------");
 
     integral = integral + error * dt;
 
@@ -55,11 +66,8 @@ pid.prototype.update = function(measuredValue)
 
     var CV = this.Kp * error + this.Ki * integral + this.Kd * derivative;
 
-    /*console.log("---------------------------");
-    console.log("Integral: " + integral);
-    console.log("SP: " + this.setPoint);
-    console.log("CV Pre: " + CV);
-    console.log("PV: " + measuredValue);*/
+    //console.log("---------------------------");
+    //console.log("PID Gains: " + this.Kp + "," + this.kI +)
 
     if(!_.isUndefined(this.CVOffset))
     {
