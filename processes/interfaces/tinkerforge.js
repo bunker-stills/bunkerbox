@@ -1,5 +1,4 @@
 var _ = require("underscore");
-var map_range = require("map-range");
 var tinkerforge = require('tinkerforge');
 var util = require("util");
 var fs = require("fs");
@@ -10,6 +9,32 @@ var MAIN_HEATER_DAC_POSITION = process.env.MAIN_HEATER_DAC_POSITION || "A";
 var PRE_HEATER_DAC_POSITION = process.env.PRE_HEATER_DAC_POSITION || "B";
 var PUMP_DAC_POSITION = process.env.MAIN_HEATER_DAC_POSITION || "C";
 
+function mapRange(value, in_min, in_max, out_min, out_max) {
+    return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+var OUTPUT_TYPES = {
+    VOLTAGE_RANGE_0_TO_5V: function (tfInterface, outputPercent) {
+        tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_5V, 0);
+        var output = mapRange(outputPercent, 0, 100, 0, 5000);
+        tfInterface.setVoltage(output);
+    },
+    VOLTAGE_RANGE_0_TO_10: function (tfInterface, outputPercent) {
+        tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10, 0);
+        var output = mapRange(outputPercent, 0, 100, 0, 10000);
+        tfInterface.setVoltage(output);
+    },
+    CURRENT_RANGE_4_TO_20MA: function (tfInterface, outputPercent) {
+        tfInterface.setConfiguration(0, tinkerforge.BrickletIndustrialAnalogOut.CURRENT_RANGE_4_TO_20MA);
+        var output = mapRange(outputPercent, 0, 100, 4000, 20000);
+        tfInterface.setCurrent(output);
+    }
+};
+
+var PUMP_OUTPUT_TYPE = process.env.PUMP_OUTPUT_TYPE || "VOLTAGE_RANGE_0_TO_5V";
+var PRE_HEATER_OUTPUT_TYPE = process.env.PRE_HEATER_OUTPUT_TYPE || "CURRENT_RANGE_4_TO_20MA";
+var MAIN_HEATER_OUTPUT_TYPE = process.env.MAIN_HEATER_OUTPUT_TYPE || "CURRENT_RANGE_4_TO_20MA";
+
 var HEARTS_REFLUX_RELAY_POSITION = 2;
 var TAILS_REFLUX_RELAY_POSITION = 1;
 var FEED_RELAY_POSITION = 0;
@@ -18,28 +43,10 @@ var dacs = {};
 var relays = {};
 var barometer_component;
 
-function linear(x) {
-    return x;
-}
-
 function set_dac(dac_info) {
     if (dac_info.interface) {
 
-        var output_value = dac_info.value_map(dac_info.output.value);
-
-        switch (dac_info.output_type) {
-            case tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_5V:
-            case tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V: {
-                dac_info.interface.setConfiguration(dac_info.output_type, 0);
-                dac_info.interface.setVoltage(output_value);
-                break;
-            }
-            case tinkerforge.BrickletIndustrialAnalogOut.CURRENT_RANGE_4_TO_20MA: {
-                dac_info.interface.setConfiguration(0, dac_info.output_type);
-                dac_info.interface.setCurrent(output_value);
-                break;
-            }
-        }
+        dac_info.setFunction(dac_info.interface, dac_info.output.value);
 
         if (dac_info.enable.value === true) {
             dac_info.interface.enable();
@@ -53,23 +60,8 @@ function set_dac(dac_info) {
 function create_dac(cascade, id, description, dac_position, output_type) {
     var dac_info = {};
 
-    dac_info.output_type = output_type;
+    dac_info.setFunction = OUTPUT_TYPES[output_type];
     dac_info.position = dac_position;
-
-    switch (output_type) {
-        case tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_5V: {
-            dac_info.value_map = map_range(linear, 0, 100, 0, 5000);
-            break;
-        }
-        case tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V: {
-            dac_info.value_map = map_range(linear, 0, 100, 0, 10000);
-            break;
-        }
-        case tinkerforge.BrickletIndustrialAnalogOut.CURRENT_RANGE_4_TO_20MA: {
-            dac_info.value_map = map_range(linear, 0, 100, 4000, 20000);
-            break;
-        }
-    }
 
     dac_info.enable = cascade.create_component({
         id: id + "_enable",
@@ -137,12 +129,10 @@ module.exports.setup = function (cascade) {
 
     // Is TF protected by a password?
     if (fs.statSync("/etc/brickd.conf")) {
-        try
-        {
+        try {
             tfPassword = fs.readFileSync("/etc/brickd.conf", 'utf8').split("=")[1].trim();
         }
-        catch(e)
-        {
+        catch (e) {
         }
     }
 
@@ -154,8 +144,7 @@ module.exports.setup = function (cascade) {
     ipcon.on(tinkerforge.IPConnection.CALLBACK_CONNECTED,
         function (connectReason) {
 
-            if(tfPassword)
-            {
+            if (tfPassword) {
                 ipcon.authenticate(tfPassword,
                     function () {
                         ipcon.enumerate();
@@ -165,8 +154,7 @@ module.exports.setup = function (cascade) {
                     }
                 );
             }
-            else
-            {
+            else {
                 ipcon.enumerate();
             }
         }
@@ -212,9 +200,9 @@ module.exports.setup = function (cascade) {
             }
         });
 
-    create_dac(cascade, "pump", "Pump", PUMP_DAC_POSITION, tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_5V);
-    create_dac(cascade, "pre_heater", "Preheater", PRE_HEATER_DAC_POSITION, tinkerforge.BrickletIndustrialAnalogOut.CURRENT_RANGE_4_TO_20MA);
-    create_dac(cascade, "main_heater", "Main Heater", MAIN_HEATER_DAC_POSITION, tinkerforge.BrickletIndustrialAnalogOut.CURRENT_RANGE_4_TO_20MA);
+    create_dac(cascade, "pump", "Pump", PUMP_DAC_POSITION, PUMP_OUTPUT_TYPE);
+    create_dac(cascade, "pre_heater", "Preheater", PRE_HEATER_DAC_POSITION, PRE_HEATER_OUTPUT_TYPE);
+    create_dac(cascade, "main_heater", "Main Heater", MAIN_HEATER_DAC_POSITION, MAIN_HEATER_OUTPUT_TYPE);
 
     create_relay(cascade, "hearts_reflux_relay", "Hearts Reflux Relay", HEARTS_REFLUX_RELAY_POSITION);
     create_relay(cascade, "tails_reflux_relay", "Tails Reflux Relay", TAILS_REFLUX_RELAY_POSITION);
