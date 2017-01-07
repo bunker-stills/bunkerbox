@@ -19,8 +19,8 @@ var OUTPUT_TYPES = {
         var output = mapRange(outputPercent, 0, 100, 0, 5000);
         tfInterface.setVoltage(output);
     },
-    VOLTAGE_RANGE_0_TO_10: function (tfInterface, outputPercent) {
-        tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10, 0);
+    VOLTAGE_RANGE_0_TO_10V: function (tfInterface, outputPercent) {
+        tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V, 0);
         var output = mapRange(outputPercent, 0, 100, 0, 10000);
         tfInterface.setVoltage(output);
     },
