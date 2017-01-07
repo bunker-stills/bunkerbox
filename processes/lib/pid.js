@@ -7,14 +7,13 @@ function pid()
     this.Kp = 0;
     this.Ki = 0;
     this.Kd = 0;
-    this.CVLowerLimit = 0;
     this.reset();
 }
 module.exports = pid;
 
 pid.prototype.reset = function()
 {
-    this.lastMeasurementTime = undefined;
+    this.lastMeasurementTime = 1000;
     this.setPoint = 0;
     this.previousError = 0;
     this.integral = 0;
@@ -43,11 +42,6 @@ pid.prototype.setDerivativeGain = function(Kd)
 pid.prototype.update = function(measuredValue)
 {
     var now = Date.now();
-
-    if(_.isUndefined(this.lastMeasurementTime))
-    {
-        this.lastMeasurementTime = now;
-    }
 
     var dt = (now - this.lastMeasurementTime) / 1000.0;
     var input = measuredValue;
