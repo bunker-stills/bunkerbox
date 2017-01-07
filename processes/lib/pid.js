@@ -55,17 +55,17 @@ pid.prototype.update = function(measuredValue)
 
     var error = this.setPoint - input;
 
-    integral = integral + (this.Ki * error * dt);
+    integral = integral + error * dt;
 
     var derivative = (error - this.previousError) / dt;
 
-    var CV = this.Kp * error + integral + this.Kd * derivative;
+    var CV = this.Kp * error + this.Ki * integral + this.Kd * derivative;
 
-    console.log("---------------------------");
+    /*console.log("---------------------------");
     console.log("Integral: " + integral);
     console.log("SP: " + this.setPoint);
     console.log("CV Pre: " + CV);
-    console.log("PV: " + measuredValue);
+    console.log("PV: " + measuredValue);*/
 
     if(!_.isUndefined(this.CVOffset))
     {
@@ -74,19 +74,19 @@ pid.prototype.update = function(measuredValue)
 
     if(!_.isUndefined(this.CVUpperLimit) && CV > this.CVUpperLimit && integral > this.integral)
     {
-        console.log("Upper Limit");
+        //console.log("Upper Limit");
         integral = this.integral;
         CV = this.CVUpperLimit;
     }
 
     if(!_.isUndefined(this.CVLowerLimit) && CV < this.CVLowerLimit && integral < this.integral)
     {
-        console.log("Lower Limit");
+        //console.log("Lower Limit");
         integral = this.integral;
         CV = this.CVLowerLimit;
     }
 
-    console.log("CV Post: " + CV);
+    //console.log("CV Post: " + CV);
 
     this.integral = integral;
     this.previousError = error;

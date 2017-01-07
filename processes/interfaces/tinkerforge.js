@@ -24,27 +24,28 @@ function linear(x) {
 
 function set_dac(dac_info) {
     if (dac_info.interface) {
-        dac_info.interface.setConfiguration(dac_info.output_type);
-
-        if (dac_info.enable.value === true) {
-            dac_info.interface.enable();
-        }
-        else {
-            dac_info.interface.disable();
-        }
 
         var output_value = dac_info.value_map(dac_info.output.value);
 
         switch (dac_info.output_type) {
             case tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_5V:
             case tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V: {
+                dac_info.interface.setConfiguration(dac_info.output_type, 0);
                 dac_info.interface.setVoltage(output_value);
                 break;
             }
             case tinkerforge.BrickletIndustrialAnalogOut.CURRENT_RANGE_4_TO_20MA: {
+                dac_info.interface.setConfiguration(0, dac_info.output_type);
                 dac_info.interface.setCurrent(output_value);
                 break;
             }
+        }
+
+        if (dac_info.enable.value === true) {
+            dac_info.interface.enable();
+        }
+        else {
+            dac_info.interface.disable();
         }
     }
 }
