@@ -56,8 +56,8 @@ pid.prototype.update = function(measuredValue)
 
     var error = this.setPoint - input;
 
-    console.log("Error: " + this.setPoint + " - " + input + " = " + error);
-    console.log("dt: " + dt);
+    //console.log("Error: " + this.setPoint + " - " + input + " = " + error);
+    //console.log("dt: " + dt);
 
     integral = integral + error * dt;
 
@@ -65,25 +65,33 @@ pid.prototype.update = function(measuredValue)
 
     var CV = this.Kp * error + this.Ki * integral + this.Kd * derivative;
 
-    console.log("Integral: " + integral);
-    console.log("Derivative: " + derivative);
-    console.log("CV: " + CV);
-    console.log("------------------------");
+    //console.log("Integral: " + integral);
+    //console.log("Derivative: " + derivative);
+    //console.log("CV: " + CV);
+    //console.log("------------------------");
 
     /*if(!_.isUndefined(this.CVOffset))
     {
         CV += this.CVOffset;
     }*/
 
-    if(!_.isUndefined(this.CVUpperLimit) && CV > this.CVUpperLimit && integral > this.integral)
+    if(!_.isUndefined(this.CVUpperLimit) && CV > this.CVUpperLimit)
     {
-        integral = this.integral;
+        if(integral > this.integral)
+        {
+            integral = this.integral;
+        }
+
         CV = this.CVUpperLimit;
     }
 
-    if(!_.isUndefined(this.CVLowerLimit) && CV < this.CVLowerLimit && integral < this.integral)
+    if(!_.isUndefined(this.CVLowerLimit) && CV < this.CVLowerLimit)
     {
-        integral = this.integral;
+        if(integral < this.integral)
+        {
+            integral = this.integral;
+        }
+
         CV = this.CVLowerLimit;
     }
 
