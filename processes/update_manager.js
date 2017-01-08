@@ -18,7 +18,7 @@ module.exports.setup = function (cascade) {
         }
         else
         {
-            exec("lockfile", path.join(cascade.cascade_server.config.data_storage_location, "resin-updates.lock"));
+            exec("touch", path.join(cascade.cascade_server.config.data_storage_location, "resin-updates.lock"));
         }
     });
 
