@@ -1,4 +1,4 @@
-var exec = require('child_process').exec;
+var fs = require("fs");
 var path = require("path");
 
 module.exports.setup = function (cascade) {
@@ -12,13 +12,19 @@ module.exports.setup = function (cascade) {
     });
 
     allowSoftwareUpdates.on("value_updated", function(){
+
+        var lockFilePath = path.join(cascade.cascade_server.config.data_storage_location, "resin-updates.lock");
+
         if(allowSoftwareUpdates.value)
         {
-            exec("rm -f", path.join(cascade.cascade_server.config.data_storage_location, "resin-updates.lock"));
+            if(fs.existsSync(lockFilePath))
+            {
+                fs.unlinkSync(lockFilePath);
+            }
         }
         else
         {
-            exec("touch", path.join(cascade.cascade_server.config.data_storage_location, "resin-updates.lock"));
+            fs.closeSync(fs.openSync(lockFilePath, 'w'));
         }
     });
 
