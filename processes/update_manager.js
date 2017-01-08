@@ -1,4 +1,5 @@
 var exec = require('child_process').exec;
+var path = require("path");
 
 module.exports.setup = function (cascade) {
 
@@ -13,11 +14,11 @@ module.exports.setup = function (cascade) {
     allowSoftwareUpdates.on("value_updated", function(){
         if(allowSoftwareUpdates.value)
         {
-            exec("rm -f", "/data/resin-updates.lock");
+            exec("rm -f", path.join(cascade.cascade_server.config.data_storage_location, "resin-updates.lock"));
         }
         else
         {
-            exec("lockfile", "/data/resin-updates.lock");
+            exec("lockfile", path.join(cascade.cascade_server.config.data_storage_location, "resin-updates.lock"));
         }
     });
 

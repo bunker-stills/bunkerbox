@@ -135,11 +135,13 @@ module.exports.setup = function (cascade) {
         cascade.require_process("interfaces/tinkerforge");
     }
 
+    cascade.require_process("update_manager");
     cascade.require_process("process_temps");
     cascade.require_process("reflux_control");
     cascade.require_process("pids");
 
     cascade.components.require_component([
+        "allow_software_updates",
         "pump_enable",
         "pre_heater_enable",
         "pre_heater_pid_enable",
