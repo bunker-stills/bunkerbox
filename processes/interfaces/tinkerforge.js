@@ -1,7 +1,7 @@
 var _ = require("underscore");
 var tinkerforge = require('tinkerforge');
+var tinkerforge_connection = require("./../lib/tinkerforge_connection");
 var util = require("util");
-var fs = require("fs");
 
 var devices = {};
 
@@ -127,80 +127,57 @@ function create_relay(cascade, id, description, position) {
 
 module.exports.setup = function (cascade) {
 
-    var tfPassword = process.env.TF_PASSWORD;
+    tinkerforge_connection.create(function (error, ipcon) {
 
-    // Is TF protected by a password?
-    if (fs.statSync("/etc/brickd.conf")) {
-        try {
-            tfPassword = fs.readFileSync("/etc/brickd.conf", 'utf8').split("=")[1].trim();
+        if (error) {
+            throw error;
         }
-        catch (e) {
-        }
-    }
 
-    var tfHost = process.env.TF_HOST || 'localhost';
+        ipcon.on(tinkerforge.IPConnection.CALLBACK_ENUMERATE,
+            function (uid, connectedUid, position, hardwareVersion, firmwareVersion, deviceIdentifier, enumerationType) {
 
-    var ipcon = new tinkerforge.IPConnection();
-    ipcon.connect(tfHost, 4223);
+                if (enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_DISCONNECTED) {
+                    for (var key in devices) {
+                        var device = devices[key];
 
-    ipcon.on(tinkerforge.IPConnection.CALLBACK_CONNECTED,
-        function (connectReason) {
-
-            if (tfPassword) {
-                ipcon.authenticate(tfPassword,
-                    function () {
-                        ipcon.enumerate();
-                    },
-                    function (error) {
-                        cascade.log_error('Could not authenticate to brickd');
-                    }
-                );
-            }
-            else {
-                ipcon.enumerate();
-            }
-        }
-    );
-
-    ipcon.on(tinkerforge.IPConnection.CALLBACK_ENUMERATE,
-        function (uid, connectedUid, position, hardwareVersion, firmwareVersion, deviceIdentifier, enumerationType) {
-
-            if (enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_DISCONNECTED) {
-                for (var key in devices) {
-                    var device = devices[key];
-
-                    if (device.uid_string === uid) {
-                        delete devices[key];
-                        return;
+                        if (device.uid_string === uid) {
+                            delete devices[key];
+                            return;
+                        }
                     }
                 }
-            }
-            else if (enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_CONNECTED || enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_AVAILABLE) {
-                switch (deviceIdentifier) {
-                    case tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER : {
-                        var dac = new tinkerforge.BrickletIndustrialAnalogOut(uid, ipcon);
-                        dac.uid_string = uid;
-                        dac.position = position;
-                        devices["dac_" + position.toUpperCase()] = dac;
-                        break;
-                    }
-                    case tinkerforge.BrickletBarometer.DEVICE_IDENTIFIER : {
-                        var barometer = new tinkerforge.BrickletBarometer(uid, ipcon);
-                        barometer.uid_string = uid;
-                        barometer.position = position;
-                        devices["barometer"] = barometer;
-                        break;
-                    }
-                    case tinkerforge.BrickletIndustrialQuadRelay.DEVICE_IDENTIFIER : {
-                        var relay = new tinkerforge.BrickletIndustrialQuadRelay(uid, ipcon);
-                        relay.uid_string = uid;
-                        relay.position = position;
-                        devices["relays"] = relay;
-                        break;
+                else if (enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_CONNECTED || enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_AVAILABLE) {
+                    switch (deviceIdentifier) {
+                        case tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER : {
+                            var dac = new tinkerforge.BrickletIndustrialAnalogOut(uid, ipcon);
+                            dac.uid_string = uid;
+                            dac.position = position;
+                            dac.disable();
+                            dac.setVoltage(0);
+                            dac.setCurrent(0);
+                            devices["dac_" + position.toUpperCase()] = dac;
+                            break;
+                        }
+                        case tinkerforge.BrickletBarometer.DEVICE_IDENTIFIER : {
+                            var barometer = new tinkerforge.BrickletBarometer(uid, ipcon);
+                            barometer.uid_string = uid;
+                            barometer.position = position;
+                            devices["barometer"] = barometer;
+                            break;
+                        }
+                        case tinkerforge.BrickletIndustrialQuadRelay.DEVICE_IDENTIFIER : {
+                            var relay = new tinkerforge.BrickletIndustrialQuadRelay(uid, ipcon);
+                            relay.uid_string = uid;
+                            relay.position = position;
+                            devices["relays"] = relay;
+                            break;
+                        }
                     }
                 }
-            }
-        });
+            });
+
+        ipcon.enumerate();
+    });
 
     create_dac(cascade, "pump", "Pump", PUMP_DAC_POSITION, PUMP_OUTPUT_TYPE);
     create_dac(cascade, "pre_heater", "Preheater", PRE_HEATER_DAC_POSITION, PRE_HEATER_OUTPUT_TYPE);

@@ -162,7 +162,6 @@ module.exports.loop = function (cascade) {
 
             pid_definition.pid.setDesiredValue(pid_definition.set_point.value || 0.0);
 
-            console.log(pid_name);
             pid_definition.control_value.value = pid_definition.pid.update(pid_definition.process_value.value || 0.0);
 
             if (pid_definition.output_component) {

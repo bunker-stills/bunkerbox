@@ -1,33 +1,41 @@
-var cascade = require("./cascade/cascade");
-var commander = require("commander");
-var package_info = require("./package.json");
+var child_process = require('child_process');
 
-var process_list = [];
-
-if(process.env.CASCADE_PROCESSES) // Get our list of processes via ENV var first
+function failsafe()
 {
-    process_list = process.env.CASCADE_PROCESSES.split(",");
+    // Turn our D2A controllers completely off.
+    var tinkerforge = require('tinkerforge');
+    require("./processes/lib/tinkerforge_connection").create(function (error, ipcon) {
+        if (error) {
+            throw error;
+        }
+
+        ipcon.on(tinkerforge.IPConnection.CALLBACK_ENUMERATE,
+            function (uid, connectedUid, position, hardwareVersion, firmwareVersion, deviceIdentifier, enumerationType) {
+                if (enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_CONNECTED || enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_AVAILABLE) {
+                    switch (deviceIdentifier) {
+                        case tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER : {
+                            var dac = new tinkerforge.BrickletIndustrialAnalogOut(uid, ipcon);
+                            dac.disable();
+                            dac.setVoltage(0);
+                            dac.setCurrent(0);
+                            break;
+                        }
+                    }
+                }
+            });
+
+        ipcon.enumerate();
+        setTimeout(ipcon.disconnect, 10000);
+    });
 }
 
-function collect(val, memo) {
-    memo.push(val);
-    return memo;
+function startController() {
+    var controllerProcess = child_process.fork("./bunker_controller");
+
+    controllerProcess.on('close', function () {
+        console.log("There was an error. Trying to start again.");
+        setTimeout(startController, 5000);
+    });
 }
 
-commander.version(package_info.version) // User command line args if processes are specified.
-    .option('-p, --process [value]', 'process file path', collect, [])
-    .parse(process.argv);
-
-if(commander.process.length > 0)
-{
-    process_list = commander.process;
-}
-
-var cascade_server = new cascade({
-    title : "Bunker Heising-330",
-    device_id : process.env.RESIN_DEVICE_NAME_AT_INIT || process.env.DEVICE_ID,
-    web_port : Number(process.env.WEB_PORT) || 3000,
-    mqtt_port : Number(process.env.MQTT_PORT) || 1883,
-    data_storage_location : process.env.DATA_PATH,
-    processes : process_list
-});
+startController();
