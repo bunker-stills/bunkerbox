@@ -56,24 +56,11 @@ pid.prototype.update = function(measuredValue)
 
     var error = this.setPoint - input;
 
-    //console.log("Error: " + this.setPoint + " - " + input + " = " + error);
-    //console.log("dt: " + dt);
-
-    integral = integral + error * dt;
+    integral = integral + (this.Ki * error * dt);
 
     var derivative = (error - this.previousError) / dt;
 
-    var CV = this.Kp * error + this.Ki * integral + this.Kd * derivative;
-
-    //console.log("Integral: " + integral);
-    //console.log("Derivative: " + derivative);
-    //console.log("CV: " + CV);
-    //console.log("------------------------");
-
-    /*if(!_.isUndefined(this.CVOffset))
-    {
-        CV += this.CVOffset;
-    }*/
+    var CV = this.Kp * error + integral + this.Kd * derivative;
 
     if(!_.isUndefined(this.CVUpperLimit) && CV > this.CVUpperLimit)
     {
