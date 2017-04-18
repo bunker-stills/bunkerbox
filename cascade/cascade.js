@@ -397,7 +397,7 @@ cascade.prototype.load_process = function (process_path, root_path) {
 };
 
 cascade.prototype.publish_mqtt_message = function (topic, message, retain) {
-    if (!this.mqtt_server) return;
+    if (!this.mqtt_server || message == null || message == undefined) return;
 
     this.mqtt_server.publish({
         topic: topic,

@@ -3,6 +3,8 @@ var pid_controller = require("./../lib/pid");
 var duty_cycle = require("./../lib/duty_cycle");
 var sigmoid = require("./../lib/sigmoid");
 
+var PUMP_PRIME_PERCENT = 25;
+
 var SENSOR_OFFLINE_SECONDS = 20;
 var TEMP_SENSOR_OVERHEAT_LIMIT = 230; // Degrees F
 var COOLDOWN_TEMP_TARGET = 170; // Degrees F
@@ -201,7 +203,7 @@ module.exports.setup = function (cascade) {
         group: "run",
         type: cascade.TYPES.OPTIONS,
         info: {
-            options: ["IDLE", "WARMUP", "STARTUP", "RUN", "COOLDOWN"]
+            options: ["IDLE", "PUMP PRIME", "WARMUP", "STARTUP", "RUN", "COOLDOWN"]
         },
         value: "IDLE"
     });
@@ -242,6 +244,14 @@ function duringIdle(cascade) {
 
     controllerComponents.hearts_reflux_relay.value = false;
     controllerComponents.tails_reflux_relay.value = false;
+}
+
+function duringPumpPrime(cascade)
+{
+    feedFromWater();
+
+    controllerComponents.pump_enable.value = true;
+    controllerComponents.pump_output.value = PUMP_PRIME_PERCENT;
 }
 
 function duringWarmup(cascade) {
@@ -383,6 +393,11 @@ function checkforFailure(cascade)
 module.exports.loop = function (cascade) {
 
     switch (runMode.value.toUpperCase()) {
+        case "PUMP PRIME":
+        {
+            duringPumpPrime(cascade);
+            break;
+        }
         case "WARMUP" :
         {
             checkforFailure(cascade);

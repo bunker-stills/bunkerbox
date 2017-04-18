@@ -90,6 +90,9 @@ var component_bundle = function (cascade) {
         this.create_mapper_for_class(mapper_component, component_class);
 
         function update_value() {
+
+            value_component.mirror_component(null);
+
             self.require_component(mapper_component.value, function (component_to_mirror) {
                 value_component.mirror_component(component_to_mirror);
             });
