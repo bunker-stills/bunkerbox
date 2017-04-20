@@ -7,6 +7,7 @@ module.exports.setup = function (cascade) {
         id: "allow_software_updates",
         name: "Allow Software Updates",
         type: cascade.TYPES.BOOLEAN,
+        group : "Software Updates",
         value: false
     });
 
