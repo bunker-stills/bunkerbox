@@ -19,7 +19,7 @@ var FEED_CYCLE_TIME_IN_SECONDS = Number(process.env.FEED_CYCLE_TIME_IN_SECONDS) 
 var PRE_HEATER_WARMUP_P_GAIN = Number(process.env.PRE_HEATER_WARMUP_P_GAIN) || 0.2;
 var PRE_HEATER_WARMUP_I_GAIN = Number(process.env.PRE_HEATER_WARMUP_I_GAIN) || 0.01;
 var PRE_HEATER_WARMUP_D_GAIN = Number(process.env.PRE_HEATER_WARMUP_D_GAIN) || 0.0;
-var PRE_HEATER_WARMUP_SET_POINT = Number(process.env.PRE_HEATER_WARMUP_SET_POINT) || 85; // Degrees F
+var PRE_HEATER_WARMUP_SET_POINT = Number(process.env.PRE_HEATER_WARMUP_SET_POINT) || 100; // Degrees F
 var PUMP_WARMUP_PERCENT = Number(process.env.PUMP_WARMUP_PERCENT) || 11;
 var MAIN_HEATER_WARMUP_SECONDS = Number(process.env.MAIN_HEATER_WARMUP_SECONDS) || 900;
 var DESIRED_FEED_ABV_WARMUP = Number(process.env.DESIRED_FEED_ABV_WARMUP) || 1; // Percent
@@ -28,7 +28,7 @@ var DESIRED_FEED_ABV_WARMUP = Number(process.env.DESIRED_FEED_ABV_WARMUP) || 1; 
 var PRE_HEATER_STARTUP_P_GAIN = Number(process.env.PRE_HEATER_STARTUP_P_GAIN) || 0.2;
 var PRE_HEATER_STARTUP_I_GAIN = Number(process.env.PRE_HEATER_STARTUP_I_GAIN) || 0.01;
 var PRE_HEATER_STARTUP_D_GAIN = Number(process.env.PRE_HEATER_STARTUP_D_GAIN) || 0.0;
-var PRE_HEATER_STARTUP_SET_POINT = Number(process.env.PRE_HEATER_STARTUP_SET_POINT) || 85; // Degrees F
+var PRE_HEATER_STARTUP_SET_POINT = Number(process.env.PRE_HEATER_STARTUP_SET_POINT) || 100; // Degrees F
 var DESIRED_FEED_ABV_STARTUP = Number(process.env.DESIRED_FEED_ABV_STARTUP) || 8; // Percent
 var PUMP_STARTUP_P_GAIN = Number(process.env.PUMP_STARTUP_P_GAIN) || -0.09;
 var PUMP_STARTUP_I_GAIN = Number(process.env.PUMP_STARTUP_I_GAIN) || -0.002;
@@ -278,7 +278,7 @@ function duringWarmup(cascade) {
     controllerComponents.main_heater_enable.value = true;
     if(warmupTimeInSeconds <= MAIN_HEATER_WARMUP_SECONDS) {
         // Use a sigmoid function to bring the heater up
-        controllerComponents.main_heater_output.value = sigmoid.riseTo(warmupTimeInSeconds, 0, MAIN_HEATER_RUN_PERCENT, MAIN_HEATER_WARMUP_SECONDS);
+        controllerComponents.main_heater_output.value = sigmoid.riseTo(warmupTimeInSeconds, 20, MAIN_HEATER_RUN_PERCENT, MAIN_HEATER_WARMUP_SECONDS);
     }
     else
     {
