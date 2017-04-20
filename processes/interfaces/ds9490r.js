@@ -41,7 +41,7 @@ function get_temp_loop(cascade) {
                                 id: probe_id + "_raw",
                                 name: "Temp. Probe " + probe_id + " Raw",
                                 units: cascade.UNITS.C,
-                                group: "sensors",
+                                group: "Sensors",
                                 class: "raw_temperature",
                                 read_only: true,
                                 type: cascade.TYPES.NUMBER
@@ -50,7 +50,7 @@ function get_temp_loop(cascade) {
                             probe_component.calibration = cascade.create_component({
                                 id: probe_id + "_calibration",
                                 name: "Temp. Probe " + probe_id + " Calibration",
-                                group: "sensors",
+                                group: "Sensors",
                                 units: cascade.UNITS.C,
                                 persist: true,
                                 type: cascade.TYPES.NUMBER
@@ -60,7 +60,7 @@ function get_temp_loop(cascade) {
                                 id: probe_id + "_calibrated",
                                 name: "Temp. Probe " + probe_id + " Calibrated",
                                 units: cascade.UNITS.C,
-                                group: "sensors",
+                                group: "Sensors",
                                 class: "calibrated_temperature",
                                 read_only: true,
                                 type: cascade.TYPES.NUMBER

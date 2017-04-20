@@ -68,7 +68,7 @@ function create_dac(cascade, id, description, dac_position, output_type) {
     dac_info.enable = cascade.create_component({
         id: id + "_enable",
         name: description + " Enable (Position " + dac_position + ")",
-        group: "process_controls",
+        group: "Process Controls",
         class: "dac_enable",
         type: cascade.TYPES.BOOLEAN,
         value: false
@@ -81,7 +81,7 @@ function create_dac(cascade, id, description, dac_position, output_type) {
     dac_info.output = cascade.create_component({
         id: id + "_output",
         name: description + " Output Percent (Position " + dac_position + ")",
-        group: "process_controls",
+        group: "Process Controls",
         class: "dac_output",
         type: cascade.TYPES.NUMBER,
         units: cascade.UNITS.PERCENTAGE,
@@ -114,7 +114,7 @@ function create_relay(cascade, id, description, position) {
     var relay_component = cascade.create_component({
         id: id,
         name: description,
-        group: "process_controls",
+        group: "Process Controls",
         class: "relay",
         type: cascade.TYPES.BOOLEAN,
         value: false

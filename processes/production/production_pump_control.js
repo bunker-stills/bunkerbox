@@ -201,7 +201,7 @@ module.exports.setup = function (cascade) {
     runMode = cascade.create_component({
         id: "run_mode",
         name: "Run Mode",
-        group: "run",
+        group: "Run",
         type: cascade.TYPES.OPTIONS,
         info: {
             options: ["IDLE", "PUMP PRIME", "WARMUP", "STARTUP", "RUN", "COOLDOWN", "MANUAL"]
@@ -216,7 +216,7 @@ module.exports.setup = function (cascade) {
     feedABV = cascade.create_component({
         id: "feed_abv",
         name: "Feed ABV",
-        group: "run",
+        group: "Run",
         units: cascade.UNITS.PERCENTAGE,
         type: cascade.TYPES.NUMBER
     });

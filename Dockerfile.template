@@ -25,4 +25,4 @@ ENV INITSYSTEM on
 # RUN echo "allowed_users=anybody" > /etc/X11/Xwrapper.config
 
 CMD ["node", "server.js"]
-#CMD bash -C "/usr/src/app/setup/run_with_screen";"bash"
+# CMD bash -C "/usr/src/app/setup/run_with_screen";"bash"
