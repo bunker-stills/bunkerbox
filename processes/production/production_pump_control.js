@@ -9,7 +9,7 @@ var SENSOR_OFFLINE_SECONDS = Number(process.env.SENSOR_OFFLINE_SECONDS) || 20;
 var TEMP_SENSOR_OVERHEAT_LIMIT = Number(process.env.TEMP_SENSOR_OVERHEAT_LIMIT) || 230; // Degrees F
 var COOLDOWN_TEMP_TARGET = Number(process.env.COOLDOWN_TEMP_TARGET) || 170; // Degrees F
 var PUMP_COOLDOWN_PERCENT = Number(process.env.PUMP_COOLDOWN_PERCENT) || 10;
-var PUMP_MIN_PID_PERCENT = Number(process.env.PUMP_MIN_PID_PERCENT) || 5;
+var PUMP_MIN_PID_PERCENT = Number(process.env.PUMP_MIN_PID_PERCENT) || 10;
 var PUMP_MAX_PID_PERCENT = Number(process.env.PUMP_MAX_PID_PERCENT) || 20;
 var MAIN_HEATER_RUN_PERCENT = Number(process.env.MAIN_HEATER_RUN_PERCENT) || 90;
 
@@ -37,6 +37,7 @@ var SUMP_TEMP_BP_OFFSET_STARTUP = Number(process.env.SUMP_TEMP_BP_OFFSET_STARTUP
 
 var runMode;
 var feedABV;
+var boilingPoint;
 var sensorComponents;
 var controllerComponents;
 var dutyCycles = {};
@@ -221,6 +222,15 @@ module.exports.setup = function (cascade) {
         type: cascade.TYPES.NUMBER
     });
 
+    boilingPoint = cascade.create_component({
+        id: "boiling_point",
+        name: "Boiling Point",
+        group: "Run",
+        read_only: true,
+        units: cascade.UNITS.F,
+        type: cascade.TYPES.NUMBER
+    });
+
     createPID("preHeater", "pre_heater_temp", "pre_heater_output", "pre_heater_enable", 0, 100);
     createPID("pump", "sump_temp", "pump_output", "pump_enable", PUMP_MIN_PID_PERCENT, PUMP_MAX_PID_PERCENT);
     createDutyCycle("feed_relay", FEED_CYCLE_TIME_IN_SECONDS);
@@ -391,6 +401,8 @@ function checkforFailure(cascade)
 }
 
 module.exports.loop = function (cascade) {
+
+    boilingPoint.value = getCurrentH20BoilingPoint();
 
     switch (runMode.value.toUpperCase()) {
         case "PUMP PRIME":
