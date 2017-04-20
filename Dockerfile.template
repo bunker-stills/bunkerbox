@@ -1,6 +1,6 @@
 FROM resin/raspberry-pi-node:6.10.2-slim
 
-RUN apt-get update && apt-get install -y uuid-runtime wget pm-utils owserver && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y libusb-1.0-0 uuid-runtime wget pm-utils owserver && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # HDMI
 # RUN apt-get update && apt-get upgrade -y && apt-get install -y uuid-runtime chromium-browser fbset htop libnss3 libraspberrypi-bin matchbox psmisc sqlite3 ttf-mscorefonts-installer x11-xserver-utils xinit xwit dbus wget pm-utils owserver && apt-get clean && rm -rf /var/lib/apt/lists/*
