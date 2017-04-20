@@ -11,8 +11,7 @@ module.exports.setup = function (cascade) {
         value: false
     });
 
-    allowSoftwareUpdates.on("value_updated", function(){
-
+    function processLock() {
         var lockFilePath = path.join(cascade.cascade_server.config.data_storage_location, "resin-updates.lock");
 
         if(allowSoftwareUpdates.value)
@@ -26,6 +25,8 @@ module.exports.setup = function (cascade) {
         {
             fs.closeSync(fs.openSync(lockFilePath, 'w'));
         }
-    });
+    }
 
+    allowSoftwareUpdates.on("value_updated", processLock)
+    processLock();
 };
