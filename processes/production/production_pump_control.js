@@ -203,7 +203,7 @@ module.exports.setup = function (cascade) {
         group: "run",
         type: cascade.TYPES.OPTIONS,
         info: {
-            options: ["IDLE", "PUMP PRIME", "WARMUP", "STARTUP", "RUN", "COOLDOWN"]
+            options: ["IDLE", "PUMP PRIME", "WARMUP", "STARTUP", "RUN", "COOLDOWN", "MANUAL"]
         },
         value: "IDLE"
     });
@@ -419,6 +419,11 @@ module.exports.loop = function (cascade) {
         case "COOLDOWN" :
         {
             duringCooldown(cascade);
+            break;
+        }
+        case "MANUAL" :
+        {
+            // Anything goes
             break;
         }
         default: {
