@@ -170,6 +170,7 @@ module.exports.setup = function (cascade) {
         cascade.require_process("./../interfaces/tinkerforge");
     }
 
+    cascade.require_process("./../update_manager");
     cascade.require_process("./../process_temps");
 
     cascade.components.require_component([
