@@ -105,7 +105,7 @@ module.exports.setup = function (cascade) {
 
 module.exports.loop = function (cascade) {
 
-    if(cascade.components.all_current.run_mode && cascade.components.all_current.run_mode.value === "Idle")
+    if(cascade.components.all_current.run_mode && cascade.components.all_current.run_mode.value === "IDLE")
     {
         return;
     }

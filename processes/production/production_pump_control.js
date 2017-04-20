@@ -278,7 +278,6 @@ function duringWarmup(cascade) {
     if(warmupTimeInSeconds <= MAIN_HEATER_WARMUP_SECONDS) {
         // Use a sigmoid function to bring the heater up
         controllerComponents.main_heater_output.value = sigmoid.riseTo(warmupTimeInSeconds, 0, MAIN_HEATER_RUN_PERCENT, MAIN_HEATER_WARMUP_SECONDS);
-        //controllerComponents.main_heater_output.value = Math.min(MAIN_HEATER_RUN_PERCENT, (MAIN_HEATER_RUN_PERCENT / MAIN_HEATER_WARMUP_SECONDS) * warmupTimeInSeconds);
     }
     else
     {
@@ -305,7 +304,7 @@ function duringStartup(cascade) {
     controllerComponents.tails_reflux_relay.value = true;
 
     // Run our pre-heater in a PID
-    //runPID("preHeater", PRE_HEATER_STARTUP_P_GAIN, PRE_HEATER_STARTUP_I_GAIN, PRE_HEATER_STARTUP_D_GAIN, PRE_HEATER_STARTUP_SET_POINT, cascade);
+    runPID("preHeater", PRE_HEATER_STARTUP_P_GAIN, PRE_HEATER_STARTUP_I_GAIN, PRE_HEATER_STARTUP_D_GAIN, PRE_HEATER_STARTUP_SET_POINT, cascade);
 
     // Keep our main heater at constant power
     controllerComponents.main_heater_output.value = MAIN_HEATER_RUN_PERCENT;
