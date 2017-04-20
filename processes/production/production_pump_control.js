@@ -8,7 +8,7 @@ var PUMP_PRIME_PERCENT = Number(process.env.PUMP_PRIME_PERCENT) || 25;
 var SENSOR_OFFLINE_SECONDS = Number(process.env.SENSOR_OFFLINE_SECONDS) || 20;
 var TEMP_SENSOR_OVERHEAT_LIMIT = Number(process.env.TEMP_SENSOR_OVERHEAT_LIMIT) || 230; // Degrees F
 var COOLDOWN_TEMP_TARGET = Number(process.env.COOLDOWN_TEMP_TARGET) || 170; // Degrees F
-var PUMP_COOLDOWN_PERCENT = Number(process.env.PUMP_COOLDOWN_PERCENT) || 10;
+var PUMP_COOLDOWN_PERCENT = Number(process.env.PUMP_COOLDOWN_PERCENT) || 20;
 var PUMP_MIN_PID_PERCENT = Number(process.env.PUMP_MIN_PID_PERCENT) || 10;
 var PUMP_MAX_PID_PERCENT = Number(process.env.PUMP_MAX_PID_PERCENT) || 20;
 var MAIN_HEATER_RUN_PERCENT = Number(process.env.MAIN_HEATER_RUN_PERCENT) || 90;
@@ -142,6 +142,12 @@ function runPID(name, pGain, iGain, dGain, setPoint, cascade)
 function getCurrentH20BoilingPoint()
 {
     var baroInHG = sensorComponents.barometer.value * 0.02953;
+
+    if(!baroInHG)
+    {
+        return 212.0;
+    }
+
     return Math.log(baroInHG) * 49.160999 + 44.93;
 }
 
