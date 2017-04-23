@@ -190,7 +190,7 @@ module.exports.setup = function (cascade) {
     barometer_component = cascade.create_component({
         id: "barometer",
         name: "Barometer",
-        group: "sensors",
+        group: "Sensors",
         class: "barometer",
         units: "mbar",
         type: cascade.TYPES.NUMBER

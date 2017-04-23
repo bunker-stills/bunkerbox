@@ -7,7 +7,7 @@ var PUMP_PRIME_PERCENT = Number(process.env.PUMP_PRIME_PERCENT) || 25;
 
 var SENSOR_OFFLINE_SECONDS = Number(process.env.SENSOR_OFFLINE_SECONDS) || 20;
 var TEMP_SENSOR_OVERHEAT_LIMIT = Number(process.env.TEMP_SENSOR_OVERHEAT_LIMIT) || 230; // Degrees F
-var COOLDOWN_TEMP_TARGET = Number(process.env.COOLDOWN_TEMP_TARGET) || 170; // Degrees F
+var COOLDOWN_TEMP_TARGET = Number(process.env.COOLDOWN_TEMP_TARGET) || 125; // Degrees F
 var PUMP_COOLDOWN_PERCENT = Number(process.env.PUMP_COOLDOWN_PERCENT) || 20;
 var PUMP_MIN_PID_PERCENT = Number(process.env.PUMP_MIN_PID_PERCENT) || 10;
 var PUMP_MAX_PID_PERCENT = Number(process.env.PUMP_MAX_PID_PERCENT) || 20;
@@ -20,8 +20,8 @@ var PRE_HEATER_WARMUP_P_GAIN = Number(process.env.PRE_HEATER_WARMUP_P_GAIN) || 0
 var PRE_HEATER_WARMUP_I_GAIN = Number(process.env.PRE_HEATER_WARMUP_I_GAIN) || 0.01;
 var PRE_HEATER_WARMUP_D_GAIN = Number(process.env.PRE_HEATER_WARMUP_D_GAIN) || 0.0;
 var PRE_HEATER_WARMUP_SET_POINT = Number(process.env.PRE_HEATER_WARMUP_SET_POINT) || 100; // Degrees F
-var PUMP_WARMUP_PERCENT = Number(process.env.PUMP_WARMUP_PERCENT) || 11;
-var MAIN_HEATER_WARMUP_SECONDS = Number(process.env.MAIN_HEATER_WARMUP_SECONDS) || 900;
+var PUMP_WARMUP_PERCENT = Number(process.env.PUMP_WARMUP_PERCENT) || 13;
+var MAIN_HEATER_WARMUP_SECONDS = Number(process.env.MAIN_HEATER_WARMUP_SECONDS) || 1800;
 var DESIRED_FEED_ABV_WARMUP = Number(process.env.DESIRED_FEED_ABV_WARMUP) || 1; // Percent
 
 // STARTUP PARAMETERS
@@ -167,6 +167,9 @@ function setDesiredFeedABV(desiredABV)
 
 module.exports.setup = function (cascade) {
 
+    process.on('SIGINT', function(){ console.log("Shutting Down"); duringIdle();});
+    process.on('exit', function(){ console.log("Shutting Down"); duringIdle();});
+
     if(process.env.SIMULATE)
     {
         cascade.require_process("./../simulator/simulator");
@@ -244,9 +247,6 @@ module.exports.setup = function (cascade) {
 
 function duringIdle(cascade) {
 
-    resetPID("preHeater");
-    resetPID("pump");
-
     controllerComponents.pump_enable.value = false;
     controllerComponents.pump_output.value = 0;
 
@@ -256,11 +256,14 @@ function duringIdle(cascade) {
     controllerComponents.pre_heater_enable.value = false;
     controllerComponents.pre_heater_output.value = 0;
 
-    stopDutyCycle("feed_relay");
     controllerComponents.feed_relay.value = false;
 
     controllerComponents.hearts_reflux_relay.value = false;
     controllerComponents.tails_reflux_relay.value = false;
+
+    resetPID("preHeater");
+    resetPID("pump");
+    stopDutyCycle("feed_relay");
 }
 
 function duringPumpPrime(cascade)
@@ -314,6 +317,7 @@ function duringStartup(cascade) {
     var sumpSetPoint = getCurrentH20BoilingPoint() - SUMP_TEMP_BP_OFFSET_STARTUP;
 
     // Run our pump with a PID
+    controllerComponents.pump_enable.value = true;
     runPID("pump", PUMP_STARTUP_P_GAIN, PUMP_STARTUP_I_GAIN, PUMP_STARTUP_D_GAIN, sumpSetPoint, cascade);
 
     // Reflux everything
@@ -324,6 +328,7 @@ function duringStartup(cascade) {
     runPID("preHeater", PRE_HEATER_STARTUP_P_GAIN, PRE_HEATER_STARTUP_I_GAIN, PRE_HEATER_STARTUP_D_GAIN, PRE_HEATER_STARTUP_SET_POINT, cascade);
 
     // Keep our main heater at constant power
+    controllerComponents.main_heater_enable.value = true;
     controllerComponents.main_heater_output.value = MAIN_HEATER_RUN_PERCENT;
 }
 
