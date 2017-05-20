@@ -23,7 +23,7 @@ var OUTPUT_TYPES = {
     },
     VOLTAGE_RANGE_0_TO_10V: function (tfInterface, outputPercent) {
         tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V, 0);
-        var output = Math.round(mapRange(outputPercent, 0, 100, 0, 10000)); // Our power controllers are 2V to 10V
+        var output = Math.round(mapRange(outputPercent, 0, 100, 0, 10000));
         tfInterface.setVoltage(output);
     },
     VOLTAGE_RANGE_2_TO_10V: function (tfInterface, outputPercent) {

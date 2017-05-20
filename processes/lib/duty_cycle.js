@@ -36,6 +36,11 @@ var dutyCycle = function(cycleLengthInMS, onDutyCallback, offDutyCallback)
         }, msOn);
     }
 
+    this.set = function(dutyPercentage)
+    {
+        _dutyPercentage = Math.max(0.0, Math.min(1.0, dutyPercentage)); // Clamp to a value between 0 and 1
+    };
+
     this.start = function(dutyPercentage)
     {
         _stop = false;
@@ -46,7 +51,7 @@ var dutyCycle = function(cycleLengthInMS, onDutyCallback, offDutyCallback)
             return;
         }
 
-        _dutyPercentage = Math.max(0.0, Math.min(1.0, dutyPercentage)); // Clamp to a value between 0 and 1
+        this.set(dutyPercentage);
 
         if(!_timer)
         {

@@ -151,7 +151,8 @@ module.exports.setup = function (cascade) {
         "tails_reflux_relay",
         "hearts_reflux_enable",
         "hearts_reflux_relay",
-        "feed_relay"
+        "feed_relay",
+        "process_temps_online"
     ], function (comps) {
         components = comps;
     });
@@ -177,6 +178,13 @@ module.exports.setup = function (cascade) {
 };
 
 module.exports.loop = function (cascade) {
+
+    // If a temperature probe is offline, don't allow anything but idle
+    if(!components.process_temps_online.value)
+    {
+        run_mode.value = "IDLE";
+    }
+
     switch (run_mode.value.toUpperCase()) {
         case "MANUAL": {
             during_manual(cascade);

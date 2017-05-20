@@ -92,8 +92,7 @@ recorder.prototype.record = function (measurement_name, values, tags) {
     this.measurements.push({
         name: measurement_name,
         values: values,
-        tags: tags//,
-        //timestamp : timestamp_in_ms
+        tags: tags
     });
 };
 
