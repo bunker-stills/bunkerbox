@@ -5,6 +5,7 @@ var isOnline;
 
 var SENSOR_OFFLINE_SECONDS = Number(process.env.SENSOR_OFFLINE_SECONDS) || 20;
 var TEMP_SENSOR_OVERHEAT_LIMIT = Number(process.env.TEMP_SENSOR_OVERHEAT_LIMIT) || 230; // Degrees F
+var SUMP_SENSOR_COUNT = Number(process.env.SUMP_SENSOR_COUNT) || 4;
 
 function create_process_temp(cascade, id, description)
 {
@@ -36,10 +37,11 @@ module.exports.setup = function (cascade) {
     create_process_temp(cascade, "heads", "Heads Temperature");
     create_process_temp(cascade, "hearts", "Hearts Temperature");
     create_process_temp(cascade, "tails", "Tails Temperature");
-    create_process_temp(cascade, "sump1", "Sump Temperature 1");
-    create_process_temp(cascade, "sump2", "Sump Temperature 2");
-    create_process_temp(cascade, "sump3", "Sump Temperature 3");
-    create_process_temp(cascade, "sump4", "Sump Temperature 4");
+
+    for(var index = 1; index <= SUMP_SENSOR_COUNT; index++)
+    {
+        create_process_temp(cascade, "sump" + index, "Sump Temperature " + index);
+    }
 
     calculatedSumpTemp = cascade.create_component({
         id: "sump_temp",
@@ -62,7 +64,14 @@ module.exports.setup = function (cascade) {
 
 module.exports.loop = function(cascade)
 {
-    calculatedSumpTemp.value = Math.max(process_temps["sump1"].value, process_temps["sump2"].value, process_temps["sump3"].value, process_temps["sump4"].value);
+    var sumpTemps = [];
+
+    for(var index = 1; index <= SUMP_SENSOR_COUNT; index++)
+    {
+        sumpTemps.push(process_temps["sump" + index].value);
+    }
+
+    calculatedSumpTemp.value = Math.max.apply(this, sumpTemps);
 
     var failureDetected = false;
 
