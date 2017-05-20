@@ -170,7 +170,7 @@ function setDesiredFeedABV(desiredABV)
     // If the input ABV is less than the desired ABV, there is nothing we can do— use full feed strength.
     if(inputABV <= desiredABV)
     {
-        controllerComponents.feed_relay.value = true;
+        setDutyCycle("feed_relay", 1.0);
         return;
     }
 
