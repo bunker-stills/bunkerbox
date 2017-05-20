@@ -14,7 +14,7 @@ var dutyCycle = function(cycleLengthInMS, onDutyCallback, offDutyCallback)
         var msOn = _dutyPercentage * cycleLengthInMS;
         var msOff = cycleLengthInMS - msOn;
 
-        if(onDutyCallback)
+        if(msOn > 0 && onDutyCallback)
         {
             onDutyCallback();
         }
@@ -26,7 +26,7 @@ var dutyCycle = function(cycleLengthInMS, onDutyCallback, offDutyCallback)
                 return;
             }
 
-            if(offDutyCallback)
+            if(msOff > 0 && offDutyCallback)
             {
                 offDutyCallback();
             }
