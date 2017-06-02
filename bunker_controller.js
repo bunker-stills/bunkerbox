@@ -27,7 +27,7 @@ var users = null;
 
 if(process.env.USERS)
 {
-    try { users = JSON.parse(process.env.USERS) }
+    try { users = JSON.parse(process.env.USERS) } catch(e){}
 }
 
 var cascade_server = new cascade({
