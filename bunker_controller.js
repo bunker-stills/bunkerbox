@@ -23,6 +23,13 @@ if(commander.process.length > 0)
     process_list = commander.process;
 }
 
+var users = null;
+
+if(process.env.USERS)
+{
+    try { users = JSON.parse(process.env.USERS) }
+}
+
 var cascade_server = new cascade({
     title : "Bunker Heising-330",
     device_id : process.env.RESIN_DEVICE_NAME_AT_INIT || process.env.DEVICE_ID,
@@ -30,5 +37,5 @@ var cascade_server = new cascade({
     mqtt_port : Number(process.env.MQTT_PORT) || 1883,
     data_storage_location : process.env.DATA_PATH,
     processes : process_list,
-    users : process.env.USERS
+    users : users
 });
