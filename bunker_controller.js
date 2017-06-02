@@ -29,5 +29,6 @@ var cascade_server = new cascade({
     web_port : Number(process.env.WEB_PORT) || 3000,
     mqtt_port : Number(process.env.MQTT_PORT) || 1883,
     data_storage_location : process.env.DATA_PATH,
-    processes : process_list
+    processes : process_list,
+    users : process.env.USERS
 });

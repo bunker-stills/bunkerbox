@@ -12,7 +12,7 @@ var REFLUX_CYCLE_TIME_IN_SECONDS = Number(process.env.REFLUX_CYCLE_TIME_IN_SECON
 
 // WARMUP PARAMETERS
 var PRE_HEATER_WARMUP_P_GAIN = Number(process.env.PRE_HEATER_WARMUP_P_GAIN) || 0.2;
-var PRE_HEATER_WARMUP_I_GAIN = Number(process.env.PRE_HEATER_WARMUP_I_GAIN) || 0.01;
+var PRE_HEATER_WARMUP_I_GAIN = Number(process.env.PRE_HEATER_WARMUP_I_GAIN) || 0.001;
 var PRE_HEATER_WARMUP_D_GAIN = Number(process.env.PRE_HEATER_WARMUP_D_GAIN) || 0.0;
 var PRE_HEATER_WARMUP_SET_POINT = Number(process.env.PRE_HEATER_WARMUP_SET_POINT) || 80; // Degrees F
 var MAIN_HEATER_WARMUP_P_GAIN = Number(process.env.MAIN_HEATER_WARMUP_P_GAIN) || 0.35;
@@ -24,25 +24,27 @@ var DESIRED_FEED_ABV_WARMUP = Number(process.env.DESIRED_FEED_ABV_WARMUP) || 1; 
 
 // STARTUP PARAMETERS
 var PRE_HEATER_STARTUP_P_GAIN = Number(process.env.PRE_HEATER_STARTUP_P_GAIN) || 0.2;
-var PRE_HEATER_STARTUP_I_GAIN = Number(process.env.PRE_HEATER_STARTUP_I_GAIN) || 0.01;
+var PRE_HEATER_STARTUP_I_GAIN = Number(process.env.PRE_HEATER_STARTUP_I_GAIN) || 0.001;
 var PRE_HEATER_STARTUP_D_GAIN = Number(process.env.PRE_HEATER_STARTUP_D_GAIN) || 0.0;
 var PRE_HEATER_STARTUP_SET_POINT = Number(process.env.PRE_HEATER_STARTUP_SET_POINT) || 80; // Degrees F
 var DESIRED_FEED_ABV_STARTUP = Number(process.env.DESIRED_FEED_ABV_STARTUP) || 6; // Percent
 var MAIN_HEATER_STARTUP_P_GAIN = Number(process.env.PUMP_STARTUP_P_GAIN) || 2.5;
 var MAIN_HEATER_STARTUP_I_GAIN = Number(process.env.PUMP_STARTUP_I_GAIN) || 0.003;
 var MAIN_HEATER_STARTUP_D_GAIN = Number(process.env.PUMP_STARTUP_D_GAIN) || 0.0;
-var SUMP_TEMP_BP_OFFSET_STARTUP = Number(process.env.SUMP_TEMP_BP_OFFSET_STARTUP) || 1.0;
+var SUMP_TEMP_BP_OFFSET_STARTUP = Number(process.env.SUMP_TEMP_BP_OFFSET_STARTUP) || 0.5;
+var PUMP_STARTUP_PERCENT = Number(process.env.PUMP_STARTUP_PERCENT) || 12;
 
 // RUN PARAMETERS
 var PRE_HEATER_RUN_P_GAIN = Number(process.env.PRE_HEATER_RUN_P_GAIN) || 0.2;
-var PRE_HEATER_RUN_I_GAIN = Number(process.env.PRE_HEATER_RUN_I_GAIN) || 0.01;
+var PRE_HEATER_RUN_I_GAIN = Number(process.env.PRE_HEATER_RUN_I_GAIN) || 0.001;
 var PRE_HEATER_RUN_D_GAIN = Number(process.env.PRE_HEATER_RUN_D_GAIN) || 0.0;
 var PRE_HEATER_RUN_SET_POINT = Number(process.env.PRE_HEATER_RUN_SET_POINT) || 80; // Degrees F
 var DESIRED_FEED_ABV_RUN = Number(process.env.DESIRED_FEED_ABV_RUN) || 6; // Percent
 var MAIN_HEATER_RUN_P_GAIN = Number(process.env.PUMP_RUN_P_GAIN) || 2.5;
 var MAIN_HEATER_RUN_I_GAIN = Number(process.env.PUMP_RUN_I_GAIN) || 0.003;
 var MAIN_HEATER_RUN_D_GAIN = Number(process.env.PUMP_RUN_D_GAIN) || 0.0;
-var SUMP_TEMP_BP_OFFSET_RUN = Number(process.env.SUMP_TEMP_BP_OFFSET_RUN) || 1.0;
+var SUMP_TEMP_BP_OFFSET_RUN = Number(process.env.SUMP_TEMP_BP_OFFSET_RUN) || 0.5;
+var PUMP_RUN_PERCENT = Number(process.env.PUMP_RUN_PERCENT) || 12;
 
 // COOLDOWN PARAMETERS
 var COOLDOWN_TEMP_TARGET = Number(process.env.COOLDOWN_TEMP_TARGET) || 125; // Degrees F
@@ -307,9 +309,9 @@ function duringWarmup(cascade) {
 
     setDesiredFeedABV(DESIRED_FEED_ABV_WARMUP);
 
-    // Reflux everything
-    setDutyCycle("hearts_reflux_relay", 1.0);
-    setDutyCycle("tails_reflux_relay", 1.0);
+    // Flux everything
+    setDutyCycle("hearts_reflux_relay", 0.0);
+    setDutyCycle("tails_reflux_relay", 0.0);
 
     // Run our pump
     controllerComponents.pump_enable.value = true;
@@ -331,7 +333,7 @@ function duringStartup(cascade) {
 
     // Run our pump
     controllerComponents.pump_enable.value = true;
-    controllerComponents.pump_output.value = PUMP_WARMUP_PERCENT;
+    controllerComponents.pump_output.value = PUMP_STARTUP_PERCENT;
 
     // // Run our heaters in PIDs
     runPID("preHeater", PRE_HEATER_STARTUP_P_GAIN, PRE_HEATER_STARTUP_I_GAIN, PRE_HEATER_STARTUP_D_GAIN, PRE_HEATER_STARTUP_SET_POINT, cascade);
@@ -347,7 +349,7 @@ function duringRun(cascade) {
 
     // Run our pump
     controllerComponents.pump_enable.value = true;
-    controllerComponents.pump_output.value = PUMP_WARMUP_PERCENT;
+    controllerComponents.pump_output.value = PUMP_RUN_PERCENT;
 
     // Run our heaters in PIDs
     runPID("preHeater", PRE_HEATER_RUN_P_GAIN, PRE_HEATER_RUN_I_GAIN, PRE_HEATER_RUN_D_GAIN, PRE_HEATER_RUN_SET_POINT, cascade);

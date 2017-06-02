@@ -5,7 +5,7 @@ var isOnline;
 
 var SENSOR_OFFLINE_SECONDS = Number(process.env.SENSOR_OFFLINE_SECONDS) || 20;
 var TEMP_SENSOR_OVERHEAT_LIMIT = Number(process.env.TEMP_SENSOR_OVERHEAT_LIMIT) || 230; // Degrees F
-var SUMP_SENSOR_COUNT = Number(process.env.SUMP_SENSOR_COUNT) || 4;
+var SUMP_SENSOR_COUNT = Number(process.env.SUMP_SENSOR_COUNT) || 3;
 
 function create_process_temp(cascade, id, description)
 {
