@@ -345,6 +345,8 @@ cascade.prototype.publish_component_update = function (component, publish_value_
     if (publish_detail_update) {
         this.publish_mqtt_message(topic + "/detail", message, true);
     }
+
+    this.emit("component_value_updated", component);
 };
 
 cascade.prototype.create_component = function (config, process_id) {

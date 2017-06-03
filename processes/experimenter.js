@@ -139,6 +139,7 @@ module.exports.setup = function (cascade) {
     cascade.require_process("process_temps");
     cascade.require_process("reflux_control");
     cascade.require_process("pids");
+    cascade.require_process("alerts");
 
     cascade.components.require_component([
         "allow_software_updates",

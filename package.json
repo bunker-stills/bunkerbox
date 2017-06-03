@@ -9,6 +9,7 @@
   "dependencies": {
     "commander": "2.9.0",
     "owjs": "0.1.1",
+    "sendmail": "1.1.1",
     "tinkerforge": "2.0.9",
     "underscore": "1.8.3"
   },

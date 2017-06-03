@@ -100,16 +100,8 @@ var data_recorder;
 
 module.exports.setup = function (cascade) {
     data_recorder = new recorder("52.39.173.27", 8089);
-};
 
-module.exports.loop = function (cascade) {
-
-    if(cascade.components.all_current.run_mode && cascade.components.all_current.run_mode.value === "IDLE")
-    {
-        return;
-    }
-
-    _.each(cascade.components.all_current, function (component) {
+    cascade.cascade_server.on("component_value_updated", function(component) {
         data_recorder.record(component.id, {
                 value: component.value,
                 units: component.units
@@ -119,6 +111,8 @@ module.exports.loop = function (cascade) {
             }
         );
     });
+};
 
+module.exports.loop = function (cascade) {
     data_recorder.flush();
 };
