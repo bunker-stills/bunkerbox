@@ -140,6 +140,7 @@ module.exports.setup = function (cascade) {
     cascade.require_process("reflux_control");
     cascade.require_process("pids");
     cascade.require_process("alerts");
+    cascade.require_process("warm_restart");
 
     cascade.components.require_component([
         "allow_software_updates",
@@ -170,8 +171,6 @@ module.exports.setup = function (cascade) {
     });
 
     create_function_component(cascade, "function1");
-    //create_function_component(cascade, "function2");
-    //create_function_component(cascade, "function3");
 
     create_variable_component(cascade, "variable1");
     create_variable_component(cascade, "variable2");

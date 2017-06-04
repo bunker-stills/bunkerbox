@@ -40,8 +40,6 @@ recorder.prototype.flush = function () {
 
         var message = "";
 
-        console.log(current_measurements.length);
-
         _.each(current_measurements, function (measurement) {
 
             var tags = [escape_key(measurement.name)];
