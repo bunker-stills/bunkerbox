@@ -70,17 +70,14 @@ function connect_mqtt_client(username, password) {
 
     mqtt_client.on("message", function (topic, payload) {
 
-        if(topic.indexOf("read/") === 0)
-        {
+        if (topic.indexOf("read/") === 0) {
             payload = JSON.parse(payload.toString());
             update_component_ui(payload);
         }
-        else if(topic.indexOf("log/") === 0)
-        {
+        else if (topic.indexOf("log/") === 0) {
             var matches = log_topic_regex.exec(topic);
 
-            if(matches.length >= 3)
-            {
+            if (matches.length >= 3) {
                 var type = matches[1];
                 var process_id = matches[2];
                 log_update(type, process_id, payload.toString());
@@ -89,8 +86,7 @@ function connect_mqtt_client(username, password) {
     });
 }
 
-function reset_ui()
-{
+function reset_ui() {
     $("#groups").empty();
     $("#components").empty();
 
@@ -98,15 +94,14 @@ function reset_ui()
     components = {};
     chart_components = {};
 
-    while( chart.series.length > 0 ) {
-        chart.series[0].remove( false );
+    while (chart.series.length > 0) {
+        chart.series[0].remove(false);
     }
 
     chart.redraw();
 }
 
-function log_update(type, process, message)
-{
+function log_update(type, process, message) {
     console.log(message);
 }
 
@@ -166,7 +161,20 @@ function update_component_value(component) {
                 break;
             }
             default : {
-                component_field.val(component.value);
+
+                if(component.read_only)
+                {
+                    var value = component.value;
+
+                    if(value === null || value === "") value = "- -";
+
+                    component_field.text(value);
+                }
+                else
+                {
+                    component_field.val(component.value);
+                }
+
             }
         }
 
@@ -189,8 +197,7 @@ function update_component_value(component) {
 
 function update_component_ui(component) {
 
-    if(chart_components[component.id])
-    {
+    if (chart_components[component.id]) {
         var shift = (chart_components[component.id].data.length > 7200); // 12 hours
         chart_components[component.id].addPoint([Date.now(), component.value], true, shift);
     }
@@ -224,7 +231,8 @@ function update_component_ui(component) {
 
     // Create our component UI
     if (component_row.length == 0) {
-        component_row = $('<div class="row component-row"></div>').attr("data-component", component.id).attr("data-group", component.group);;
+        component_row = $('<div class="row component-row"></div>').attr("data-component", component.id).attr("data-group", component.group);
+        ;
 
         var component_label_row = $('<div class="row">' +
             '<div class="ten columns">' +
@@ -269,16 +277,32 @@ function update_component_ui(component) {
                 break;
             }
             default: {
-                component_field = $('<input class="u-full-width component_input" type="text">');
+
+
+                if (component.read_only) {
+                    var readOnlyContainer = $('<div class="read-only-value">');
+                    component_field = $('<span>');
+
+                    var units = $('<span class="component_units"></span>');
+                    units.text(component.units);
+
+                    readOnlyContainer.append(component_field);
+                    readOnlyContainer.append(units);
+                    value_column.append(readOnlyContainer);
+
+                } else {
+                    var units = $('<span class="component_units"></span>');
+                    units.text(component.units);
+
+                    component_field = $('<input class="u-full-width component_input" type="text">');
+                    component_field.focusin(begin_edit_component);
+                    component_field.css("padding-right", units.width() + 15);
+
+                    value_column.append(component_field);
+                    value_column.append(units);
+                }
+
                 component_field.attr("id", "component_field_" + component.id);
-                component_field.focusin(begin_edit_component);
-                value_column.append(component_field);
-
-                var units = $('<span class="component_units"></span>');
-                units.text(component.units);
-                value_column.append(units);
-
-                component_field.css("padding-right", units.width() + 15);
             }
         }
 
@@ -433,8 +457,7 @@ function toggle_component_info(component) {
     $("#component_label_" + component.id).after(component_detail_div);
 }
 
-function initialize_chart()
-{
+function initialize_chart() {
     Highcharts.setOptions({
         global: {
             useUTC: false
@@ -450,17 +473,16 @@ function initialize_chart()
     chart = new Highcharts.Chart({
         chart: {
             type: 'spline',
-            renderTo : 'chart',
-            zoomType : "x",
-            backgroundColor:"rgba(255, 255, 255, 0.0)"
+            renderTo: 'chart',
+            zoomType: "x",
+            backgroundColor: "rgba(255, 255, 255, 0.0)"
         },
-        title : {
-            text : ""
+        title: {
+            text: ""
         },
-        legend:
-        {
-            itemHiddenStyle : {
-                color : "#AAAAAA"
+        legend: {
+            itemHiddenStyle: {
+                color: "#AAAAAA"
             }
         },
         xAxis: {
@@ -474,21 +496,19 @@ function initialize_chart()
                 marker: {
                     enabled: false
                 },
-                connectNulls : true
+                connectNulls: true
             }
         }
     });
 }
 
-function toggle_series(component_id)
-{
+function toggle_series(component_id) {
     var is_on = $("div[data-component='" + component_id + "'] .series-toggle").toggleClass("active").hasClass("active");
 
-    if(is_on)
-    {
+    if (is_on) {
         chart_components[component_id] = chart.addSeries({
-            name:component_id,
-            connectNulls : true
+            name: component_id,
+            connectNulls: true
         }, true, true);
     }
     else {
@@ -498,10 +518,8 @@ function toggle_series(component_id)
 }
 
 function reset_chart() {
-    if(confirm("Are you sure you want to clear the data in the chart?"))
-    {
-        for(var series_index in chart.series)
-        {
+    if (confirm("Are you sure you want to clear the data in the chart?")) {
+        for (var series_index in chart.series) {
             var series = chart.series[series_index];
             series.setData([]);
         }

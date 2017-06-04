@@ -119,6 +119,7 @@ button.cancel_button:hover
 
 .pulse{
     animation: pulse linear 0.25s 1;
+    border-radius: 4px;
 }
 
 @keyframes pulse {
@@ -287,4 +288,16 @@ input:checked + .slider:before {
     display: none;
     margin-top: 10px;
     margin-bottom: 15px;
+}
+
+.read-only-value
+{
+    margin-bottom: 15px;
+    font-size: 125%;
+}
+
+.read-only-value .component_units
+{
+    line-height: inherit;
+    right: 0;
 }

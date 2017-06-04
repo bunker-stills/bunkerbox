@@ -2,59 +2,35 @@ var _ = require("underscore");
 var pid_controller = require("./../lib/pid");
 var duty_cycle = require("./../lib/duty_cycle");
 
-var PUMP_PRIME_PERCENT = Number(process.env.PUMP_PRIME_PERCENT) || 25;
-
-var SENSOR_OFFLINE_SECONDS = Number(process.env.SENSOR_OFFLINE_SECONDS) || 20;
-var TEMP_SENSOR_OVERHEAT_LIMIT = Number(process.env.TEMP_SENSOR_OVERHEAT_LIMIT) || 230; // Degrees F
-
-var FEED_CYCLE_TIME_IN_SECONDS = Number(process.env.FEED_CYCLE_TIME_IN_SECONDS) || 10;
+var FEED_CYCLE_TIME_IN_SECONDS = Number(process.env.FEED_CYCLE_TIME_IN_SECONDS) || 30;
 var REFLUX_CYCLE_TIME_IN_SECONDS = Number(process.env.REFLUX_CYCLE_TIME_IN_SECONDS) || 20;
 
 // WARMUP PARAMETERS
-var PRE_HEATER_WARMUP_P_GAIN = Number(process.env.PRE_HEATER_WARMUP_P_GAIN) || 0.2;
-var PRE_HEATER_WARMUP_I_GAIN = Number(process.env.PRE_HEATER_WARMUP_I_GAIN) || 0.001;
+var PRE_HEATER_WARMUP_P_GAIN = Number(process.env.PRE_HEATER_WARMUP_P_GAIN) || 1.0;
+var PRE_HEATER_WARMUP_I_GAIN = Number(process.env.PRE_HEATER_WARMUP_I_GAIN) || 0.01;
 var PRE_HEATER_WARMUP_D_GAIN = Number(process.env.PRE_HEATER_WARMUP_D_GAIN) || 0.0;
-var PRE_HEATER_WARMUP_SET_POINT = Number(process.env.PRE_HEATER_WARMUP_SET_POINT) || 80; // Degrees F
 var MAIN_HEATER_WARMUP_P_GAIN = Number(process.env.MAIN_HEATER_WARMUP_P_GAIN) || 0.35;
 var MAIN_HEATER_WARMUP_I_GAIN = Number(process.env.MAIN_HEATER_WARMUP_I_GAIN) || 0.001;
 var MAIN_HEATER_WARMUP_D_GAIN = Number(process.env.MAIN_HEATER_WARMUP_D_GAIN) || 0.0;
-var MAIN_HEATER_WARMUP_SET_POINT = Number(process.env.MAIN_HEATER_WARMUP_SET_POINT) || 200; // Degrees F
-var PUMP_WARMUP_PERCENT = Number(process.env.PUMP_WARMUP_PERCENT) || 12;
-var DESIRED_FEED_ABV_WARMUP = Number(process.env.DESIRED_FEED_ABV_WARMUP) || 1; // Percent
-
-// STARTUP PARAMETERS
-var PRE_HEATER_STARTUP_P_GAIN = Number(process.env.PRE_HEATER_STARTUP_P_GAIN) || 0.2;
-var PRE_HEATER_STARTUP_I_GAIN = Number(process.env.PRE_HEATER_STARTUP_I_GAIN) || 0.001;
-var PRE_HEATER_STARTUP_D_GAIN = Number(process.env.PRE_HEATER_STARTUP_D_GAIN) || 0.0;
-var PRE_HEATER_STARTUP_SET_POINT = Number(process.env.PRE_HEATER_STARTUP_SET_POINT) || 80; // Degrees F
-var DESIRED_FEED_ABV_STARTUP = Number(process.env.DESIRED_FEED_ABV_STARTUP) || 6; // Percent
-var MAIN_HEATER_STARTUP_P_GAIN = Number(process.env.PUMP_STARTUP_P_GAIN) || 2.5;
-var MAIN_HEATER_STARTUP_I_GAIN = Number(process.env.PUMP_STARTUP_I_GAIN) || 0.003;
-var MAIN_HEATER_STARTUP_D_GAIN = Number(process.env.PUMP_STARTUP_D_GAIN) || 0.0;
-var SUMP_TEMP_BP_OFFSET_STARTUP = Number(process.env.SUMP_TEMP_BP_OFFSET_STARTUP) || 0.5;
-var PUMP_STARTUP_PERCENT = Number(process.env.PUMP_STARTUP_PERCENT) || 12;
 
 // RUN PARAMETERS
-var PRE_HEATER_RUN_P_GAIN = Number(process.env.PRE_HEATER_RUN_P_GAIN) || 0.2;
-var PRE_HEATER_RUN_I_GAIN = Number(process.env.PRE_HEATER_RUN_I_GAIN) || 0.001;
+var PRE_HEATER_RUN_P_GAIN = Number(process.env.PRE_HEATER_RUN_P_GAIN) || 1.0;
+var PRE_HEATER_RUN_I_GAIN = Number(process.env.PRE_HEATER_RUN_I_GAIN) || 0.01;
 var PRE_HEATER_RUN_D_GAIN = Number(process.env.PRE_HEATER_RUN_D_GAIN) || 0.0;
-var PRE_HEATER_RUN_SET_POINT = Number(process.env.PRE_HEATER_RUN_SET_POINT) || 80; // Degrees F
-var DESIRED_FEED_ABV_RUN = Number(process.env.DESIRED_FEED_ABV_RUN) || 6; // Percent
-var MAIN_HEATER_RUN_P_GAIN = Number(process.env.PUMP_RUN_P_GAIN) || 2.5;
-var MAIN_HEATER_RUN_I_GAIN = Number(process.env.PUMP_RUN_I_GAIN) || 0.003;
-var MAIN_HEATER_RUN_D_GAIN = Number(process.env.PUMP_RUN_D_GAIN) || 0.0;
-var SUMP_TEMP_BP_OFFSET_RUN = Number(process.env.SUMP_TEMP_BP_OFFSET_RUN) || 0.5;
-var PUMP_RUN_PERCENT = Number(process.env.PUMP_RUN_PERCENT) || 12;
+var MAIN_HEATER_RUN_P_GAIN = Number(process.env.MAIN_HEATER_RUN_P_GAIN) || 2.5;
+var MAIN_HEATER_RUN_I_GAIN = Number(process.env.MAIN_HEATER_RUN_I_GAIN) || 0.0032;
+var MAIN_HEATER_RUN_D_GAIN = Number(process.env.MAIN_HEATER_RUN_D_GAIN) || 0.0;
 
 // COOLDOWN PARAMETERS
 var COOLDOWN_TEMP_TARGET = Number(process.env.COOLDOWN_TEMP_TARGET) || 125; // Degrees F
 var PUMP_COOLDOWN_PERCENT = Number(process.env.PUMP_COOLDOWN_PERCENT) || 20;
 
 var runMode;
-var feedABV;
+var feedMix;
 var tailsFlux;
 var heartsFlux;
 var boilingPoint;
+var pumpSpeed;
 var sensorComponents;
 var controllerComponents;
 var dutyCycles = {};
@@ -165,19 +141,6 @@ function getCurrentH20BoilingPoint()
     return Math.log(baroInHG) * 49.160999 + 44.93;
 }
 
-function setDesiredFeedABV(desiredABV)
-{
-    var inputABV = feedABV.value || 0.0;
-
-    // If the input ABV is less than the desired ABV, there is nothing we can do— use full feed strength.
-    if(inputABV <= desiredABV)
-    {
-        setDutyCycle("feed_relay", 1.0);
-        return;
-    }
-
-    setDutyCycle("feed_relay", desiredABV / inputABV);
-}
 
 module.exports.setup = function (cascade) {
 
@@ -186,16 +149,17 @@ module.exports.setup = function (cascade) {
 
     if(process.env.SIMULATE)
     {
-        cascade.require_process("./../simulator/simulator");
+        cascade.require_process("../simulator/simulator");
     }
     else
     {
-        cascade.require_process("./../interfaces/ds9490r");
-        cascade.require_process("./../interfaces/tinkerforge");
+        cascade.require_process("../interfaces/ds9490r");
+        cascade.require_process("../interfaces/tinkerforge");
     }
 
-    cascade.require_process("./../update_manager");
-    cascade.require_process("./../process_temps");
+    cascade.require_process("../update_manager");
+    cascade.require_process("../process_temps");
+    cascade.require_process("../alerts");
 
     cascade.components.require_component([
         "barometer",
@@ -229,7 +193,7 @@ module.exports.setup = function (cascade) {
         group: "Run",
         type: cascade.TYPES.OPTIONS,
         info: {
-            options: ["IDLE", "PUMP PRIME", "WARMUP", "STARTUP", "RUN", "COOLDOWN", "MANUAL"]
+            options: ["IDLE", "STARTUP", "RUN", "COOLDOWN", "MANUAL"]
         },
         value: "IDLE"
     });
@@ -238,25 +202,33 @@ module.exports.setup = function (cascade) {
         cascade.log_info("Mode has been changed to " + runMode.value);
     });
 
+    pumpSpeed = cascade.create_component({
+        id: "feed_mix",
+        name: "Feed Percentage",
+        group: "Run",
+        units: cascade.UNITS.PERCENTAGE,
+        type: cascade.TYPES.NUMBER
+    });
+
+    feedMix = cascade.create_component({
+        id: "feed_mix",
+        name: "Feed Percentage",
+        group: "Run",
+        units: cascade.UNITS.PERCENTAGE,
+        type: cascade.TYPES.NUMBER
+    });
+
     heartsFlux = cascade.create_component({
-        id: "hearts_flux_percentage",
-        name: "Hearts Flux Percentage",
+        id: "hearts_flux",
+        name: "Hearts Draw Percentage",
         group: "Run",
         units: cascade.UNITS.PERCENTAGE,
         type: cascade.TYPES.NUMBER
     });
 
     tailsFlux = cascade.create_component({
-        id: "tails_flux_percentage",
-        name: "Tails Flux Percentage",
-        group: "Run",
-        units: cascade.UNITS.PERCENTAGE,
-        type: cascade.TYPES.NUMBER
-    });
-
-    feedABV = cascade.create_component({
-        id: "feed_abv",
-        name: "Feed ABV",
+        id: "tails_flux",
+        name: "Tails Draw Percentage",
         group: "Run",
         units: cascade.UNITS.PERCENTAGE,
         type: cascade.TYPES.NUMBER
@@ -297,17 +269,7 @@ function duringIdle(cascade) {
     resetPID("mainHeater");
 }
 
-function duringPumpPrime(cascade)
-{
-    setDutyCycle("feed_relay", 0.5);
-
-    controllerComponents.pump_enable.value = true;
-    controllerComponents.pump_output.value = PUMP_PRIME_PERCENT;
-}
-
 function duringWarmup(cascade) {
-
-    setDesiredFeedABV(DESIRED_FEED_ABV_WARMUP);
 
     // Flux everything
     setDutyCycle("hearts_reflux_relay", 0.0);
@@ -324,26 +286,9 @@ function duringWarmup(cascade) {
     runPID("mainHeater", MAIN_HEATER_WARMUP_P_GAIN, MAIN_HEATER_WARMUP_I_GAIN, MAIN_HEATER_WARMUP_D_GAIN, MAIN_HEATER_WARMUP_SET_POINT, cascade);
 }
 
-function duringStartup(cascade) {
-    setDesiredFeedABV(DESIRED_FEED_ABV_STARTUP);
-
-    // Reflux everything
-    setDutyCycle("hearts_reflux_relay", 1.0);
-    setDutyCycle("tails_reflux_relay", 1.0);
-
-    // Run our pump
-    controllerComponents.pump_enable.value = true;
-    controllerComponents.pump_output.value = PUMP_STARTUP_PERCENT;
-
-    // // Run our heaters in PIDs
-    runPID("preHeater", PRE_HEATER_STARTUP_P_GAIN, PRE_HEATER_STARTUP_I_GAIN, PRE_HEATER_STARTUP_D_GAIN, PRE_HEATER_STARTUP_SET_POINT, cascade);
-    var sumpSetPoint = getCurrentH20BoilingPoint() - SUMP_TEMP_BP_OFFSET_STARTUP;
-    runPID("mainHeater", MAIN_HEATER_STARTUP_P_GAIN, MAIN_HEATER_STARTUP_I_GAIN, MAIN_HEATER_STARTUP_D_GAIN, sumpSetPoint, cascade);
-}
-
 function duringRun(cascade) {
-    setDesiredFeedABV(DESIRED_FEED_ABV_RUN);
 
+    setDutyCycle("feed_relay", feedMix.value / 100);
     setDutyCycle("hearts_reflux_relay", heartsFlux.value / 100);
     setDutyCycle("tails_reflux_relay", tailsFlux.value / 100);
 
@@ -401,7 +346,6 @@ function feedFromWash()
 
 function checkforFailure(cascade)
 {
-
     if(!controllerComponents)
     {
         cascade.log_error("Controllers are offline.");
@@ -409,11 +353,10 @@ function checkforFailure(cascade)
         return;
     }
 
-    if(!sensorComponents || !sensorComponents.process_temps_online)
+    if(!sensorComponents || !sensorComponents.process_temps_online.value)
     {
         cascade.log_error("Sensors are offline.");
         runMode.value = "COOLDOWN";
-        return;
     }
 }
 
@@ -422,21 +365,10 @@ module.exports.loop = function (cascade) {
     boilingPoint.value = getCurrentH20BoilingPoint();
 
     switch (runMode.value.toUpperCase()) {
-        case "PUMP PRIME":
-        {
-            duringPumpPrime(cascade);
-            break;
-        }
         case "WARMUP" :
         {
             checkforFailure(cascade);
             duringWarmup(cascade);
-            break;
-        }
-        case "STARTUP" :
-        {
-            checkforFailure(cascade);
-            duringStartup(cascade);
             break;
         }
         case "RUN" :
@@ -452,7 +384,7 @@ module.exports.loop = function (cascade) {
         }
         case "MANUAL" :
         {
-            // Anything goes
+            checkforFailure(cascade);
             break;
         }
         default: {
