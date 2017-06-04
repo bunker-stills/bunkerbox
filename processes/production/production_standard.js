@@ -144,8 +144,8 @@ function getCurrentH20BoilingPoint()
 
 module.exports.setup = function (cascade) {
 
-    process.on('SIGINT', function(){ console.log("Shutting Down"); duringIdle();});
-    process.on('exit', function(){ console.log("Shutting Down"); duringIdle();});
+    //process.on('SIGINT', function(){ console.log("Shutting Down"); duringIdle();});
+    //process.on('exit', function(){ console.log("Shutting Down"); duringIdle();});
 
     if(process.env.SIMULATE)
     {

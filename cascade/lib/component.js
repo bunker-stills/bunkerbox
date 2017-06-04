@@ -94,6 +94,7 @@ var component = function (config) {
 
                         break;
                     }
+                    case component.TYPES.BUTTON:
                     case component.TYPES.BOOLEAN:
                     {
                         _current_value = (value === true || value === "true" || value === "1" || value === 1);
@@ -196,7 +197,8 @@ component.TYPES = {
     TEXT: "TEXT",
     NUMBER: "NUMBER",
     BOOLEAN: "BOOLEAN",
-    OPTIONS: "OPTIONS"
+    OPTIONS: "OPTIONS",
+    BUTTON: "BUTTON"
 };
 
 component.UNITS = {

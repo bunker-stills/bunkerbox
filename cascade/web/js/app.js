@@ -265,6 +265,22 @@ function update_component_ui(component) {
 
                 break;
             }
+            case "BUTTON" : {
+                component_field = $('<input type="button" class="button-primary">').val(component.name || component.id);
+
+                component_field.on("mousedown", function () {
+                    component_field.data("pressed", true);
+                    commit_edit_component(component_field);
+                });
+
+                component_field.on("mouseup", function () {
+                    component_field.data("pressed", false);
+                    commit_edit_component(component_field);
+                });
+
+                value_column.append(component_field);
+                break;
+            }
             case "BOOLEAN" : {
                 component_field = $('<input type="checkbox">');
                 component_field.attr("id", "component_field_" + component.id);
@@ -277,7 +293,6 @@ function update_component_ui(component) {
                 break;
             }
             default: {
-
 
                 if (component.read_only) {
                     var readOnlyContainer = $('<div class="read-only-value">');
@@ -364,6 +379,10 @@ function commit_edit_component(component_element) {
     switch (component_element.attr("type")) {
         case "checkbox" : {
             new_value = component_element.prop("checked");
+            break;
+        }
+        case "button" : {
+            new_value = component_element.data("pressed");
             break;
         }
         default: {

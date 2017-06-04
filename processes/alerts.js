@@ -95,6 +95,18 @@ module.exports.setup = function (cascade) {
         persist: true
     });
 
+    cascade.create_component({
+        id: "alert_test",
+        name: "Test",
+        type: cascade.TYPES.BUTTON,
+        group: "Alerts"
+    }).on("value_updated", function(component){
+        if(component.value === true)
+        {
+            notifyOnRule(cascade, "This is a test");
+        }
+    });
+
     cascade.components.require_component([
         "heads_temp",
         "hearts_temp",
