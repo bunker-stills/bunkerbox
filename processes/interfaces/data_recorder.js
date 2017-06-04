@@ -40,6 +40,8 @@ recorder.prototype.flush = function () {
 
         var message = "";
 
+        console.log(current_measurements.length);
+
         _.each(current_measurements, function (measurement) {
 
             var tags = [escape_key(measurement.name)];
@@ -96,29 +98,45 @@ recorder.prototype.record = function (measurement_name, values, tags) {
     });
 };
 
+function recordComponent(component)
+{
+    data_recorder.record(component.id, {
+            value: component.value,
+            units: component.units
+        }, {
+            device_id: process.env.DEVICE_ID || "development",
+            class: component.class
+        }
+    );
+}
+
 var data_recorder;
 
+// Data that changes is recorded right away. Data that doesn't change is recorded once a minute.
 module.exports.setup = function (cascade) {
     data_recorder = new recorder("52.39.173.27", 8089);
+    cascade.cascade_server.on("component_value_updated", recordComponent);
 };
 
+var lastUpdate;
 module.exports.loop = function (cascade) {
 
-    if(cascade.components.all_current.run_mode && cascade.components.all_current.run_mode.value === "IDLE")
+    var now = new Date();
+
+    if(lastUpdate && now - lastUpdate <= 60000)
     {
+        data_recorder.flush();
         return;
     }
 
+    // Pick up any components that haven't been changed in over a minute
     _.each(cascade.components.all_current, function (component) {
-        data_recorder.record(component.id, {
-                value: component.value,
-                units: component.units
-            }, {
-                device_id: process.env.DEVICE_ID || "development",
-                class: component.class
-            }
-        );
+        if(component.seconds_since_last_updated() >= 60)
+        {
+            recordComponent(component);
+        }
     });
 
+    lastUpdate = now;
     data_recorder.flush();
 };
