@@ -179,8 +179,13 @@ module.exports.setup = function (cascade) {
 
 module.exports.loop = function (cascade) {
 
+    if(_.isUndefined(components))
+    {
+        return;
+    }
+
     // If a temperature probe is offline, don't allow anything but idle
-    if(!components.process_temps_online.value)
+    if(components.process_temps_online.value === false)
     {
         run_mode.value = "IDLE";
     }

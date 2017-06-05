@@ -113,7 +113,7 @@ function create_reflux_controller(cascade, relay_id, id, description)
 module.exports.setup = function (cascade) {
     cascade.require_process("process_temps");
 
-    create_reflux_controller(cascade, "hearts_reflux_relay", "hearts_reflux", "Hearts Reflux");
-    create_reflux_controller(cascade, "tails_reflux_relay", "tails_reflux", "Tails Reflux");
+    create_reflux_controller(cascade, "hearts_reflux_relay", "hearts_draw", "Hearts Draw");
+    create_reflux_controller(cascade, "tails_reflux_relay", "tails_draw", "Tails Draw");
     create_reflux_controller(cascade, "feed_relay", "feed_water_ratio", "Feed/Water Ratio");
 };
