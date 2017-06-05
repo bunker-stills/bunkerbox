@@ -54,6 +54,10 @@ function notifyOnRule(cascade, message) {
         subject: subject,
         text: message
     }, function (err, reply) {
+        if(err)
+        {
+            cascade.log_error(err);
+        }
     });
 
     cascade.log_error(subject + ": " + message);
