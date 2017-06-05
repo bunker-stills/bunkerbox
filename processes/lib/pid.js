@@ -66,7 +66,7 @@ pid.prototype.update = function(measuredValue)
     {
         if(integral > this.integral)
         {
-            integral = this.integral;
+            integral = this.CVUpperLimit;
         }
 
         CV = this.CVUpperLimit;
@@ -76,13 +76,11 @@ pid.prototype.update = function(measuredValue)
     {
         if(integral < this.integral)
         {
-            integral = this.integral;
+            integral = this.CVLowerLimit;
         }
 
         CV = this.CVLowerLimit;
     }
-
-    //console.log("CV Post: " + CV);
 
     this.integral = integral;
     this.previousError = error;
