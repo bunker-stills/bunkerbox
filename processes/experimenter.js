@@ -75,9 +75,9 @@ function during_idle(cascade) {
     update_component_if_needed(components.main_heater_pid_enable, false);
 
     // Make sure all of our relays are in the off state
-    update_component_if_needed(components.tails_reflux_enable, false);
+    update_component_if_needed(components.tails_draw_enable, false);
     update_component_if_needed(components.tails_reflux_relay, false);
-    update_component_if_needed(components.hearts_reflux_enable, false);
+    update_component_if_needed(components.hearts_draw_enable, false);
     update_component_if_needed(components.hearts_reflux_relay, false);
     update_component_if_needed(components.feed_relay, false);
 }
@@ -149,9 +149,9 @@ module.exports.setup = function (cascade) {
         "pre_heater_pid_enable",
         "main_heater_enable",
         "main_heater_pid_enable",
-        "tails_reflux_enable",
+        "tails_draw_enable",
         "tails_reflux_relay",
-        "hearts_reflux_enable",
+        "hearts_draw_enable",
         "hearts_reflux_relay",
         "feed_relay",
         "process_temps_online"

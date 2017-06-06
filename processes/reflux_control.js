@@ -84,7 +84,7 @@ function create_reflux_controller(cascade, relay_id, id, description)
         class: "cycle_length",
         type: cascade.TYPES.NUMBER,
         units: "seconds",
-        value: 5,
+        value: 20,
         persist: true
     });
     reflux_control.cycle_length.on("value_updated", function(){
@@ -102,7 +102,7 @@ function create_reflux_controller(cascade, relay_id, id, description)
         class: "reflux_percent",
         type: cascade.TYPES.NUMBER,
         units: cascade.UNITS.PERCENTAGE,
-        value: 100
+        value: 0
     });
 
     process_reflux_cycle(reflux_control);
