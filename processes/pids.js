@@ -142,8 +142,8 @@ module.exports.setup = function (cascade) {
     pids["pre_heater_pid"] = create_pid("pre_heater", "Preheater PID", "pre_heater_output", cascade);
     pids["main_heater_pid"] = create_pid("main_heater", "Main Heater PID", "main_heater_output", cascade);
     pids["pump"] = create_pid("pump", "Pump PID", "pump_output", cascade);
-    pids["hearts_reflux_pid"] = create_pid("hearts_reflux", "Hearts Reflux PID", "hearts_reflux_percent", cascade);
-    pids["tails_reflux_pid"] = create_pid("tails_reflux", "Tails Reflux PID", "tails_reflux_percent", cascade);
+    pids["hearts_reflux_pid"] = create_pid("hearts_reflux", "Hearts Reflux PID", "hearts_draw_percent", cascade);
+    pids["tails_reflux_pid"] = create_pid("tails_reflux", "Tails Reflux PID", "tails_draw_percent", cascade);
 };
 
 module.exports.loop = function (cascade) {
