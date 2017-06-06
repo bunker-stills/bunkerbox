@@ -395,7 +395,7 @@ function commit_edit_component(component_element) {
     end_edit_component();
 
     mqtt_client.publish("write/" + component_data.id, JSON.stringify(new_value), {
-        qos: 1
+        qos: 2
     }, function () {
     });
 }

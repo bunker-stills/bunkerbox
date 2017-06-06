@@ -18,7 +18,7 @@ module.exports.setup = function (cascade) {
     }
 
     // Ignore if the restart hasn't happened within 2 minutes of shutting down
-    if(restartConfig && restartConfig.date && Date.now() - restartConfig.date <= 120000)
+    if(restartConfig && restartConfig.date && Date.now() - restartConfig.date <= 180000)
     {
         function setComponents()
         {

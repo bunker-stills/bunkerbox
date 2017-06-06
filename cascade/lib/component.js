@@ -87,7 +87,8 @@ var component = function (config) {
                         }
 
                         if (!utils.is_numeric(value)) {
-                            throw "Value is not numeric";
+                            // Keep the value the same if it's not a number
+                            break;
                         }
 
                         _current_value = Number(value);
