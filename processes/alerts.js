@@ -1,7 +1,5 @@
 var _ = require("underscore");
-var sendmail = require('sendmail')({
-    silent: true
-});
+var request = require("request");
 
 var emailAddresses;
 var enableAlerts;
@@ -47,17 +45,27 @@ function notifyOnRule(cascade, message) {
     }
 
     var subject = 'Alert (' + process.env.DEVICE_ID + ')';
+    var recipients = [];
+    var addresses = emailAddresses.value.split(",");
 
-    sendmail({
-        from: 'no-reply@bunkerstills.com',
-        to: emailAddresses.value,
-        subject: subject,
-        text: message
-    }, function (err, reply) {
-        if(err)
-        {
-            cascade.log_error(err);
+    for(var index in addresses)
+    {
+        var email = addresses[index];
+        recipients.push({"Email" : email});
+    }
+
+    request({
+        url: 'https://d80454b2afd594ef692dc46b67687e60:5a8828700acd06e541c7f8a0eee6d282@api.mailjet.com/v3/send',
+        method: 'POST',
+        timeout: 10000,
+        json: {
+            "FromEmail":"no-reply@bunkerstills.com",
+            "Subject":subject,
+            "Text-part":message,
+            "Recipients":recipients
         }
+    }, function (e, r, body) {
+
     });
 
     cascade.log_error(subject + ": " + message);

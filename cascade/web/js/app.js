@@ -75,13 +75,13 @@ function connect_mqtt_client(username, password) {
             update_component_ui(payload);
         }
         else if (topic.indexOf("log/") === 0) {
-            var matches = log_topic_regex.exec(topic);
+            /*var matches = log_topic_regex.exec(topic);
 
             if (matches.length >= 3) {
                 var type = matches[1];
                 var process_id = matches[2];
                 log_update(type, process_id, payload.toString());
-            }
+            }*/
         }
     });
 }
@@ -395,7 +395,7 @@ function commit_edit_component(component_element) {
     end_edit_component();
 
     mqtt_client.publish("write/" + component_data.id, JSON.stringify(new_value), {
-        qos: 2
+        qos: 3
     }, function () {
     });
 }

@@ -62,7 +62,7 @@ pid.prototype.update = function(measuredValue)
 
     var CV = this.Kp * error + integral + this.Kd * derivative;
 
-    if(!_.isUndefined(this.CVUpperLimit) && CV > this.CVUpperLimit)
+    if(!_.isUndefined(this.CVUpperLimit) && CV >= this.CVUpperLimit)
     {
         if(integral > this.integral)
         {
@@ -72,7 +72,7 @@ pid.prototype.update = function(measuredValue)
         CV = this.CVUpperLimit;
     }
 
-    if(!_.isUndefined(this.CVLowerLimit) && CV < this.CVLowerLimit)
+    if(!_.isUndefined(this.CVLowerLimit) && CV <= this.CVLowerLimit)
     {
         if(integral < this.integral)
         {

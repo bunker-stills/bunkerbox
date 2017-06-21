@@ -412,16 +412,19 @@ cascade.prototype.publish_mqtt_message = function (topic, message, retain) {
 cascade.prototype.log_info = function (message) {
     this.console_logger.info(message);
     this.publish_mqtt_message("log/info", "(info) " + message);
+    this.emit("log_info", message);
 };
 
 cascade.prototype.log_error = function (error) {
     this.console_logger.error(error);
     this.publish_mqtt_message("log/error", "(error) " + error);
+    this.emit("log_error", error);
 };
 
 cascade.prototype.log_warning = function (message) {
     this.console_logger.warn(message);
     this.publish_mqtt_message("log/warning", "(warning) " + message);
+    this.emit("log_warning", message);
 };
 
 module.exports = cascade;

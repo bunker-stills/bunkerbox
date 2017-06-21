@@ -38,16 +38,19 @@ var process_class = function (cascade, process_path, root_path) {
         UNITS: component.UNITS,
         TYPES: component.TYPES,
         log_info: function (message) {
-            cascade.console_logger.info("(" + process_id + ") " + message);
-            cascade.publish_mqtt_message("log/info/" + process_id, message);
+            cascade.log_info("(" + process_id + ") " + message);
+            //cascade.console_logger.info("(" + process_id + ") " + message);
+            //cascade.publish_mqtt_message("log/info/" + process_id, message);
         },
         log_error: function (error) {
-            cascade.console_logger.error("(" + process_id + ") " + error);
-            cascade.publish_mqtt_message("log/error/" + process_id, error);
+            cascade.log_error("(" + process_id + ") " + error);
+            //cascade.console_logger.error("(" + process_id + ") " + error);
+            //cascade.publish_mqtt_message("log/error/" + process_id, error);
         },
         log_warning: function (message) {
-            cascade.console_logger.warn("(" + process_id + ") " + message);
-            cascade.publish_mqtt_message("log/warning/" + process_id, message);
+            cascade.log_warning("(" + process_id + ") " + message);
+            //cascade.console_logger.warn("(" + process_id + ") " + message);
+            //cascade.publish_mqtt_message("log/warning/" + process_id, message);
         },
         require_process: function (process_path) {
             cascade.load_process(process_path, path.dirname(path_location));

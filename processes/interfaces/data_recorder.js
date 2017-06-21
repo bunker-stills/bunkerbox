@@ -108,12 +108,26 @@ function recordComponent(component)
     );
 }
 
+function recordLog(logType, message)
+{
+    data_recorder.record("logs", {
+            value: message,
+            log_type: logType
+        }, {
+            device_id: process.env.DEVICE_ID || "development"
+        }
+    );
+}
+
 var data_recorder;
 
 // Data that changes is recorded right away. Data that doesn't change is recorded once a minute.
 module.exports.setup = function (cascade) {
     data_recorder = new recorder("52.39.173.27", 8089);
     cascade.cascade_server.on("component_value_updated", recordComponent);
+    cascade.cascade_server.on("log_error", function(message){ recordLog("error", message); });
+    cascade.cascade_server.on("log_info", function(message){ recordLog("info", message); });
+    cascade.cascade_server.on("log_warning", function(message){ recordLog("warning", message); });
 };
 
 var lastUpdate;

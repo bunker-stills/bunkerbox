@@ -53,13 +53,17 @@ function create_function_component(cascade, id)
     functions[id] = function_info;
 }
 
+function isNumeric(n) {
+    return !isNaN(parseFloat(n)) && isFinite(n);
+}
+
 function create_variable_component(cascade, id)
 {
     cascade.create_component({
         id: id,
         name: id,
         group: "functions",
-        type: cascade.TYPES.TEXT,
+        type: cascade.TYPES.NUMBER,
         persist: true
     });
 }
