@@ -16,7 +16,7 @@ function initialize() {
 
 function disconnect_mqtt_client() {
     if (mqtt_client) {
-        mqtt_client.end();
+        mqtt_client.disconnect();
         mqtt_client = null;
     }
 }
@@ -26,29 +26,29 @@ function connect_mqtt_client(username, password) {
 
     loading_indicator(true);
 
-    mqtt_client = new Paho.MQTT.Client(location.hostname, Number(location.port));
+    mqtt_client = new Paho.MQTT.Client(location.hostname, Number(location.port), "bunker" + new Date().getTime());
 
-    mqtt_client.on("error", function (error) {
+    mqtt_client.connect({
+        userName: username,
+        password: password,
+        useSSL: location.protocol === "https:",
+        onSuccess: function () {
+            client_was_connected = true;
+            loading_indicator(false);
+            dismiss_modal();
 
-        loading_indicator(false);
+            // Get all the info for our components
+            mqtt_client.subscribe("read/+/+/+/detail");
 
-        if (error.message.indexOf("Not authorized") != -1) {
+            // Get any log updates
+            mqtt_client.subscribe("log/#")
+        },
+        onFailure: function (context) {
+            loading_indicator(false);
             disconnect_mqtt_client();
             display_login_screen();
         }
     });
-
-    mqtt_client.onConnected = function () {
-        client_was_connected = true;
-        loading_indicator(false);
-        dismiss_modal();
-
-        // Get all the info for our components
-        mqtt_client.subscribe("read/+/+/+/detail");
-
-        // Get any log updates
-        mqtt_client.subscribe("log/#")
-    };
 
     mqtt_client.onConnectionLost = function () {
 
@@ -60,7 +60,10 @@ function connect_mqtt_client(username, password) {
         reset_ui();
     }
 
-    mqtt_client.onMessageArrived = function (topic, payload) {
+    mqtt_client.onMessageArrived = function (message) {
+
+        var payload = message.payloadString;
+        var topic = message.destinationName;
 
         if (topic.indexOf("read/") === 0) {
             payload = JSON.parse(payload.toString());
@@ -384,10 +387,10 @@ function commit_edit_component(component_element) {
     component_element.blur();
     end_edit_component();
 
-    mqtt_client.publish("write/" + component_data.id, JSON.stringify(new_value), {
-        qos: 3
-    }, function () {
-    });
+    var message = new Paho.MQTT.Message(JSON.stringify(new_value));
+    message.destinationName = "write/" + component_data.id;
+
+    mqtt_client.send(message);
 }
 
 function cancel_edit_component(component_element) {
