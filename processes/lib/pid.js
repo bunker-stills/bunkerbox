@@ -56,11 +56,15 @@ pid.prototype.update = function(measuredValue)
 
     var error = this.setPoint - input;
 
-    integral = integral + (this.Ki * error * dt);
+    // Old way is commented out. See: https://bunkerstills.slack.com/archives/D2UK88YJV/p1483845031000999 for reasons we had it the old way.
+    // Phone conversation on Jul 31, 2017 had us put it back to wikipedia way.
+    // integral = integral + (this.Ki * error * dt);
+    integral = integral + (error * dt);
 
     var derivative = (error - this.previousError) / dt;
 
-    var CV = this.Kp * error + integral + this.Kd * derivative;
+    // var CV = this.Kp * error + integral + this.Kd * derivative;
+    var CV = this.Kp * error + this.Ki * integral + this.Kd * derivative;
 
     if(!_.isUndefined(this.CVUpperLimit) && CV >= this.CVUpperLimit)
     {

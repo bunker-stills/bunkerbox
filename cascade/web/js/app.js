@@ -26,15 +26,7 @@ function connect_mqtt_client(username, password) {
 
     loading_indicator(true);
 
-    var wsProtocol = (location.protocol === "https:") ? "wss:" : "ws:";
-
-    mqtt_client = mqtt.connect(
-        wsProtocol + "//" + location.host,
-        {
-            username: username,
-            password: password
-        }
-    );
+    mqtt_client = new Paho.MQTT.Client(location.hostname, Number(location.port));
 
     mqtt_client.on("error", function (error) {
 
@@ -46,7 +38,7 @@ function connect_mqtt_client(username, password) {
         }
     });
 
-    mqtt_client.on("connect", function () {
+    mqtt_client.onConnected = function () {
         client_was_connected = true;
         loading_indicator(false);
         dismiss_modal();
@@ -56,9 +48,9 @@ function connect_mqtt_client(username, password) {
 
         // Get any log updates
         mqtt_client.subscribe("log/#")
-    });
+    };
 
-    mqtt_client.on("close", function () {
+    mqtt_client.onConnectionLost = function () {
 
         if (client_was_connected) {
             loading_indicator(true);
@@ -66,9 +58,9 @@ function connect_mqtt_client(username, password) {
         }
 
         reset_ui();
-    });
+    }
 
-    mqtt_client.on("message", function (topic, payload) {
+    mqtt_client.onMessageArrived = function (topic, payload) {
 
         if (topic.indexOf("read/") === 0) {
             payload = JSON.parse(payload.toString());
@@ -83,7 +75,7 @@ function connect_mqtt_client(username, password) {
                 log_update(type, process_id, payload.toString());
             }*/
         }
-    });
+    }
 }
 
 function reset_ui() {
@@ -162,16 +154,14 @@ function update_component_value(component) {
             }
             default : {
 
-                if(component.read_only)
-                {
+                if (component.read_only) {
                     var value = component.value;
 
-                    if(value === null || value === "") value = "- -";
+                    if (value === null || value === "") value = "- -";
 
                     component_field.text(value);
                 }
-                else
-                {
+                else {
                     component_field.val(component.value);
                 }
 

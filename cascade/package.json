@@ -11,11 +11,11 @@
   "dependencies": {
     "jsonfile": "2.3.1",
     "mkdir-p": "0.0.7",
-    "mosca": "2.2.0",
+    "mosca": "^2.5.2",
     "mqtt": "2.0.1",
     "nunjucks": "2.5.2",
     "restify": "4.2.0",
     "round-precision": "1.0.0",
-    "winston": "2.3.0"
+    "winston": "^2.3.1"
   }
 }

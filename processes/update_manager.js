@@ -3,8 +3,6 @@ var path = require("path");
 
 module.exports.setup = function (cascade) {
 
-    cascade.require_process("process_temps");
-
     var allowSoftwareUpdates = cascade.create_component({
         id: "allow_software_updates",
         name: "Allow Software Updates",

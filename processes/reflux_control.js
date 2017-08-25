@@ -62,7 +62,7 @@ function create_reflux_controller(cascade, relay_id, id, description)
     reflux_control.enable = cascade.create_component({
         id: id + "_enable",
         name: description + " Enable",
-        group : "reflux_control",
+        group : "reflux control",
         class: "enable",
         type: cascade.TYPES.BOOLEAN,
         units: "seconds",
@@ -80,7 +80,7 @@ function create_reflux_controller(cascade, relay_id, id, description)
     reflux_control.cycle_length = cascade.create_component({
         id: id + "_cycle_length",
         name: description + " Cycle Length",
-        group : "reflux_control",
+        group : "reflux control",
         class: "cycle_length",
         type: cascade.TYPES.NUMBER,
         units: "seconds",
@@ -98,7 +98,7 @@ function create_reflux_controller(cascade, relay_id, id, description)
     reflux_control.reflux_percent = cascade.create_component({
         id: id + "_percent",
         name: description + " Percentage",
-        group : "reflux_control",
+        group : "reflux control",
         class: "reflux_percent",
         type: cascade.TYPES.NUMBER,
         units: cascade.UNITS.PERCENTAGE,
@@ -111,8 +111,6 @@ function create_reflux_controller(cascade, relay_id, id, description)
 }
 
 module.exports.setup = function (cascade) {
-    cascade.require_process("process_temps");
-
     create_reflux_controller(cascade, "hearts_reflux_relay", "hearts_draw", "Hearts Draw");
     create_reflux_controller(cascade, "tails_reflux_relay", "tails_draw", "Tails Draw");
     create_reflux_controller(cascade, "feed_relay", "feed_water_ratio", "Feed/Water Ratio");
