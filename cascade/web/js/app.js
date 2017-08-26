@@ -26,7 +26,7 @@ function connect_mqtt_client(username, password) {
 
     loading_indicator(true);
 
-    mqtt_client = new Paho.MQTT.Client(location.hostname, Number(location.port), "bunker" + new Date().getTime());
+    mqtt_client = new Paho.MQTT.Client(location.hostname, Number(location.port || 80), "bunker" + new Date().getTime());
 
     mqtt_client.connect({
         userName: username,
