@@ -26,12 +26,14 @@ function connect_mqtt_client(username, password) {
 
     loading_indicator(true);
 
-    mqtt_client = new Paho.MQTT.Client(location.hostname, Number(location.port || 80), "bunker" + new Date().getTime());
+    var useSSL = location.protocol === "https:";
+
+    mqtt_client = new Paho.MQTT.Client(location.hostname, Number(location.port || (useSSL ? 443 : 80)), "bunker" + new Date().getTime());
 
     mqtt_client.connect({
         userName: username,
         password: password,
-        useSSL: location.protocol === "https:",
+        useSSL: useSSL,
         onSuccess: function () {
             client_was_connected = true;
             loading_indicator(false);
