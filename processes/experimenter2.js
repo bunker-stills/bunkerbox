@@ -209,6 +209,9 @@ module.exports.setup = function (cascade) {
     pids.push(create_pid(cascade, "pid_3", "PID 3"));
     pids.push(create_pid(cascade, "pid_4", "PID 4"));
     pids.push(create_pid(cascade, "pid_5", "PID 5"));
+    pids.push(create_pid(cascade, "pid_6", "PID 6"));
+    pids.push(create_pid(cascade, "pid_7", "PID 7"));
+    pids.push(create_pid(cascade, "pid_8", "PID 8"));
 
     create_function_component(cascade, "function1", "Function 1");
     create_function_component(cascade, "function2", "Function 2");
@@ -217,6 +220,8 @@ module.exports.setup = function (cascade) {
     create_variable_component(cascade, "variable1", "Variable 1");
     create_variable_component(cascade, "variable2", "Variable 2");
     create_variable_component(cascade, "variable3", "Variable 3");
+    create_variable_component(cascade, "variable4", "Variable 4");
+    create_variable_component(cascade, "variable5", "Variable 5");
 
     run_mode = cascade.create_component({
         id: "run_mode",
@@ -333,7 +338,6 @@ function during_stop(cascade) {
 }
 
 module.exports.loop = function (cascade) {
-
     switch (run_mode.value.toUpperCase()) {
         case "MANUAL": {
             // Anything goes here.
