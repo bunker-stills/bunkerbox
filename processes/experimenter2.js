@@ -214,14 +214,19 @@ module.exports.setup = function (cascade) {
     pids.push(create_pid(cascade, "pid_8", "PID 8"));
 
     create_function_component(cascade, "function1", "Function 1");
-    create_function_component(cascade, "function2", "Function 2");
-    create_function_component(cascade, "function3", "Function 3");
+    //create_function_component(cascade, "function2", "Function 2");
+    //create_function_component(cascade, "function3", "Function 3");
 
     create_variable_component(cascade, "variable1", "Variable 1");
     create_variable_component(cascade, "variable2", "Variable 2");
     create_variable_component(cascade, "variable3", "Variable 3");
     create_variable_component(cascade, "variable4", "Variable 4");
     create_variable_component(cascade, "variable5", "Variable 5");
+    create_variable_component(cascade, "variable6", "Variable 6");
+    create_variable_component(cascade, "variable7", "Variable 7");
+    create_variable_component(cascade, "variable8", "Variable 8");
+    create_variable_component(cascade, "variable9", "Variable 9");
+    create_variable_component(cascade, "variable10", "Variable 10");
 
     run_mode = cascade.create_component({
         id: "run_mode",
@@ -237,6 +242,7 @@ module.exports.setup = function (cascade) {
 
 function processFunctions(cascade) {
     // Get the current values of all of our components
+    // TODO: This needs to be moved into the "Evaluate out custom functions" otherwise previous variables get overwritten.
     var component_values = {};
     _.each(cascade.components.all_current, function (component) {
 
