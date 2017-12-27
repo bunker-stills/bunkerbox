@@ -45,6 +45,13 @@ a.group.active
     cursor: not-allowed;
 }
 
+textarea.component_input
+{
+    resize: vertical;
+    overflow: auto;
+    white-space: pre;
+}
+
 .header {
     text-transform: uppercase;
     font-size: 1.8rem;

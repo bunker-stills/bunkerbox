@@ -304,7 +304,11 @@ function update_component_ui(component) {
                     var units = $('<span class="component_units"></span>');
                     units.text(component.units);
 
-                    component_field = $('<input class="u-full-width component_input" type="text">');
+                    if(component.type === "BIG_TEXT")
+                        component_field = $('<textarea class="u-full-width component_input"></textarea>');
+                    else
+                        component_field = $('<input class="u-full-width component_input" type="text">');
+
                     component_field.focusin(begin_edit_component);
                     component_field.css("padding-right", units.width() + 15);
 
@@ -437,7 +441,8 @@ function begin_edit_component(e) {
         }
         else if (e.keyCode == 13) // enter key
         {
-            commit_edit_component(component_element);
+            if(component_element.prop('tagName') != "TEXTAREA")
+                commit_edit_component(component_element);
         }
     });
 

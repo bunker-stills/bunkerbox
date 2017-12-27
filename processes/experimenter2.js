@@ -5,6 +5,9 @@ var pid_controller = require("./lib/pid");
 var pids = [];
 var functions = [];
 var run_mode;
+var failsafe_temp;
+var currentComponentsList = [];
+var tempComponents = {};
 
 function create_pid(cascade, name, description) {
     var pid = new pid_controller();
@@ -13,6 +16,8 @@ function create_pid(cascade, name, description) {
 
     definition.name = name;
     definition.pid = pid;
+
+    var componentOptions = _.keys(cascade.components.all_current);
 
     definition.enable = cascade.create_component({
         id: name + "_pid_enable",
@@ -54,7 +59,10 @@ function create_pid(cascade, name, description) {
         name: description + " Process Component",
         group: description,
         persist: true,
-        type: cascade.TYPES.TEXT
+        type: cascade.TYPES.OPTIONS,
+        info: {
+            options: []
+        }
     });
     definition.process_component_name.on("value_updated", function () {
 
@@ -64,14 +72,17 @@ function create_pid(cascade, name, description) {
             definition.process_component = component;
         });
     });
-    definition.process_component_name.value = definition.process_component_name.value
+    definition.process_component_name.value = definition.process_component_name.value;
 
     definition.control_component_name = cascade.create_component({
         id: name + "_pid_control_component",
         name: description + " Control Component",
         group: description,
         persist: true,
-        type: cascade.TYPES.TEXT
+        type: cascade.TYPES.OPTIONS,
+        info: {
+            options: []
+        }
     });
     definition.control_component_name.on("value_updated", function () {
 
@@ -81,7 +92,7 @@ function create_pid(cascade, name, description) {
             definition.control_component = component;
         });
     });
-    definition.control_component_name.value = definition.control_component_name.value
+    definition.control_component_name.value = definition.control_component_name.value;
 
     definition.control_value = cascade.create_component({
         id: name + "_pid_control_value",
@@ -179,7 +190,7 @@ function create_function_component(cascade, name, description) {
         id: name + "_code",
         name: description,
         group: "functions",
-        type: cascade.TYPES.TEXT,
+        type: cascade.TYPES.BIG_TEXT,
         persist: true
     });
     create_script(cascade, function_info);
@@ -201,7 +212,7 @@ module.exports.setup = function (cascade) {
     }
 
     cascade.require_process("update_manager");
-    cascade.require_process("reflux_control");
+    cascade.require_process("relay_control");
     cascade.require_process("warm_restart");
 
     pids.push(create_pid(cascade, "pid_1", "PID 1"));
@@ -234,9 +245,19 @@ module.exports.setup = function (cascade) {
         group: "run",
         type: cascade.TYPES.OPTIONS,
         info: {
-            options: ["STOP", "AUTOMATIC", "MANUAL"]
+            options: ["STOP", "RUN"]
         },
         value: "STOP"
+    });
+
+    failsafe_temp = cascade.create_component({
+        id: "failsafe_temp",
+        name: "Failsafe Temp.",
+        group: "run",
+        type: cascade.TYPES.NUMBER,
+        value: 120,
+        units: cascade.UNITS.C,
+        persist: true
     });
 };
 
@@ -277,15 +298,20 @@ function processFunctions(cascade) {
     });
 }
 
+function updatePIDProcessValue(pid_definition)
+{
+    if (pid_definition.process_component) {
+        pid_definition.process_value.value = pid_definition.process_component.value;
+    }
+    else {
+        pid_definition.process_value.value = 0.0;
+    }
+}
+
 function processPIDs() {
     _.each(pids, function (pid_definition) {
 
-        if (pid_definition.process_component) {
-            pid_definition.process_value.value = pid_definition.process_component.value;
-        }
-        else {
-            pid_definition.process_value.value = 0.0;
-        }
+        updatePIDProcessValue(pid_definition);
 
         if (pid_definition.enable.value == true) {
             pid_definition.pid.setControlValueLimits(
@@ -312,7 +338,26 @@ function processPIDs() {
     });
 }
 
-function during_automatic(cascade) {
+function should_temp_failsafe()
+{
+    var fs_temp = failsafe_temp.value;
+
+    for(var index in tempComponents)
+    {
+        var tempComponent = tempComponents[index];
+        if(tempComponent.value >= fs_temp) return true;
+    }
+    return false;
+}
+
+
+function during_run(cascade) {
+    if(should_temp_failsafe())
+    {
+        run_mode.value = "STOP";
+        return;
+    }
+
     processFunctions(cascade);
     processPIDs();
 }
@@ -322,6 +367,7 @@ function during_stop(cascade) {
     // Turn off all our PIDs
     _.each(pids, function (pid_definition) {
         if (pid_definition.enable.value == true) pid_definition.enable.value = false;
+        updatePIDProcessValue(pid_definition);
     });
 
     // Turn off all of our control values
@@ -338,19 +384,30 @@ function during_stop(cascade) {
     if (cascade.components.all_current.hearts_draw_enable) cascade.components.all_current.hearts_draw_enable.value = false;
     if (cascade.components.all_current.tails_draw_enable) cascade.components.all_current.tails_draw_enable.value = false;
 
-    if (cascade.components.all_current.feed_relay) cascade.components.all_current.feed_relay.value = false;
-    if (cascade.components.all_current.hearts_reflux_relay) cascade.components.all_current.hearts_reflux_relay.value = false;
-    if (cascade.components.all_current.tails_reflux_relay) cascade.components.all_current.tails_reflux_relay.value = false;
+    if (cascade.components.all_current.relay_0) cascade.components.all_current.relay_0.value = false;
+    if (cascade.components.all_current.relay_1) cascade.components.all_current.relay_1.value = false;
+    if (cascade.components.all_current.relay_2) cascade.components.all_current.relay_2.value = false;
+    if (cascade.components.all_current.relay_3) cascade.components.all_current.relay_3.value = false;
 }
 
 module.exports.loop = function (cascade) {
+
+    var _currentComponentsList = _.keys(cascade.components.all_current);
+    if (_currentComponentsList.length != currentComponentsList.length) {
+        currentComponentsList = _currentComponentsList.sort();
+
+        _.each(pids, function (pid_definition) {
+            pid_definition.process_component_name.info = {options: currentComponentsList};
+            pid_definition.control_component_name.info = {options: currentComponentsList};
+        });
+
+        // Update our temperature components
+        tempComponents = _.filter(cascade.components.all_current, function(component) { return component.class === "calibrated_temperature" });
+    }
+
     switch (run_mode.value.toUpperCase()) {
-        case "MANUAL": {
-            // Anything goes here.
-            break;
-        }
-        case "AUTOMATIC": {
-            during_automatic(cascade);
+        case "RUN": {
+            during_run(cascade);
             break;
         }
         default: {

@@ -46,9 +46,10 @@ module.exports.setup = function (cascade) {
     create_dac(cascade, "pre_heater", "Preheater");
     create_dac(cascade, "main_heater", "Main Heater");
 
-    create_relay(cascade, "hearts_reflux_relay", "Hearts Reflux Relay");
-    create_relay(cascade, "tails_reflux_relay", "Tails Reflux Relay");
-    create_relay(cascade, "feed_relay", "Feed Relay");
+    create_relay(cascade, "relay_0", "Relay 0");
+    create_relay(cascade, "relay_1", "Relay 1");
+    create_relay(cascade, "relay_2", "Relay 2");
+    create_relay(cascade, "relay_3", "Relay 3");
 };
 
 module.exports.loop = function (cascade) {

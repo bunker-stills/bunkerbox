@@ -101,7 +101,8 @@ var component = function (config) {
                         _current_value = (value === true || value === "true" || value === "1" || value === 1);
                         break;
                     }
-                    case  component.TYPES.TEXT:
+                    case component.TYPES.BIG_TEXT:
+                    case component.TYPES.TEXT:
                     {
                         _current_value = value.toString();
                         break;
@@ -196,6 +197,7 @@ component.prototype.seconds_since_last_updated = function()
 
 component.TYPES = {
     TEXT: "TEXT",
+    BIG_TEXT: "BIG_TEXT",
     NUMBER: "NUMBER",
     BOOLEAN: "BOOLEAN",
     OPTIONS: "OPTIONS",

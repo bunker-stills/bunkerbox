@@ -42,10 +42,6 @@ var PUMP_OUTPUT_TYPE = process.env.PUMP_OUTPUT_TYPE || "VOLTAGE_RANGE_0_TO_5V";
 var PRE_HEATER_OUTPUT_TYPE = process.env.PRE_HEATER_OUTPUT_TYPE || "CURRENT_RANGE_4_TO_20MA";
 var MAIN_HEATER_OUTPUT_TYPE = process.env.MAIN_HEATER_OUTPUT_TYPE || "CURRENT_RANGE_4_TO_20MA";
 
-var HEARTS_REFLUX_RELAY_POSITION = _.isUndefined(process.env.HEARTS_REFLUX_RELAY_POSITION) ? 2 : Number(process.env.HEARTS_REFLUX_RELAY_POSITION);
-var TAILS_REFLUX_RELAY_POSITION = _.isUndefined(process.env.TAILS_REFLUX_RELAY_POSITION) ? 1 : Number(process.env.TAILS_REFLUX_RELAY_POSITION);
-var FEED_RELAY_POSITION = _.isUndefined(process.env.FEED_RELAY_POSITION) ? 0 : Number(process.env.FEED_RELAY_POSITION);
-
 var dacs = {};
 var relays = {};
 var barometer_component;
@@ -188,9 +184,10 @@ module.exports.setup = function (cascade) {
     create_dac(cascade, "pre_heater", "Preheater", PRE_HEATER_DAC_POSITION, PRE_HEATER_OUTPUT_TYPE);
     create_dac(cascade, "main_heater", "Main Heater", MAIN_HEATER_DAC_POSITION, MAIN_HEATER_OUTPUT_TYPE);
 
-    create_relay(cascade, "hearts_reflux_relay", "Hearts Reflux Relay", HEARTS_REFLUX_RELAY_POSITION);
-    create_relay(cascade, "tails_reflux_relay", "Tails Reflux Relay", TAILS_REFLUX_RELAY_POSITION);
-    create_relay(cascade, "feed_relay", "Feed Relay", FEED_RELAY_POSITION);
+    create_relay(cascade, "relay_0", "Relay 0", 0);
+    create_relay(cascade, "relay_1", "Relay 1", 1);
+    create_relay(cascade, "relay_2", "Relay 2", 2);
+    create_relay(cascade, "relay_3", "Relay 3", 3);
 
     barometer_component = cascade.create_component({
         id: "barometer",
