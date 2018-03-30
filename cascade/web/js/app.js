@@ -199,21 +199,21 @@ function update_component_ui(component) {
 
     var component_row = $("#components .row[data-component='" + component.id + "']");
     var component_field = $("#component_field_" + component.id);
-    var group_row = $("#groups .row[data-group='" + component.group + "']");
+    var group_row = $("#groups .row[data-group='" + encodeURIComponent(component.group) + "']");
 
     // Create our group UI
     if (group_row.length == 0) {
         group_row = $('<div class="row"></div>')
-            .attr("data-group", component.group);
+            .attr("data-group", encodeURIComponent(component.group));
 
         var column = $('<div class="12 columns"></div>');
 
         var link = $('<a class="group"></a>');
-        link.attr("id", "group_" + component.group);
-        link.attr("href", "#" + component.group);
-        link.text(component.group);
+        link.attr("id", "group_" + encodeURIComponent(component.group));
+        link.attr("href", "#" + encodeURIComponent(component.group));
+        link.text(encodeURIComponent(component.group));
 
-        if (component.group === get_current_group()) {
+        if (encodeURIComponent(component.group) === get_current_group()) {
             link.addClass("active");
         }
 
@@ -226,7 +226,7 @@ function update_component_ui(component) {
 
     // Create our component UI
     if (component_row.length == 0) {
-        component_row = $('<div class="row component-row"></div>').attr("data-component", component.id).attr("data-group", component.group);
+        component_row = $('<div class="row component-row"></div>').attr("data-component", component.id).attr("data-group", encodeURIComponent(component.group));
         ;
 
         var component_label_row = $('<div class="row">' +
@@ -320,7 +320,7 @@ function update_component_ui(component) {
             }
         }
 
-        if (component.group != get_current_group()) {
+        if (encodeURIComponent(component.group) != get_current_group()) {
             component_row.hide();
         }
 
