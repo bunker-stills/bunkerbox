@@ -83,6 +83,11 @@ function connect_mqtt_client(username, password) {
     }
 }
 
+function createComponentGroupName(componentGroup)
+{
+    return componentGroup.replace(" ", "_");
+}
+
 function reset_ui() {
     $("#groups").empty();
     $("#components").empty();
@@ -199,21 +204,21 @@ function update_component_ui(component) {
 
     var component_row = $("#components .row[data-component='" + component.id + "']");
     var component_field = $("#component_field_" + component.id);
-    var group_row = $("#groups .row[data-group='" + encodeURIComponent(component.group) + "']");
+    var group_row = $("#groups .row[data-group='" + createComponentGroupName(component.group) + "']");
 
     // Create our group UI
     if (group_row.length == 0) {
         group_row = $('<div class="row"></div>')
-            .attr("data-group", encodeURIComponent(component.group));
+            .attr("data-group", createComponentGroupName(component.group));
 
         var column = $('<div class="12 columns"></div>');
 
         var link = $('<a class="group"></a>');
-        link.attr("id", "group_" + encodeURIComponent(component.group));
-        link.attr("href", "#" + encodeURIComponent(component.group));
-        link.text(encodeURIComponent(component.group));
+        link.attr("id", "group_" + createComponentGroupName(component.group));
+        link.attr("href", "#" + createComponentGroupName(component.group));
+        link.text(component.group);
 
-        if (encodeURIComponent(component.group) === get_current_group()) {
+        if (createComponentGroupName(component.group) === get_current_group()) {
             link.addClass("active");
         }
 
@@ -226,7 +231,7 @@ function update_component_ui(component) {
 
     // Create our component UI
     if (component_row.length == 0) {
-        component_row = $('<div class="row component-row"></div>').attr("data-component", component.id).attr("data-group", encodeURIComponent(component.group));
+        component_row = $('<div class="row component-row"></div>').attr("data-component", component.id).attr("data-group", createComponentGroupName(component.group));
         ;
 
         var component_label_row = $('<div class="row">' +
@@ -320,7 +325,7 @@ function update_component_ui(component) {
             }
         }
 
-        if (encodeURIComponent(component.group) != get_current_group()) {
+        if (createComponentGroupName(component.group) != get_current_group()) {
             component_row.hide();
         }
 
