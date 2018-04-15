@@ -12,7 +12,7 @@ module.exports.setup = function (cascade) {
     });
 
     function processLock() {
-        var lockFilePath = path.join(cascade.cascade_server.config.data_storage_location, "resin-updates.lock");
+        var lockFilePath = "/tmp/resin/resin-updates.lock";
 
         if(allowSoftwareUpdates.value)
         {
@@ -27,6 +27,6 @@ module.exports.setup = function (cascade) {
         }
     }
 
-    allowSoftwareUpdates.on("value_updated", processLock)
+    allowSoftwareUpdates.on("value_updated", processLock);
     processLock();
 };
