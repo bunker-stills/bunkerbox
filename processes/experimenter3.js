@@ -52,7 +52,7 @@ function create_pid(cascade, name, description, displayOrder) {
         id: name + "_pid_process_value",
         name: description + " Process Value",
         group: description,
-        display_order: displayOrder + 2,
+        display_order: displayOrder + 3,
         read_only: true,
         type: cascade.TYPES.NUMBER
     });
@@ -61,7 +61,7 @@ function create_pid(cascade, name, description, displayOrder) {
         id: name + "_pid_process_component",
         name: description + " Process Component",
         group: description,
-        display_order: displayOrder + 3,
+        display_order: displayOrder + 2,
         persist: true,
         type: cascade.TYPES.OPTIONS,
         info: {
@@ -219,7 +219,6 @@ module.exports.setup = function (cascade) {
         cascade.require_process("simulator/simulator");
     }
     else {
-        cascade.require_process("interfaces/ds9490r");
         cascade.require_process("interfaces/tinkerforge");
     }
 
@@ -236,8 +235,6 @@ module.exports.setup = function (cascade) {
     pids.push(create_pid(cascade, "pid_8", "PID 8", 800));
 
     create_function_component(cascade, "function1", "Function 1");
-    //create_function_component(cascade, "function2", "Function 2");
-    //create_function_component(cascade, "function3", "Function 3");
 
     create_variable_component(cascade, "variable1", "Variable 1");
     create_variable_component(cascade, "variable2", "Variable 2");

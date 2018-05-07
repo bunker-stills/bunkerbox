@@ -49,6 +49,7 @@ pid.prototype.update = function(measuredValue)
     else
     {
         dt = (now - this.lastMeasurementTime) / 1000.0;
+        console.log()
     }
 
     var input = measuredValue;

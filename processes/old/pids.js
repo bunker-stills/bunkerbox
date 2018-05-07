@@ -1,9 +1,9 @@
 var _ = require("underscore");
-var pid_controller = require("./lib/pid");
+var pid_controller = require("../lib/pid");
 
 var pids = {};
 
-function create_pid(name, description, output_component_name, cascade) {
+function create_pid(name, description, output_component_name, cascade, displayOrder) {
     var pid = new pid_controller();
 
     var definition = {};

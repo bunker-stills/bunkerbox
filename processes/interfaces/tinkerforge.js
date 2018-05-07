@@ -1,6 +1,7 @@
 var _ = require("underscore");
 var tinkerforge = require('tinkerforge');
 var tinkerforge_connection = require("./../lib/tinkerforge_connection");
+var Bricklet1Wire = require("./../lib/Bricklet1Wire");
 var util = require("util");
 
 var devices = {};
@@ -44,6 +45,7 @@ var MAIN_HEATER_OUTPUT_TYPE = process.env.MAIN_HEATER_OUTPUT_TYPE || "CURRENT_RA
 
 var dacs = {};
 var relays = {};
+var tempProbes = {};
 var barometer_component;
 
 function set_dac(dac_info) {
@@ -58,6 +60,42 @@ function set_dac(dac_info) {
             dac_info.interface.disable();
         }
     }
+}
+
+function create_temp_probe(cascade, probeAddress)
+{
+    var probe_component = {};
+
+    probe_component.raw = cascade.create_component({
+        id: "temp_" + probeAddress + "_raw",
+        name: "Temp. Probe " + probeAddress + " Raw",
+        units: cascade.UNITS.C,
+        group: "Sensors",
+        class: "raw_temperature",
+        read_only: true,
+        type: cascade.TYPES.NUMBER
+    });
+
+    probe_component.calibration = cascade.create_component({
+        id: "temp_" + probeAddress + "_calibration",
+        name: "Temp. Probe " + probeAddress + " Calibration",
+        group: "Sensors",
+        units: cascade.UNITS.C,
+        persist: true,
+        type: cascade.TYPES.NUMBER
+    });
+
+    probe_component.calibrated = cascade.create_component({
+        id: "temp_" + probeAddress + "_calibrated",
+        name: "Temp. Probe " + probeAddress + " Calibrated",
+        units: cascade.UNITS.C,
+        group: "Sensors",
+        class: "calibrated_temperature",
+        read_only: true,
+        type: cascade.TYPES.NUMBER
+    });
+
+    tempProbes[probeAddress] = probe_component;
 }
 
 function create_dac(cascade, id, description, dac_position, output_type) {
@@ -149,6 +187,17 @@ module.exports.setup = function (cascade) {
                 }
                 else if (enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_CONNECTED || enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_AVAILABLE) {
                     switch (deviceIdentifier) {
+                        case Bricklet1Wire.DEVICE_IDENTIFIER : {
+                            var oneWire = new Bricklet1Wire(uid, ipcon);
+                            oneWire.uid_string = uid;
+                            oneWire.position = position;
+                            devices["onewire"] = oneWire;
+
+                            // Set 12 bit resolution on temp probes
+                            oneWire.tempSetResolution(12);
+
+                            break;
+                        }
                         case tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER : {
                             var dac = new tinkerforge.BrickletIndustrialAnalogOut(uid, ipcon);
                             dac.uid_string = uid;
@@ -199,6 +248,8 @@ module.exports.setup = function (cascade) {
     });
 };
 
+var lastOnewirePollTime = null;
+
 module.exports.loop = function (cascade) {
     var online = true;
 
@@ -215,6 +266,37 @@ module.exports.loop = function (cascade) {
             set_dac(dac_info);
         }
     });
+
+    if(devices["onewire"])
+    {
+        if(!lastOnewirePollTime)
+        {
+            lastOnewirePollTime = Date.now();
+            devices["onewire"].getAllTemperatures(function(error, probes) {
+                if(error)
+                {
+                    cascade.log_error(new Error("Unable to retrieve 1wire temperatures."));
+                    return;
+                }
+
+                for(var probeAddress in probes)
+                {
+                    var tempValue = probes[probeAddress];
+                    var tempComponent = tempProbes[probeAddress];
+                    if(!tempComponent)
+                    {
+                        create_temp_probe(cascade, probeAddress);
+                        tempComponent = tempProbes[probeAddress];
+                    }
+
+                    tempComponent.raw.value = tempValue;
+                    tempComponent.calibrated.value = tempValue + (tempComponent.calibration.value || 0);
+                }
+
+                lastOnewirePollTime = null;
+            });
+        }
+    }
 
     if (devices["barometer"]) {
         devices["barometer"].getAirPressure(function (airPressure) {

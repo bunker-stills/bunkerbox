@@ -1,5 +1,5 @@
 var _ = require("underscore");
-var utils = require("./lib/utils");
+var utils = require("../lib/utils");
 var vm = require("vm");
 
 // Set to true if we want to continually send values to our process outputs. Otherwise we only send values if they change.

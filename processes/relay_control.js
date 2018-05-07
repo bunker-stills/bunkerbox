@@ -51,7 +51,7 @@ function stop_timer(reflux_control)
     }
 }
 
-function create_relay_controller(cascade, relay_id, id, description)
+function create_relay_controller(cascade, relay_id, id, description, displayOrder)
 {
     var relay_control = {};
 
@@ -63,6 +63,7 @@ function create_relay_controller(cascade, relay_id, id, description)
         id: id + "_enable",
         name: description + " Enable",
         group : "relay duty cycle",
+        display_order: displayOrder + 0,
         class: "enable",
         type: cascade.TYPES.BOOLEAN,
         units: "seconds",
@@ -81,6 +82,7 @@ function create_relay_controller(cascade, relay_id, id, description)
         id: id + "_cycle_length",
         name: description + " Cycle Length",
         group : "relay duty cycle",
+        display_order: displayOrder + 1,
         class: "cycle_length",
         type: cascade.TYPES.NUMBER,
         units: "seconds",
@@ -99,6 +101,7 @@ function create_relay_controller(cascade, relay_id, id, description)
         id: id + "_on_percent",
         name: description + " On Percent",
         group : "relay duty cycle",
+        display_order: displayOrder + 2,
         type: cascade.TYPES.NUMBER,
         units: cascade.UNITS.PERCENTAGE,
         value: 0
@@ -110,8 +113,8 @@ function create_relay_controller(cascade, relay_id, id, description)
 }
 
 module.exports.setup = function (cascade) {
-    create_relay_controller(cascade, "relay_0", "relay_0_duty_cycle", "Relay 0 Duty Cycle");
-    create_relay_controller(cascade, "relay_1", "relay_1_duty_cycle", "Relay 1 Duty Cycle");
-    create_relay_controller(cascade, "relay_2", "relay_2_duty_cycle", "Relay 2 Duty Cycle");
-    create_relay_controller(cascade, "relay_3", "relay_3_duty_cycle", "Relay 3 Duty Cycle");
+    create_relay_controller(cascade, "relay_0", "relay_0_duty_cycle", "Relay 0 Duty Cycle", 10);
+    create_relay_controller(cascade, "relay_1", "relay_1_duty_cycle", "Relay 1 Duty Cycle", 20);
+    create_relay_controller(cascade, "relay_2", "relay_2_duty_cycle", "Relay 2 Duty Cycle", 30);
+    create_relay_controller(cascade, "relay_3", "relay_3_duty_cycle", "Relay 3 Duty Cycle", 40);
 };

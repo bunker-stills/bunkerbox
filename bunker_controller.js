@@ -1,4 +1,4 @@
-var cascade = require("./cascade/cascade");
+var cascade = require("cascade");
 var commander = require("commander");
 var package_info = require("./package.json");
 
@@ -23,7 +23,7 @@ if(commander.process.length > 0)
     process_list = commander.process;
 }
 
-var users = null;
+var users;
 
 if(process.env.USERS)
 {
@@ -35,6 +35,7 @@ var cascade_server = new cascade({
     device_id : process.env.RESIN_DEVICE_NAME_AT_INIT || process.env.DEVICE_ID,
     web_port : Number(process.env.WEB_PORT) || 3000,
     mqtt_port : Number(process.env.MQTT_PORT) || 1883,
+    enable_mqtt: true,
     data_storage_location : process.env.DATA_PATH,
     processes : process_list,
     users : users

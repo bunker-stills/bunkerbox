@@ -7,10 +7,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "cascade": "git+https://github.com/bunker-stills/cascade.git",
     "commander": "2.9.0",
-    "owjs": "0.1.1",
     "request": "^2.81.0",
-    "tinkerforge": "2.0.9",
+    "tinkerforge": "^2.0.17",
     "underscore": "1.8.3"
   },
   "devDependencies": {
