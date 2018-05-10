@@ -276,6 +276,7 @@ module.exports.loop = function (cascade) {
                 if(error)
                 {
                     cascade.log_error(new Error("Unable to retrieve 1wire temperatures."));
+                    lastOnewirePollTime = null;
                     return;
                 }
 
