@@ -24,7 +24,7 @@ if(result.status !== 0)
 }
 
 // Get latest version
-console.log("Getting latest version...");
+console.log("Pulling latest version...");
 result = child_process.spawnSync("git", ["pull"], {
     cwd: bunkerboxDir
 });
