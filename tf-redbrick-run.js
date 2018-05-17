@@ -57,8 +57,10 @@ if(needsUpdate)
 console.log("Dependencies installed.");
 
 if (!process.env.CASCADE_PROCESSES) {
-    process.env.CASCADE_PROCESSES = path.join(bunkerboxDir, "/processes/tf-rebrick");
+    process.env.CASCADE_PROCESSES = path.join(bunkerboxDir, "/processes/tf-redbrick");
 }
+
+console.log("Starting BunkerBox...")
 
 // Start the bunker controller code
 var bc = require(path.join(bunkerboxDir, "bunker_controller"));
