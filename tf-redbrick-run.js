@@ -1,14 +1,15 @@
-// Make sure all the NPM packages are installed
 var child_process = require('child_process');
 var path = require("path");
 var fs = require('fs');
 
-var bunkerboxDir = path.join(__dirname, "bunkerbox");
+var bunkerboxDir = process.cwd();
+var result;
 
-var result = child_process.spawnSync("git", ["status"], {
+/*result = child_process.spawnSync("git", ["status"], {
     cwd: bunkerboxDir
-});
-if (result.status !== 0) {
+});*/
+
+/*if (result.status !== 0) {
     var gitREPO = process.env.BUNKERBOX_CODE_REPO || "https://github.com/bunker-stills/bunkerbox.git";
     console.log("Downloading Bunkerbox code from " + gitREPO + "...");
 
@@ -20,7 +21,7 @@ if (result.status !== 0) {
         process.exit();
         return;
     }
-}
+}*/
 
 // Get latest version
 console.log("Pulling latest version...");
@@ -29,7 +30,6 @@ result = child_process.spawnSync("git", ["pull"], {
 });
 
 // Load dependencies
-
 var needsUpdate = false;
 var packageJSON = require(path.join(bunkerboxDir, "package.json"));
 
