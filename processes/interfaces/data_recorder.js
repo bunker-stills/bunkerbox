@@ -102,7 +102,7 @@ function recordComponent(component)
             value: component.value,
             units: component.units
         }, {
-            device_id: process.env.DEVICE_ID || "development",
+            device_id: device_name.value || "development",
             class: component.class
         }
     );
@@ -114,16 +114,26 @@ function recordLog(logType, message)
             value: message,
             log_type: logType
         }, {
-            device_id: process.env.DEVICE_ID || "development"
+            device_id: device_name.value || "development"
         }
     );
 }
 
 var data_recorder;
+var device_name;
 
 // Data that changes is recorded right away. Data that doesn't change is recorded once a minute.
 module.exports.setup = function (cascade) {
     data_recorder = new recorder("52.39.173.27", 8089);
+
+    device_name = cascade.create_component({
+        id: "device_name",
+        group: "data logging",
+        display_order: 0,
+        name: "Device Name",
+        persist: true
+    });
+
     cascade.cascade_server.on("component_value_updated", recordComponent);
     cascade.cascade_server.on("log_error", function(message){ recordLog("error", message); });
     cascade.cascade_server.on("log_info", function(message){ recordLog("info", message); });
