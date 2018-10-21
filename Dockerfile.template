@@ -6,7 +6,7 @@ RUN wget http://download.tinkerforge.com/tools/brickd/linux/brickd-2.2.3_armhf.d
 
 WORKDIR /usr/src/app
 COPY package.json package.json
-RUN JOBS=MAX npm install --production --unsafe-perm && npm owjs --production --unsafe-perm && npm cache clean && rm -rf /tmp/*
+RUN JOBS=MAX npm install --production --unsafe-perm && npm install owjs --production --unsafe-perm && npm cache clean && rm -rf /tmp/*
 
 COPY . ./
 
