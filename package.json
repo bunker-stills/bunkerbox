@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
-  "scripts": {},
+  "scripts": {
+    "start": "./bunker_controller.js"
+  },
   "author": "",
   "license": "ISC",
   "dependencies": {
