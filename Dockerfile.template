@@ -21,4 +21,4 @@ RUN echo "authentication.secret = $(uuidgen)" > /etc/brickd.conf && apt-get remo
 ENV NODE_PATH /usr/src/app
 ENV INITSYSTEM on
 
-CMD ["node", "bunker_controller.js"]
+CMD ["node", "/usr/src/app/bunker_controller.js"]
