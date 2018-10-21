@@ -1,0 +1,10 @@
+[Unit]
+Description=bunkerbox
+
+[Service]
+EnvironmentFile=/etc/docker.env
+Type=OneShot
+ExecStart=cd /usr/src/app && node bunker_controller.js
+
+[Install]
+WantedBy=basic.target
