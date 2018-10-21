@@ -7,7 +7,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "cascade": "@bunkerstills/cascade",
+    "@bunkerstills/cascade": "^1.0.0",
     "commander": "2.9.0",
     "request": "^2.81.0",
     "tinkerforge": "^2.0.17",
