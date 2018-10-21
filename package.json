@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
-  "scripts": {},
+  "scripts": {
+    "preinstall": "npm config set strict-ssl false"
+  },
   "author": "",
   "license": "ISC",
   "dependencies": {
