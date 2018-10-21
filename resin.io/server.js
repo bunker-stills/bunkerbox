@@ -30,7 +30,7 @@ function failsafe()
 }
 
 function startController() {
-    var controllerProcess = child_process.fork("../bunker_controller");
+    var controllerProcess = child_process.fork("./bunker_controller");
 
     controllerProcess.on('close', function () {
         console.log("There was an error. Trying to start again.");
