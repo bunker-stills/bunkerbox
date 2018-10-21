@@ -8,13 +8,13 @@ function pid()
     this.reset();
 }
 module.exports = pid;
-
 pid.prototype.reset = function()
 {
     this.lastMeasurementTime = 0;
     this.setPoint = 0;
     this.previousError = 0;
     this.integral = 0;
+    this.ki_previous = 0;
 }
 
 pid.prototype.setDesiredValue = function(setPoint)
@@ -53,24 +53,32 @@ pid.prototype.update = function(measuredValue)
     }
 
     var input = measuredValue;
-    var integral = this.integral;
+    var newIntegral = this.integral;
 
     var error = this.setPoint - input;
 
     // See: https://bunkerstills.slack.com/archives/D2UK88YJV/p1483845031000999 for reasons we have this this way
-    integral = integral + (this.Ki * error * dt);
+    newIntegral = newIntegral + (this.Ki * error * dt);
     //integral = integral + (error * dt);
+
+    // SJH If the Ki term has changed, we must scale integral
+    if (this.Ki != 0 && this.Ki != this.ki_previous)
+    {
+        var integral_correction = this.ki_previous / this.Ki;
+        newIntegral = newIntegral * integral_correction; // Scale the integral
+        this.ki_previous = this.Ki;
+    }
 
     var derivative = (error - this.previousError) / dt;
 
-    var CV = this.Kp * error + integral + this.Kd * derivative;
-    //var CV = this.Kp * error + this.Ki * integral + this.Kd * derivative;
+    // SJH Now use the standard PID form...
+    var CV = this.Kp * error + this.Ki * newIntegral + this.Kd * derivative;
 
     if(!_.isUndefined(this.CVUpperLimit) && CV >= this.CVUpperLimit)
     {
-        if(integral > this.integral)
+        if(newIntegral > this.integral)
         {
-            integral = this.CVUpperLimit;
+            newIntegral = this.CVUpperLimit;
         }
 
         CV = this.CVUpperLimit;
@@ -78,15 +86,15 @@ pid.prototype.update = function(measuredValue)
 
     if(!_.isUndefined(this.CVLowerLimit) && CV <= this.CVLowerLimit)
     {
-        if(integral < this.integral)
+        if(newIntegral < this.integral)
         {
-            integral = this.CVLowerLimit;
+            newIntegral = this.CVLowerLimit;
         }
 
         CV = this.CVLowerLimit;
     }
 
-    this.integral = integral;
+    this.integral = newIntegral;
     this.previousError = error;
     this.lastMeasurementTime = now;
 

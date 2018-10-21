@@ -46,6 +46,7 @@ var MAIN_HEATER_OUTPUT_TYPE = process.env.MAIN_HEATER_OUTPUT_TYPE || "CURRENT_RA
 var dacs = {};
 var relays = {};
 var tempProbes = {};
+var thermocoupleDevices = {};
 var barometer_component;
 
 function set_dac(dac_info) {
@@ -62,8 +63,7 @@ function set_dac(dac_info) {
     }
 }
 
-function create_temp_probe(cascade, probeAddress)
-{
+function create_temp_probe(cascade, probeAddress) {
     var probe_component = {};
 
     probe_component.raw = cascade.create_component({
@@ -198,6 +198,12 @@ module.exports.setup = function (cascade) {
 
                             break;
                         }
+                        case tinkerforge.BrickletThermocouple.DEVICE_IDENTIFIER : {
+                            var tc = new tinkerforge.BrickletThermocouple(uid, ipcon);
+                            tc.setConfiguration(tinkerforge.BrickletThermocouple.AVERAGING_16, tinkerforge.BrickletThermocouple.TYPE_K, tinkerforge.BrickletThermocouple.FILTER_OPTION_60HZ);
+                            thermocoupleDevices["temp_" + uid] = tc;
+                            break;
+                        }
                         case tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER : {
                             var dac = new tinkerforge.BrickletIndustrialAnalogOut(uid, ipcon);
                             dac.uid_string = uid;
@@ -267,25 +273,37 @@ module.exports.loop = function (cascade) {
         }
     });
 
-    if(devices["onewire"])
-    {
-        if(!lastOnewirePollTime)
+    _.each(thermocoupleDevices, function (tcProbe, probeID) {
+        var tempProbe = tempProbes[probeID];
+
+        if(!tempProbe)
         {
+            create_temp_probe(cascade, probeID);
+            tempProbe = tempProbes[probeID];
+        }
+
+        var tcDevice = thermocoupleDevices[probeID];
+        tcDevice.getTemperature(function (temperature) {
+            var tempValue = temperature / 100;
+            tempProbe.raw.value = tempValue;
+            tempProbe.calibrated.value = tempValue + (tempProbe.calibration.value || 0);
+        });
+    });
+
+    if (devices["onewire"]) {
+        if (!lastOnewirePollTime) {
             lastOnewirePollTime = Date.now();
-            devices["onewire"].getAllTemperatures(function(error, probes) {
-                if(error)
-                {
+            devices["onewire"].getAllTemperatures(function (error, probes) {
+                if (error) {
                     cascade.log_error(new Error("Unable to retrieve 1wire temperatures."));
                     lastOnewirePollTime = null;
                     return;
                 }
 
-                for(var probeAddress in probes)
-                {
+                for (var probeAddress in probes) {
                     var tempValue = probes[probeAddress];
                     var tempComponent = tempProbes[probeAddress];
-                    if(!tempComponent)
-                    {
+                    if (!tempComponent) {
                         create_temp_probe(cascade, probeAddress);
                         tempComponent = tempProbes[probeAddress];
                     }

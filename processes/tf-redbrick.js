@@ -224,6 +224,7 @@ module.exports.setup = function (cascade) {
 
     cascade.require_process("relay_control");
     cascade.require_process("warm_restart");
+    cascade.require_process("interfaces/data_recorder");
 
     pids.push(create_pid(cascade, "pid_1", "PID 1", 100));
     pids.push(create_pid(cascade, "pid_2", "PID 2", 200));
