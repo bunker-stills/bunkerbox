@@ -8,7 +8,7 @@ var devices = {};
 
 var MAIN_HEATER_DAC_POSITION = process.env.MAIN_HEATER_DAC_POSITION || "A";
 var PRE_HEATER_DAC_POSITION = process.env.PRE_HEATER_DAC_POSITION || "B";
-var PUMP_DAC_POSITION = process.env.MAIN_HEATER_DAC_POSITION || "C";
+var PUMP_DAC_POSITION = process.env.PUMP_DAC_POSITION || "C";
 
 function mapRange(value, in_min, in_max, out_min, out_max) {
     var output = (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
