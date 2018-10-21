@@ -1,4 +1,4 @@
-var cascade = require("cascade");
+var cascade = require("@bunkerstills/cascade");
 var commander = require("commander");
 var package_info = require("./package.json");
 
