@@ -19,4 +19,4 @@ COPY ./resin.io/setup/owfs.conf /etc/owfs.conf
 RUN echo "authentication.secret = $(uuidgen)" > /etc/brickd.conf && apt-get remove -y uuid-runtime
 
 ENV INITSYSTEM on
-CMD ["node", "-v"]
+CMD ["node", "bunker_controller.js"]
