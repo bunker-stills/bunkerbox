@@ -1,10 +1,10 @@
 [Unit]
-Description=bunkerbox
+Description=z99bunkerbox
 
 [Service]
 EnvironmentFile=/etc/docker.env
 Type=OneShot
-ExecStart=/usr/local/bin/node /usr/src/app/bunker_controller.js
+ExecStart=node /usr/src/app/bunker_controller.js
 
 [Install]
 WantedBy=basic.target
