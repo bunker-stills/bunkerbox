@@ -18,5 +18,5 @@ COPY ./resin.io/setup/owfs.conf /etc/owfs.conf
 # Create a random password for tinkerforge
 RUN echo "authentication.secret = $(uuidgen)" > /etc/brickd.conf && apt-get remove -y uuid-runtime
 
-ENV INITSYSTEM on
+#ENV INITSYSTEM on
 CMD ["node", "bunker_controller.js"]
