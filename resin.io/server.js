@@ -4,7 +4,7 @@ function failsafe()
 {
     // Turn our D2A controllers completely off.
     var tinkerforge = require('tinkerforge');
-    require("./processes/lib/tinkerforge_connection").create(function (error, ipcon) {
+    require("../processes/lib/tinkerforge_connection").create(function (error, ipcon) {
         if (error) {
             throw error;
         }
@@ -30,7 +30,7 @@ function failsafe()
 }
 
 function startController() {
-    var controllerProcess = child_process.fork("./bunker_controller");
+    var controllerProcess = child_process.fork("../bunker_controller");
 
     controllerProcess.on('close', function () {
         console.log("There was an error. Trying to start again.");
