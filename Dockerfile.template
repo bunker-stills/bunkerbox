@@ -21,6 +21,6 @@ RUN echo "authentication.secret = $(uuidgen)" > /etc/brickd.conf && apt-get remo
 ENV NODE_PATH /usr/src/app
 ENV INITSYSTEM on
 
-#CMD ["node", "/usr/src/app/bunker_controller.js"]
-COPY ./resin.io/bunkerbox.service /etc/systemd/system/z99bunkerbox.service
-RUN systemctl enable /etc/systemd/system/z99bunkerbox.service
+CMD ["node", "/usr/src/app/bunker_controller.js"]
+#COPY ./resin.io/bunkerbox.service /etc/systemd/system/z99bunkerbox.service
+#RUN systemctl enable /etc/systemd/system/z99bunkerbox.service

@@ -5,6 +5,7 @@ Description=z99bunkerbox
 EnvironmentFile=/etc/docker.env
 Type=OneShot
 ExecStart=/usr/local/bin/node /usr/src/app/bunker_controller.js
+Restart=on-failure
 
 [Install]
 WantedBy=basic.target
