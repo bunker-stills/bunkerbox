@@ -58,7 +58,10 @@ pid.prototype.update = function(measuredValue)
     var error = this.setPoint - input;
 
     // See: https://bunkerstills.slack.com/archives/D2UK88YJV/p1483845031000999 for reasons we have this this way
-    newIntegral = newIntegral + (this.Ki * error * dt);
+    //newIntegral = newIntegral + (this.Ki * error * dt);
+
+    // Changed back to this as per: https://bunkerstills.slack.com/archives/D2UK88YJV/p1540177563000100
+    newIntegral = newIntegral + (error * dt);
     //integral = integral + (error * dt);
 
     // SJH If the Ki term has changed, we must scale integral
