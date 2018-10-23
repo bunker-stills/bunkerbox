@@ -1,3 +1,5 @@
+process.chdir(__dirname);
+
 var child_process = require('child_process');
 
 function failsafe()
@@ -30,7 +32,7 @@ function failsafe()
 }
 
 function startController() {
-    var controllerProcess = child_process.fork("./bunker_controller");
+    var controllerProcess = child_process.fork("../bunker_controller");
 
     controllerProcess.on('close', function () {
         console.log("There was an error. Trying to start again.");

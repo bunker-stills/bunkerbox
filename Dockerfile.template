@@ -1,6 +1,6 @@
 # NOTE: This is for running this app on resin.io with the older Raspberry Pi CPU
 
-FROM resin/%%RESIN_MACHINE_NAME%%-node
+FROM resin/raspberry-pi-node:6.10.2-slim
 
 RUN apt-get update && apt-get install -y libusb-1.0-0 uuid-runtime wget pm-utils owserver && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -21,6 +21,6 @@ RUN echo "authentication.secret = $(uuidgen)" > /etc/brickd.conf && apt-get remo
 ENV NODE_PATH /usr/src/app
 ENV INITSYSTEM on
 
-CMD ["node", "/usr/src/app/bunker_controller.js"]
+CMD ["node", "/usr/src/app/resin.io/server.js"]
 #COPY ./resin.io/bunkerbox.service /etc/systemd/system/z99bunkerbox.service
 #RUN systemctl enable /etc/systemd/system/z99bunkerbox.service
