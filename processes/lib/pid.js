@@ -81,7 +81,8 @@ pid.prototype.update = function(measuredValue)
     {
         if(newIntegral > this.integral)
         {
-            newIntegral = this.CVUpperLimit;
+            // Stop integrating, reset the integral back to what it was before.
+            newIntegral = this.integral;
         }
 
         CV = this.CVUpperLimit;
@@ -91,7 +92,8 @@ pid.prototype.update = function(measuredValue)
     {
         if(newIntegral < this.integral)
         {
-            newIntegral = this.CVLowerLimit;
+            // Stop integrating, reset the integral back to what it was before.
+            newIntegral = this.integral;
         }
 
         CV = this.CVLowerLimit;
