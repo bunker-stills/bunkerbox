@@ -4,7 +4,7 @@ Description=z99bunkerbox
 [Service]
 EnvironmentFile=/etc/docker.env
 Type=OneShot
-ExecStart=/usr/local/bin/node /usr/src/app/bunker_controller.js &>> /data/bunkerbox.log
+ExecStart=/usr/local/bin/node /usr/src/app/bunker_controller.js
 Restart=on-failure
 
 [Install]
