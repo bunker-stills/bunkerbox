@@ -44,8 +44,7 @@ function create_pid(cascade, name, description, displayOrder) {
         group: description,
         display_order: displayOrder + 1,
         read_only: false,
-        type: cascade.TYPES.NUMBER,
-        units: cascade.UNITS.F
+        type: cascade.TYPES.NUMBER
     });
 
     definition.process_value = cascade.create_component({
