@@ -1,3 +1,5 @@
+process.chdir(__dirname);
+
 var cascade = require("@bunkerstills/cascade");
 var commander = require("commander");
 var package_info = require("./package.json");
