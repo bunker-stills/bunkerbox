@@ -38,8 +38,7 @@ function create_pid(name, description, output_component_name, cascade, displayOr
         name: description + " Set Point",
         group: description,
         read_only: false,
-        type: cascade.TYPES.NUMBER,
-        units: cascade.UNITS.F
+        type: cascade.TYPES.NUMBER
     });
 
     definition.process_value = cascade.create_component({

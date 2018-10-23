@@ -24,3 +24,5 @@ ENV INITSYSTEM on
 #CMD ["node", "/usr/src/app/resin.io/server.js"]
 COPY ./resin.io/bunkerbox.service /etc/systemd/system/z99bunkerbox.service
 RUN systemctl enable /etc/systemd/system/z99bunkerbox.service
+
+# View logs with > journalctl -f -u z99bunkerbox
