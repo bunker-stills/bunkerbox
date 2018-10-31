@@ -64,13 +64,14 @@ pid.prototype.update = function(measuredValue)
     newIntegral = newIntegral + (error * dt);
     //integral = integral + (error * dt);
 
-    // SJH If the Ki term has changed, we must scale integral
-    if (this.Ki != 0 && this.Ki != this.ki_previous)
-    {
-        var integral_correction = this.ki_previous / this.Ki;
-        newIntegral = newIntegral * integral_correction; // Scale the integral
-        this.ki_previous = this.Ki;
-    }
+    // Remove this code because newIntegral is no longer scaled by Ki
+    //// SJH If the Ki term has changed, we must scale integral
+    //if (this.Ki != 0 && this.Ki != this.ki_previous)
+    //{
+    //    var integral_correction = this.ki_previous / this.Ki;
+    //    newIntegral = newIntegral * integral_correction; // Scale the integral
+    //    this.ki_previous = this.Ki;
+    //}
 
     var derivative = (error - this.previousError) / dt;
 
@@ -79,7 +80,8 @@ pid.prototype.update = function(measuredValue)
 
     if(!_.isUndefined(this.CVUpperLimit) && CV >= this.CVUpperLimit)
     {
-        if(newIntegral > this.integral)
+        // scale comparison so it has the same sign sense as CV when Ki<0.
+        if(newIntegral * this.Ki > this.integral * this.Ki)
         {
             // Stop integrating, reset the integral back to what it was before.
             newIntegral = this.integral;
@@ -90,7 +92,8 @@ pid.prototype.update = function(measuredValue)
 
     if(!_.isUndefined(this.CVLowerLimit) && CV <= this.CVLowerLimit)
     {
-        if(newIntegral < this.integral)
+        // scale comparison so it has the same sign sense as CV when Ki<0.
+        if(newIntegral * this.Ki < this.integral * this.Ki)
         {
             // Stop integrating, reset the integral back to what it was before.
             newIntegral = this.integral;
