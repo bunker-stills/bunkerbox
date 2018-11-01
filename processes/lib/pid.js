@@ -64,14 +64,13 @@ pid.prototype.update = function(measuredValue)
     newIntegral = newIntegral + (error * dt);
     //integral = integral + (error * dt);
 
-    // Remove this code because newIntegral is no longer scaled by Ki
-    //// SJH If the Ki term has changed, we must scale integral
-    //if (this.Ki != 0 && this.Ki != this.ki_previous)
-    //{
-    //    var integral_correction = this.ki_previous / this.Ki;
-    //    newIntegral = newIntegral * integral_correction; // Scale the integral
-    //    this.ki_previous = this.Ki;
-    //}
+    // SJH If the Ki term has changed, we must scale integral
+    if (this.Ki != 0 && this.Ki != this.ki_previous)
+    {
+        var integral_correction = this.ki_previous / this.Ki;
+        newIntegral = newIntegral * integral_correction; // Scale the integral
+        this.ki_previous = this.Ki;
+    }
 
     var derivative = (error - this.previousError) / dt;
 
