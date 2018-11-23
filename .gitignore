@@ -42,3 +42,7 @@ data
 heapdump*
 
 .DS_Store
+
+# ignore eslint files
+.eslint*
+
