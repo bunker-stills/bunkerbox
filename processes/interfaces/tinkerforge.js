@@ -1,7 +1,8 @@
 var _ = require("underscore");
 var tinkerforge = require('tinkerforge');
 var tinkerforge_connection = require("./../lib/tinkerforge_connection");
-var Bricklet1Wire = require("./../lib/Bricklet1Wire");
+var Bricklet1Wire = require("./../lib/Bricklet1Wire");  // old 1wire bricklet
+var onewireTempSensors = require("./../lib/onewire_temp_sensors");  // sensor interface for new 1wire bricklet
 var util = require("util");
 
 var devices = {};
@@ -187,6 +188,18 @@ module.exports.setup = function (cascade) {
                 }
                 else if (enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_CONNECTED || enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_AVAILABLE) {
                     switch (deviceIdentifier) {
+                        case tinkerforge.BrickletOneWire.DEVICE_IDENTIFIER : {
+                            // This is the new TF one wire bricklet
+                            var owTempSensors = new onewireTempSensors(uid, ipcon);
+                            owTempSensors.uid_string = uid;
+                            owTempSensors.position = position;
+                            devices["onewire"] = owTempSensors;
+
+                            // Set 12 bit resolution on temp probes
+                            owTempSensors.tempSetResolution(12);
+
+                            break;
+                        }
                         case Bricklet1Wire.DEVICE_IDENTIFIER : {
                             var oneWire = new Bricklet1Wire(uid, ipcon);
                             oneWire.uid_string = uid;
