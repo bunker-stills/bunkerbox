@@ -217,6 +217,27 @@ module.exports.setup = function (cascade) {
                             thermocoupleDevices["temp_" + uid] = tc;
                             break;
                         }
+                        case tinkerforge.BrickletPTCV2.DEVICE_IDENTIFIER : {
+                            var ptc = new tinkerforge.BrickletPTCV2(uid, ipcon);
+                            ptc.isSensorConnected(
+                                function(connected) {
+                                    if (!connected) {
+                                        cascade.log_error(new Error("No sensor connected to PTC uid " + uid + "."));
+                                        return;
+                                    }
+                                    ptc.setWireMode(tinkerforge.BrickletPTCV2.WIRE_MODE_2, null,
+                                        function(error) {
+                                            cascade.log_error(new Error("Error on PTCV2.setWireMode: " + error));
+                                        });
+                                    return;
+                                },
+                                function(error) {
+                                    cascade.log_error(new Error("Error on PTCV2.isSensorConnected: " + error));
+                                });
+
+                            thermocoupleDevices["PT100_" + uid] = ptc;
+                            break;
+                        }
                         case tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER : {
                             var dac = new tinkerforge.BrickletIndustrialAnalogOut(uid, ipcon);
                             dac.uid_string = uid;
