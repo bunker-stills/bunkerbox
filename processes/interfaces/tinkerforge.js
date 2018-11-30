@@ -225,7 +225,7 @@ module.exports.setup = function (cascade) {
                                         cascade.log_error(new Error("No sensor connected to PTC uid " + uid + "."));
                                         return;
                                     }
-                                    ptc.setWireMode(tinkerforge.BrickletPTCV2.WIRE_MODE_2, null,
+                                    ptc.setWireMode(tinkerforge.BrickletPTCV2.WIRE_MODE_3, null,
                                         function(error) {
                                             cascade.log_error(new Error("Error on PTCV2.setWireMode: " + error));
                                         });
