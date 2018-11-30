@@ -329,7 +329,7 @@ module.exports.loop = function (cascade) {
             lastOnewirePollTime = Date.now();
             devices["onewire"].getAllTemperatures(function (error, probes) {
                 if (error) {
-                    cascade.log_error(new Error("Unable to retrieve 1wire temperatures."));
+                    cascade.log_error(new Error("Unable to retrieve 1wire temperatures: " + error));
                     lastOnewirePollTime = null;
                     return;
                 }
