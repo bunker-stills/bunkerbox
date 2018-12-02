@@ -193,7 +193,7 @@ module.exports.setup = function (cascade) {
                             var owTempSensors = new onewireTempSensors(uid, ipcon);
                             owTempSensors.uid_string = uid;
                             owTempSensors.position = position;
-                            devices["onewire"] = owTempSensors;
+                            devices["onewire2"] = owTempSensors;
 
                             // Set 12 bit resolution on temp probes
                             owTempSensors.tempSetResolution(12);
@@ -324,32 +324,34 @@ module.exports.loop = function (cascade) {
         });
     });
 
-    if (devices["onewire"]) {
-        if (!lastOnewirePollTime) {
-            lastOnewirePollTime = Date.now();
-            devices["onewire"].getAllTemperatures(function (error, probes) {
-                if (error) {
-                    cascade.log_error(new Error("Unable to retrieve 1wire temperatures: " + error));
-                    lastOnewirePollTime = null;
-                    return;
-                }
-
-                for (var probeAddress in probes) {
-                    var tempValue = probes[probeAddress];
-                    var tempComponent = tempProbes[probeAddress];
-                    if (!tempComponent) {
-                        create_temp_probe(cascade, probeAddress);
-                        tempComponent = tempProbes[probeAddress];
+    _.each([devices["onewire"], devices["onewire2"]], function(ow) {
+        if (ow) {
+            if (!lastOnewirePollTime) {
+                lastOnewirePollTime = Date.now();
+                ow.getAllTemperatures(function (error, probes) {
+                    if (error) {
+                        cascade.log_error(new Error("Unable to retrieve temperatures from onewire " + ow.uid_string + ": " + error));
+                        lastOnewirePollTime = null;
+                        return;
                     }
 
-                    tempComponent.raw.value = tempValue;
-                    tempComponent.calibrated.value = tempValue + (tempComponent.calibration.value || 0);
-                }
+                    for (var probeAddress in probes) {
+                        var tempValue = probes[probeAddress];
+                        var tempComponent = tempProbes[probeAddress];
+                        if (!tempComponent) {
+                            create_temp_probe(cascade, probeAddress);
+                            tempComponent = tempProbes[probeAddress];
+                        }
 
-                lastOnewirePollTime = null;
-            });
+                        tempComponent.raw.value = tempValue;
+                        tempComponent.calibrated.value = tempValue + (tempComponent.calibration.value || 0);
+                    }
+
+                    lastOnewirePollTime = null;
+                });
+            }
         }
-    }
+    });
 
     if (devices["barometer"]) {
         devices["barometer"].getAirPressure(function (airPressure) {
