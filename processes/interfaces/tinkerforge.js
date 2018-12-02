@@ -288,7 +288,8 @@ module.exports.setup = function (cascade) {
     });
 };
 
-var lastOnewirePollTime = null;
+//var lastOnewirePollTime = null;
+var lastOnewirePollCount = 0;
 
 module.exports.loop = function (cascade) {
     var online = true;
@@ -325,13 +326,15 @@ module.exports.loop = function (cascade) {
     });
 
     _.each([devices["onewire"], devices["onewire2"]], function(ow) {
+        lastOnewirePollCount += 1;
         if (ow) {
-            if (!lastOnewirePollTime) {
-                lastOnewirePollTime = Date.now();
+            if (lastOnewirePollCount < 2) {
+                //lastOnewirePollTime = Date.now();
                 ow.getAllTemperatures(function (error, probes) {
                     if (error) {
                         cascade.log_error(new Error("Unable to retrieve temperatures from onewire " + ow.uid_string + ": " + error));
-                        lastOnewirePollTime = null;
+                        //lastOnewirePollTime = null;
+                        lastOnewirePollCount -= 1;
                         return;
                     }
 
@@ -347,9 +350,13 @@ module.exports.loop = function (cascade) {
                         tempComponent.calibrated.value = tempValue + (tempComponent.calibration.value || 0);
                     }
 
-                    lastOnewirePollTime = null;
+                    //lastOnewirePollTime = null;
+                    lastOnewirePollCount -= 1;
                 });
             }
+        }
+        else {
+            lastOnewirePollCount -= 1;
         }
     });
 
