@@ -5,7 +5,7 @@
 // the temperature sensor specific operations that the old Bricklet1Wire did.
 // To maintain support for both bricklets, this module is used to interface
 // to the new Bricklet in the fashion of the old bricklet.
-var Tinkerforge = require("./Tinkerforge.js");
+var Tinkerforge = require("tinkerforge");
 
 var DS1820_FAMILY = 0x10;
 var DS18B20_FAMILY = 0x28;
