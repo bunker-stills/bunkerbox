@@ -7,8 +7,8 @@
 // to the new Bricklet in the fashion of the old bricklet.
 var Tinkerforge = require("tinkerforge");
 
-var DS1820_FAMILY = 0x10;
-var DS18B20_FAMILY = 0x28;
+var DS1820_FAMILY = "10";
+var DS18B20_FAMILY = "28";
 
 var DS18x20_READSCRATCH = 0xBE;
 var DS18x20_WRITESCRATCH = 0x4E;
@@ -40,6 +40,24 @@ function onewireTempSensors(uid, ipcon) {
     this.onewire = new Tinkerforge.BrickletOneWire(uid, ipcon);
 
 
+    // deviceId is the binary form used in calls to bricklet.
+    // deviceAddress is the hex character form used in BunkerBox javascript code.
+    this.deviceIdToAddress = function(id) {
+        if (id) return Buffer.from(id).toString("hex");
+        return 0;
+    };
+
+    this.deviceAddressToId = function(address) {
+        if (address) return Buffer.from(address, "hex");
+        return 0;
+    };
+
+    this.deviceFamily = function(address) {
+        if (address) return address.substring(0,2);
+        return "";
+    };
+
+
     this.tempSetResolution = function (resolution, returnCallback, errorCallback) {
         var data = 0x7F;  // default 12-bit resolution
         if (resolution === 9) data = 0x1F;
@@ -51,13 +69,13 @@ function onewireTempSensors(uid, ipcon) {
         var cb3 = function() {this.onewire.write(data, returnCallback, errorCallback);}; // resolution
     };
 
-    this.tempStartConversion = function (owDeviceId, returnCallback, errorCallback) {
-        this.onewire.writeCommand(owDeviceId, DS18x20_CONVERT_TEMP,
+    this.tempStartConversion = function (deviceAddress, returnCallback, errorCallback) {
+        this.onewire.writeCommand(self.deviceAddressToId(deviceAddress), DS18x20_CONVERT_TEMP,
             returnCallback, errorCallback);
         return;
     };
 
-    this.tempReadScratchPad = function (owDeviceId, returnCallback, errorCallback) {
+    this.tempReadScratchPad = function (deviceAddress, returnCallback, errorCallback) {
         var scratchPad = [];
         var read_count = -1;
         var data_errors = 0;
@@ -89,7 +107,7 @@ function onewireTempSensors(uid, ipcon) {
                     return;
                 }
                 // on data errors, re-read the scratchPad
-                this.tempReadScratchPad(owDeviceId, returnCallback, errorCallback);
+                this.tempReadScratchPad(deviceAddress, returnCallback, errorCallback);
                 return;
             }
 
@@ -97,19 +115,19 @@ function onewireTempSensors(uid, ipcon) {
             return;
         };
 
-        this.onewire.writeCommand(owDeviceId, DS18x20_READSCRATCH,
+        this.onewire.writeCommand(self.deviceAddressToId(deviceAddress), DS18x20_READSCRATCH,
             read_scratchdata, errorCallback);
         return;
     };
 
     // this assumes temperature conversion has been done
-    this.getTemperature = function (owDeviceId, callback) {
+    this.getTemperature = function (deviceAddress, callback) {
 
-        self.tempReadScratchPad(owDeviceId, function (scratchPad) {
+        self.tempReadScratchPad(deviceAddress, function (scratchPad) {
 
             var rawTemperature = ((scratchPad[1]) << 8) | scratchPad[0];
 
-            if (owDeviceId[0] === DS1820_FAMILY) { // DS18S20MODEL or DS1820
+            if (self.deviceFamily(deviceAddress) == DS1820_FAMILY) { // DS18S20MODEL or DS1820
                 rawTemperature = ((rawTemperature & 0xFFFE) << 3) + 12 - scratchPad[6];
             }
 
@@ -128,13 +146,13 @@ function onewireTempSensors(uid, ipcon) {
             if (callback) callback(error);
         }
 
-        if (self.temp_sensor === null) {
+        if (!self.temp_sensor) {
             self.getAllTempSensors(function (error, devices) {
                 if (error) {
                     doError(error);
                     return;
                 }
-                if (devices === null) {
+                if (!devices) {
                     doError(new Error("Failed to find onewire temp sensors."));
                     return;
                 }
@@ -156,15 +174,15 @@ function onewireTempSensors(uid, ipcon) {
                 var sensorTemps = {};
 
                 function doGetNextTemp() {
-                    var owDeviceId = self.temp_sensors[sensorIndex];
+                    var deviceAddress = self.temp_sensors[sensorIndex];
 
-                    self.getTemperature(owDeviceId, function (error, temperature) {
+                    self.getTemperature(deviceAddress, function (error, temperature) {
                         if (error) {
                             doError(error);
                             return;
                         }
 
-                        sensorTemps[owDeviceId] = temperature;
+                        sensorTemps[deviceAddress] = temperature;
 
                         sensorIndex++;
                         if (sensorIndex >= self.temp_sensors.length) {
@@ -191,13 +209,14 @@ function onewireTempSensors(uid, ipcon) {
         self.onewire.searchBus(
             function(devices) {
                 for (var deviceId in devices) {
-                    if (deviceId[0] === DS1820_FAMILY || deviceId[0] === DS18B20_FAMILY) {
-                        temp_sensors.push(deviceId);
+                    var deviceAddress = self.deviceIdToAddress(deviceId);
+                    if (self.deviceFamily(deviceAddress) == DS1820_FAMILY || self.deviceFamily(deviceAddress) == DS18B20_FAMILY) {
+                        temp_sensors.push(deviceAddress);
                     }
                     else {
                         // When the code is working this can be removed and other device types silently ignored.
                         if (callback)
-                            callback(new Error("Device does not look like temp probe.  id = " + deviceId));
+                            callback(new Error("Device does not look like temp probe.  id = " + deviceAddress));
                     }
                 }
                 if (callback) callback(null, temp_sensors);

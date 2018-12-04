@@ -328,7 +328,7 @@ module.exports.loop = function (cascade) {
     _.each([devices["onewire"], devices["onewire2"]], function(ow) {
         lastOnewirePollCount += 1;
         if (ow) {
-            if (lastOnewirePollCount < 2) {
+            if (lastOnewirePollCount <= 2) {
                 //lastOnewirePollTime = Date.now();
                 ow.getAllTemperatures(function (error, probes) {
                     if (error) {
