@@ -354,6 +354,9 @@ module.exports.loop = function (cascade) {
                     lastOnewirePollCount -= 1;
                 });
             }
+            else {
+                lastOnewirePollCount -= 1;
+            }
         }
         else {
             lastOnewirePollCount -= 1;

@@ -43,7 +43,7 @@ function onewireTempSensors(uid, ipcon) {
     // deviceId is the binary form used in calls to bricklet.
     // deviceAddress is the hex character form used in BunkerBox javascript code.
     this.deviceIdToAddress = function(id) {
-        if (id) return Buffer.from(id).toString("hex");
+        if (id) return Buffer(Float64Array.of(id).buffer).toString("hex");
         return 0;
     };
 
@@ -63,14 +63,14 @@ function onewireTempSensors(uid, ipcon) {
         if (resolution === 9) data = 0x1F;
         if (resolution === 10) data = 0x3F;
         if (resolution === 11) data = 0x5F;
-        this.onewire.writeCommand(0, DS18x20_WRITESCRATCH, cb1, errorCallback);
-        var cb1 = function() {this.onewire.write(0, cb2, errorCallback);};  // ALARM H (unused)
-        var cb2 = function() {this.onewire.write(0, cb3, errorCallback);}; // ALARM L (unused)
-        var cb3 = function() {this.onewire.write(data, returnCallback, errorCallback);}; // resolution
+        self.onewire.writeCommand(0, DS18x20_WRITESCRATCH, cb1, errorCallback);
+        var cb1 = function() {self.onewire.write(0, cb2, errorCallback);};  // ALARM H (unused)
+        var cb2 = function() {self.onewire.write(0, cb3, errorCallback);}; // ALARM L (unused)
+        var cb3 = function() {self.onewire.write(data, returnCallback, errorCallback);}; // resolution
     };
 
     this.tempStartConversion = function (deviceAddress, returnCallback, errorCallback) {
-        this.onewire.writeCommand(self.deviceAddressToId(deviceAddress), DS18x20_CONVERT_TEMP,
+        self.onewire.writeCommand(self.deviceAddressToId(deviceAddress), DS18x20_CONVERT_TEMP,
             returnCallback, errorCallback);
         return;
     };
@@ -85,7 +85,7 @@ function onewireTempSensors(uid, ipcon) {
             if (read_count >= 0) scratchPad[read_count] = data;
 
             if (read_count < 9) {
-                this.onewire.read(read_scratchdata, errorCallback);
+                self.onewire.read(read_scratchdata, errorCallback);
                 scratchPad[read_count] = data;
                 read_count += 1;
                 return;
@@ -107,7 +107,7 @@ function onewireTempSensors(uid, ipcon) {
                     return;
                 }
                 // on data errors, re-read the scratchPad
-                this.tempReadScratchPad(deviceAddress, returnCallback, errorCallback);
+                self.tempReadScratchPad(deviceAddress, returnCallback, errorCallback);
                 return;
             }
 
@@ -115,7 +115,7 @@ function onewireTempSensors(uid, ipcon) {
             return;
         };
 
-        this.onewire.writeCommand(self.deviceAddressToId(deviceAddress), DS18x20_READSCRATCH,
+        self.onewire.writeCommand(self.deviceAddressToId(deviceAddress), DS18x20_READSCRATCH,
             read_scratchdata, errorCallback);
         return;
     };
@@ -157,7 +157,7 @@ function onewireTempSensors(uid, ipcon) {
                     return;
                 }
                 self.temp_sensors = devices;
-                this.getAllTemperatures(callback);
+                self.getAllTemperatures(callback);
                 return;
             });
         }
@@ -208,7 +208,8 @@ function onewireTempSensors(uid, ipcon) {
         var temp_sensors = [];
         self.onewire.searchBus(
             function(devices) {
-                for (var deviceId in devices) {
+                for (var i_device in devices) {
+                    var deviceId = devices[i_device];
                     var deviceAddress = self.deviceIdToAddress(deviceId);
                     if (self.deviceFamily(deviceAddress) == DS1820_FAMILY || self.deviceFamily(deviceAddress) == DS18B20_FAMILY) {
                         temp_sensors.push(deviceAddress);
