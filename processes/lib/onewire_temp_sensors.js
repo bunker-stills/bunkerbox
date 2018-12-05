@@ -35,7 +35,7 @@ var CRC_TABLE = [
 function onewireTempSensors(uid, ipcon) {
 
     var self = this;
-    this.temp_sensors = [];
+    this.temp_sensors = null;
 
     this.onewire = new Tinkerforge.BrickletOneWire(uid, ipcon);
 
@@ -84,10 +84,9 @@ function onewireTempSensors(uid, ipcon) {
 
             if (read_count >= 0) scratchPad[read_count] = data;
 
-            if (read_count < 9) {
-                self.onewire.read(read_scratchdata, errorCallback);
-                scratchPad[read_count] = data;
+            if (read_count < 7) {
                 read_count += 1;
+                self.onewire.read(read_scratchdata, errorCallback);
                 return;
             }
 
@@ -146,7 +145,7 @@ function onewireTempSensors(uid, ipcon) {
             if (callback) callback(error);
         }
 
-        if (!self.temp_sensor) {
+        if (!self.temp_sensors) {
             self.getAllTempSensors(function (error, devices) {
                 if (error) {
                     doError(error);
