@@ -193,6 +193,7 @@ module.exports.setup = function (cascade) {
                             var owTempSensors = new onewireTempSensors(uid, ipcon);
                             owTempSensors.uid_string = uid;
                             owTempSensors.position = position;
+                            owTempSensors.in_use = false;
                             devices["onewire2"] = owTempSensors;
 
                             // Set 12 bit resolution on temp probes
@@ -204,6 +205,7 @@ module.exports.setup = function (cascade) {
                             var oneWire = new Bricklet1Wire(uid, ipcon);
                             oneWire.uid_string = uid;
                             oneWire.position = position;
+                            oneWire.in_use = false;
                             devices["onewire"] = oneWire;
 
                             // Set 12 bit resolution on temp probes
@@ -288,8 +290,6 @@ module.exports.setup = function (cascade) {
     });
 };
 
-//var lastOnewirePollTime = null;
-var lastOnewirePollCount = 0;
 
 module.exports.loop = function (cascade) {
     var online = true;
@@ -326,40 +326,28 @@ module.exports.loop = function (cascade) {
     });
 
     _.each([devices["onewire"], devices["onewire2"]], function(ow) {
-        lastOnewirePollCount += 1;
-        if (ow) {
-            if (lastOnewirePollCount <= 2) {
-                //lastOnewirePollTime = Date.now();
-                ow.getAllTemperatures(function (error, probes) {
-                    if (error) {
-                        cascade.log_error(new Error("Unable to retrieve temperatures from onewire " + ow.uid_string + ": " + error));
-                        //lastOnewirePollTime = null;
-                        lastOnewirePollCount -= 1;
-                        return;
+        if (ow && !ow.in_use) {
+            ow.in_use = true;
+            ow.getAllTemperatures(function (error, probes) {
+                if (error) {
+                    cascade.log_error(new Error("Unable to retrieve temperatures from onewire " + ow.uid_string + ": " + error));
+                    ow.in_use = false;
+                    return;
+                }
+
+                for (var probeAddress in probes) {
+                    var tempValue = probes[probeAddress];
+                    var tempComponent = tempProbes[probeAddress];
+                    if (!tempComponent) {
+                        create_temp_probe(cascade, probeAddress);
+                        tempComponent = tempProbes[probeAddress];
                     }
 
-                    for (var probeAddress in probes) {
-                        var tempValue = probes[probeAddress];
-                        var tempComponent = tempProbes[probeAddress];
-                        if (!tempComponent) {
-                            create_temp_probe(cascade, probeAddress);
-                            tempComponent = tempProbes[probeAddress];
-                        }
-
-                        tempComponent.raw.value = tempValue;
-                        tempComponent.calibrated.value = tempValue + (tempComponent.calibration.value || 0);
-                    }
-
-                    //lastOnewirePollTime = null;
-                    lastOnewirePollCount -= 1;
-                });
-            }
-            else {
-                lastOnewirePollCount -= 1;
-            }
-        }
-        else {
-            lastOnewirePollCount -= 1;
+                    tempComponent.raw.value = tempValue;
+                    tempComponent.calibrated.value = tempValue + (tempComponent.calibration.value || 0);
+                }
+                ow.in_use = false;
+            });
         }
     });
 

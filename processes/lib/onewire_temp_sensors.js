@@ -36,6 +36,7 @@ function onewireTempSensors(uid, ipcon) {
 
     var self = this;
     this.temp_sensors = null;
+    this.AddressToId = {};
 
     this.onewire = new Tinkerforge.BrickletOneWire(uid, ipcon);
 
@@ -43,12 +44,16 @@ function onewireTempSensors(uid, ipcon) {
     // deviceId is the binary form used in calls to bricklet.
     // deviceAddress is the hex character form used in BunkerBox javascript code.
     this.deviceIdToAddress = function(id) {
-        if (id) return Buffer(Float64Array.of(id).buffer).toString("hex");
+        if (id) {
+            var addr = Buffer(Float64Array.of(id).buffer).toString("hex");
+            self.AddressToId[addr] = id;
+            return addr;
+        }
         return 0;
     };
 
     this.deviceAddressToId = function(address) {
-        if (address) return Buffer.from(address, "hex");
+        if (address) return self.AddressToId[address];
         return 0;
     };
 
@@ -75,43 +80,52 @@ function onewireTempSensors(uid, ipcon) {
         return;
     };
 
-    this.tempReadScratchPad = function (deviceAddress, returnCallback, errorCallback) {
+    this.tempReadScratchPad = function (deviceAddress, num_bytes, returnCallback, errorCallback) {
         var scratchPad = [];
-        var read_count = -1;
+        var read_count = 0;
         var data_errors = 0;
+        if (!num_bytes || num_bytes < 0 || num_bytes > 9) num_bytes = 9;
 
         var read_scratchdata = function(data, status) {
 
-            if (read_count >= 0) scratchPad[read_count] = data;
+            if (read_count > 0) scratchPad[read_count-1] = data;
 
-            if (read_count < 7) {
+            if (read_count < num_bytes) {
                 read_count += 1;
                 self.onewire.read(read_scratchdata, errorCallback);
                 return;
             }
 
-            // check data validity.  for (i in 0-7) CRC = Table[CRC xor scratchPad[i]]
-            var CRC = CRC_TABLE[ scratchPad[7] ^
-                      CRC_TABLE[ scratchPad[6] ^
-                      CRC_TABLE[ scratchPad[5] ^
-                      CRC_TABLE[ scratchPad[4] ^
-                      CRC_TABLE[ scratchPad[3] ^
-                      CRC_TABLE[ scratchPad[2] ^
-                      CRC_TABLE[ scratchPad[1] ^
-                      CRC_TABLE[ scratchPad[0] ]]]]]]]];
-            if (CRC != scratchPad[8]) {
-                data_errors += 1;
-                if (data_errors > 6) {
-                    if (errorCallback) errorCallback(new Error("Too many 1-wire data errors."));
+            // If the entire scratchpad was read, verify checksum.
+            if (read_count == 9) {
+                var CRC = CRC_TABLE[ scratchPad[7] ^
+                          CRC_TABLE[ scratchPad[6] ^
+                          CRC_TABLE[ scratchPad[5] ^
+                          CRC_TABLE[ scratchPad[4] ^
+                          CRC_TABLE[ scratchPad[3] ^
+                          CRC_TABLE[ scratchPad[2] ^
+                          CRC_TABLE[ scratchPad[1] ^
+                          CRC_TABLE[ scratchPad[0] ]]]]]]]];
+                if (CRC != scratchPad[8]) {
+                    data_errors += 1;
+                    if (data_errors > 6) {
+                        if (errorCallback) errorCallback(new Error("Too many 1-wire data errors."));
+                        return;
+                    }
+                    // on data errors, re-read the scratchPad
+                    self.tempReadScratchPad(deviceAddress, num_bytes, returnCallback, errorCallback);
                     return;
                 }
-                // on data errors, re-read the scratchPad
-                self.tempReadScratchPad(deviceAddress, returnCallback, errorCallback);
+                if (returnCallback) returnCallback(scratchPad, status);
                 return;
             }
-
-            if (returnCallback) returnCallback(scratchPad, status);
-            return;
+            else {
+                // reset the bus to prevent further data transmissions
+                self.onewire.resetBus(
+                    function(status) { if (returnCallback) returnCallback(scratchPad, status);},
+                    errorCallback);
+                return;
+            }
         };
 
         self.onewire.writeCommand(self.deviceAddressToId(deviceAddress), DS18x20_READSCRATCH,
@@ -121,21 +135,24 @@ function onewireTempSensors(uid, ipcon) {
 
     // this assumes temperature conversion has been done
     this.getTemperature = function (deviceAddress, callback) {
+        var num_bytes = 2;
+        if (self.deviceFamily(deviceAddress) == DS1820_FAMILY) num_bytes = 7;
 
-        self.tempReadScratchPad(deviceAddress, function (scratchPad) {
+        self.tempReadScratchPad(deviceAddress, num_bytes,
+            function (scratchPad) {
+                var rawTemperature = ((scratchPad[1]) << 8) | scratchPad[0];
 
-            var rawTemperature = ((scratchPad[1]) << 8) | scratchPad[0];
+                if (self.deviceFamily(deviceAddress) == DS1820_FAMILY) { // DS18S20MODEL or DS1820
+                    rawTemperature = ((rawTemperature & 0xFFFE) << 3) + 12 - scratchPad[6];
+                }
 
-            if (self.deviceFamily(deviceAddress) == DS1820_FAMILY) { // DS18S20MODEL or DS1820
-                rawTemperature = ((rawTemperature & 0xFFFE) << 3) + 12 - scratchPad[6];
-            }
+                var temperature = rawTemperature * 0.0625;
 
-            var temperature = rawTemperature * 0.0625;
-
-            if (callback) callback(null, temperature);
-        }, function (error) {
-            if (callback) callback(error);
-        });
+                if (callback) callback(null, temperature);
+            },
+            function (error) {
+                if (callback) callback(error);
+            });
     };
 
     // NOTE: callback signature: function (error, probes)
