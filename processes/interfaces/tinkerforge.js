@@ -66,6 +66,28 @@ function set_dac(dac_info) {
 
 function create_temp_probe(cascade, probeAddress) {
     var probe_component = {};
+    probe_component.ma_buf = [];
+    probe_component.filterTemp = function(tempValue) {
+        var ma_len = Math.min(20, Math.max(0, Math.trunc(this.ma_size.value || 0)));
+        if (ma_len) {
+            this.ma_buf.push(tempValue);
+            while (this.ma_buf.length < ma_len) this.ma_buf.push(tempValue);
+            while (this.ma_buf.length > ma_len) this.ma_buf.shift();
+            return this.ma_buf.reduce( (sum, temp) => sum + temp ) / ma_len;
+        }
+        else {
+            return tempValue;
+        }
+    };
+
+    probe_component.ma_size = cascade.create_component({
+        id: "temp_" + probeAddress + "_MAfilter",
+        name: "Temp. Probe " + probeAddress + " MA Filter",
+        group: "Sensors",
+        units: cascade.UNITS.NONE,
+        persist: true,
+        type: cascade.TYPES.NUMBER
+    });
 
     probe_component.raw = cascade.create_component({
         id: "temp_" + probeAddress + "_raw",
@@ -321,6 +343,7 @@ module.exports.loop = function (cascade) {
         tcDevice.getTemperature(function (temperature) {
             var tempValue = temperature / 100;
             tempProbe.raw.value = tempValue;
+            tempValue = tempProbe.filterTemp(tempValue);
             tempProbe.calibrated.value = tempValue + (tempProbe.calibration.value || 0);
         });
     });
@@ -344,6 +367,7 @@ module.exports.loop = function (cascade) {
                     }
 
                     tempComponent.raw.value = tempValue;
+                    tempValue = tempComponent.filterTemp(tempValue);
                     tempComponent.calibrated.value = tempValue + (tempComponent.calibration.value || 0);
                 }
                 ow.in_use = false;
