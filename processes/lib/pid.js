@@ -64,8 +64,14 @@ pid.prototype.update = function(measuredValue)
     // See: https://bunkerstills.slack.com/archives/D2UK88YJV/p1483845031000999 for reasons we have this this way
     newIntegral = newIntegral + (this.Ki * error * dt);
 
-    var denom = this.Kd + this.N * this.Kp * dt;
-    var derivative = this.Kp * this.N * this.previousDerivative/denom - (input-this.previousMeasured)/denom;
+    var derivative = 0;
+    if (this.Kd != 0) {
+        let denom = this.Kd + this.N * this.Kp * dt;
+        if (denom) {
+            derivative = this.previousDerivative/denom - this.Kp * this.N * 
+                (input-this.previousMeasured)/denom;
+        }
+    }
 
     var CV = this.Kp * error + newIntegral + this.Kd * derivative;
 
