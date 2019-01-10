@@ -256,7 +256,8 @@ module.exports.setup = function (cascade) {
                             dac.disable();
                             dac.setVoltage(0);
                             dac.setCurrent(0);
-                            devices["dac_" + position.toUpperCase()] = dac;
+                            devices["dac_" + dac.position.toUpperCase()] = dac;
+
                             break;
                         }
                         case tinkerforge.BrickletBarometer.DEVICE_IDENTIFIER : {
