@@ -19,27 +19,27 @@ pid.prototype.reset = function()
     this.previousMeasured = 0;  // derivative based on measuredValue
     this.previousDerivative = 0;  // preserve for derivative filtering
     this.N = 8;  //derivative spike filter; larger N => less filtering; typ. val. 2-20
-}
+};
 
 pid.prototype.setDesiredValue = function(setPoint)
 {
     this.setPoint = setPoint;
-}
+};
 
 pid.prototype.setProportionalGain = function(Kp)
 {
     this.Kp = Kp;
-}
+};
 
 pid.prototype.setIntegralGain = function(Ki)
 {
     this.Ki = Ki;
-}
+};
 
 pid.prototype.setDerivativeGain = function(Kd)
 {
     this.Kd = Kd;
-}
+};
 
 pid.prototype.update = function(measuredValue)
 {
@@ -53,7 +53,6 @@ pid.prototype.update = function(measuredValue)
     else
     {
         dt = (now - this.lastMeasurementTime) / 1000.0;
-        console.log()
     }
 
     var input = measuredValue;
@@ -65,11 +64,11 @@ pid.prototype.update = function(measuredValue)
     newIntegral = newIntegral + (this.Ki * error * dt);
 
     var derivative = 0;
-    if (Kd != 0) {
+    if (this.Kd != 0) {
         let denom = this.Kd + this.N * this.Kp * dt;
         if (denom) {
-            derivative = this.previousDerivative / denom -
-                (input - this.previousMeasured) * this.N * this.Kp / denom;
+            derivative = this.previousDerivative/denom - this.Kp * this.N * 
+                (input-this.previousMeasured)/denom;
         }
     }
 
@@ -105,21 +104,22 @@ pid.prototype.update = function(measuredValue)
     this.lastMeasurementTime = now;
 
     return CV;
-}
+};
 
 pid.prototype.setControlValueLimits = function(lowerLimit, upperLimit, offset)
 {
     this.CVLowerLimit = lowerLimit;
     this.CVUpperLimit = upperLimit;
     this.CVOffset = offset;
-}
+};
 
 pid.prototype.getIntegral = function()
 {
     return this.integral;
-}
+};
 
 pid.prototype.setIntegral = function(integral)
 {
     this.integral = integral;
-}
+};
+
