@@ -2,6 +2,9 @@ var child_process = require('child_process');
 var path = require("path");
 var fs = require('fs');
 
+var TESTING = Boolean(process.env.TESTING) || false;
+var BB_APP_PROCESS = process.env.BB_APP_PROCESS || "processes/tf-redbrick";
+
 var bunkerboxDir = process.cwd();
 var result;
 
@@ -24,10 +27,12 @@ var result;
 }*/
 
 // Get latest version
-console.log("Pulling latest version...");
-result = child_process.spawnSync("git", ["pull"], {
-    cwd: bunkerboxDir
-});
+if (!TESTING) {
+    console.log("Pulling latest version...");
+    result = child_process.spawnSync("git", ["pull"], {
+        cwd: bunkerboxDir
+    });
+}
 
 // Load dependencies
 var needsUpdate = false;
@@ -56,8 +61,10 @@ if(needsUpdate)
 
 console.log("Dependencies installed.");
 
+var BB_APP_PROCESS = process.env.BB_APP_PROCESS || "processes/tf-redbrick";
+
 if (!process.env.CASCADE_PROCESSES) {
-    process.env.CASCADE_PROCESSES = path.join(bunkerboxDir, "/processes/tf-redbrick");
+    process.env.CASCADE_PROCESSES = path.join(bunkerboxDir, "/" + BB_APP_PROCESS);
 }
 
 console.log("Starting BunkerBox...")
