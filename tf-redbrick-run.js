@@ -3,7 +3,7 @@ var path = require("path");
 var fs = require('fs');
 
 var TESTING = Boolean(process.env.TESTING) || false;
-var BB_APP_PROCESS = process.env.BB_APP_PROCESS || "processes/tf-redbrick";
+var BB_APP_PROCESS = process.env.BB_APP_PROCESS || "processes/stills";
 
 var bunkerboxDir = process.cwd();
 var result;
@@ -60,8 +60,6 @@ if(needsUpdate)
 }
 
 console.log("Dependencies installed.");
-
-var BB_APP_PROCESS = process.env.BB_APP_PROCESS || "processes/tf-redbrick";
 
 if (!process.env.CASCADE_PROCESSES) {
     process.env.CASCADE_PROCESSES = path.join(bunkerboxDir, "/" + BB_APP_PROCESS);

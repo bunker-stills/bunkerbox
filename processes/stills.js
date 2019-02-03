@@ -46,8 +46,11 @@ var std_Relay_names = [
 var std_DutyCycle_Relay_names = [
     // Pseudo-analog controls (DutyCycleRelay)
     "feed_mix_dcr",
-    "hearts_reflux_dcr",
-    "tails_reflux_dcr",
+];
+
+var std_Stepper_names = [
+    "heads_reflux_pump",
+    "hearts_reflux_pump",
 ];
 
 var std_PID_names = [
@@ -74,7 +77,8 @@ var std_Variables = [
         units: "PERCENTAGE"
     },
     {   name: "desired_feed_abv",
-        description: "Optimal ABV input to still"
+        description: "Optimal ABV input to still",
+        units: "PERCENTAGE"
     },
     {   name: "desired_feed_rate",
         description: "Feed flow rate into the still (GPH)",
@@ -135,6 +139,10 @@ module.exports.setup = function (cascade) {
 
     for (let name of std_DutyCycle_Relay_names) {
         new soft.DutyCycle_Relay(cascade, name);
+    }
+
+    for (let name of std_Stepper_names) {
+        new soft.Stepper(cascade, name);
     }
 
     for (let vardef of std_Variables) {

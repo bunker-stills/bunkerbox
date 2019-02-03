@@ -9,6 +9,7 @@ module.exports.Function = SoftResource_Function;
 module.exports.Relay = SoftResource_RELAY;
 module.exports.DutyCycle_Relay = SoftResource_DUTYCYCLE_RELAY;
 module.exports.DAC = SoftResource_DAC;
+module.exports.Stepper = SoftResource_STEPPER;
 module.exports.OW_probe = SoftResource_OW_PROBE;
 module.exports.TC_probe = SoftResource_TC_PROBE;
 module.exports.PTC_probe = SoftResource_PTC_PROBE;
@@ -741,8 +742,10 @@ SoftResource_RELAY.prototype.attach_HR = function(HR_name) {
     }
     this.RELAY_enable.value = false;
     this.cascade.components.require_component(HR_name + "_enable",
-        function(component) {self.HR_enable = component;});
-    set_driving_components(this.RELAY_enable, this.HR_enable);
+        function(component) {
+            self.HR_enable = component;
+            set_driving_components(this.RELAY_enable, this.HR_enable);
+        });
     this.HR_assignment = HR_name;
 };
 
@@ -981,14 +984,20 @@ SoftResource_DAC.prototype.attach_HR = function(HR_name) {
             value: 0
         });
     }
+    
     this.DAC_enable.value = false;
     this.DAC_output.value = 0;
 
     this.cascade.components.require_component(HR_name + "_enable",
-        function(component) {self.HR_enable = component;});
+        function(component) {
+            self.HR_enable = component;
+            set_driving_components(this.DAC_enable, this.HR_enable);
+        });
     this.cascade.components.require_component(HR_name + "_output",
-        function(component) {self.HR_output = component;});
-    set_driving_components(this.RELAY_enable, this.HR_enable);
+        function(component) {
+            self.HR_output = component;
+            set_driving_components(this.DAC_output, this.HR_output);
+        });
     this.HR_assignment = HR_name;
 };
 
@@ -1012,6 +1021,96 @@ SoftResource_DAC.prototype.reset_dac = function() {
     if (this.DAC_enable) {
         this.DAC_enable.value = false;
         this.DAC_output.value = 0;
+    }
+};
+
+//////////////////////
+// STEPPER          //
+//////////////////////
+function SoftResource_STEPPER(cascade, name) {
+
+    this.init_subclass_properties(SoftResource_STEPPER);
+    SoftResource_HR.call(this, cascade, name);
+
+    this.HR_enable = undefined;
+    this.STEPPER_enable = undefined;
+    this.HR_velocity = undefined;
+    this.STEPPER_velocity = undefined;
+}
+
+// Link prototype to base class
+SoftResource_STEPPER.prototype = create_SoftResource_HR_prototype("STEPPER");
+
+// add psuedo class methods (not inherited by subclasses).
+SoftResource_STEPPER.get_instances = function() {
+    return SoftResource_STEPPER.prototype._instances_of_type;
+};
+SoftResource_STEPPER.get_instance = function(name) {
+    return SoftResource_STEPPER.prototype._instances_of_type[name];
+};
+
+
+// Add type instance methods
+SoftResource_STEPPER.prototype.attach_HR = function(HR_name) {
+    var self = this;
+    if (!this.STEPPER_enable) {
+        this.STEPPER_enable = this.cascade.create_component({
+            id: this.name + "_enable",
+            name: this.description + " Enable",
+            group: PROCESS_CONTROL_GROUP,
+            display_order: next_display_order(),
+            class: "stepper_enable",
+            type: this.cascade.TYPES.BOOLEAN,
+            value: false
+        });
+
+        this.STEPPER_velocity = this.cascade.create_component({
+            id: this.name + "_velocity",
+            name: this.description + " Velocity",
+            group: PROCESS_CONTROL_GROUP,
+            display_order: next_display_order(),
+            class: "stepper_velocity",
+            type: this.cascade.TYPES.NUMBER,
+            units: this.cascade.UNITS.PERCENTAGE,
+            value: 0
+        });
+    }
+    this.STEPPER_enable.value = false;
+    this.STEPPER_velocity.value = 0;
+
+    this.cascade.components.require_component(HR_name + "_enable",
+        function(component) {
+            self.HR_enable = component;
+            set_driving_components(this.STEPPER_enable, this.HR_enable);
+        });
+    this.cascade.components.require_component(HR_name + "_velocity",
+        function(component) {
+            self.HR_velocity = component;
+            set_driving_components(this.STEPPER_output, this.HR_output);
+        });
+    this.HR_assignment = HR_name;
+};
+
+SoftResource_STEPPER.prototype.detach_HR = function() {
+    this.reset_stepper();
+    if (this.HR_enable) {
+        unset_driving_components(this.STEPPER_enable, this.HR_enable);
+    }
+    if (this.HR_velocity) {
+        unset_driving_components(this.STEPPER_velocity, this.HR_velocity);
+    }
+    this.HR_enable = undefined;
+    this.HR_velocity = undefined;
+
+    var prior_assignment = this.HR_assignment;
+    this.HR_assignment = undefined;
+    return prior_assignment;
+};
+
+SoftResource_STEPPER.prototype.reset_stepper = function() {
+    if (this.STEPPER_enable) {
+        this.STEPPER_enable.value = false;
+        this.STEPPER_velocity.value = 0;
     }
 };
 

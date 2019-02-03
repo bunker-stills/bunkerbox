@@ -21,6 +21,7 @@ var next_display_order = function() {
 // hard resource names at individual relay or probe level, eg "OW_2A_28af3098c5b7041d", "DAc_3a", "RELAY_2B_2"
 var relay_names = [];
 var dac_names = [];
+var stepper_names = [];
 var ow_names = [];
 var ptc_names = [];
 var tc_names = [];
@@ -28,6 +29,7 @@ var tc_names = [];
 //info structures by type (at quadrelay or onewire level)  indexed by device id (eg "DAC_3C", "OW_2A", "RELAY_2B").
 var quadrelays = {};
 var dacs = {};
+var steppers = {};
 var barometers = {};
 var onewireNets = {};
 var thermocoupleProbes = {};
@@ -190,6 +192,154 @@ function setup_dac(cascade, id, position) {
 
     dacs[id] = dac_info;
     dac_names.push(id);
+}
+
+var MIN_STEPPER_CURRENT = Number(process.env.MIN_STEPPER_CURRENT) || 100;
+var MAX_STEPPER_CURRENT = Number(process.env.MAX_STEPPER_CURRENT) || 2291;
+var MIN_SSTEPPER_CURRENT = Number(process.env.MIN_SSTEPPER_CURRENT) || 360;
+var MAX_SSTEPPER_CURRENT = Number(process.env.MAX_SSTEPPER_CURRENT) || 1640;
+var DEFAULT_STEPPER_CURRENT = Number(process.env.DEFAULT_STEPPER_CURRENT) ||800;
+var DEFAULT_STEPPER_MAX_SPEED = Number(process.env.DEFAULT_STEPPER_MAX_SPEED) ||1000;
+
+function set_stepper_current(stepper_info) {
+    var stepper = stepper_info.interface;
+    if (stepper) {
+        let new_current = stepper_info.motor_current.value;
+        if (stepper.getBasicConfiguration) {
+            // this is a SilentStepper; set MotorRunCurrent
+            new_current = Math.max(MIN_SSTEPPER_CURRENT, Math.min(MAX_SSTEPPER_CURRENT, new_current));
+            stepper.setBasicConfiguration(null, new_current);
+        } else {
+            new_current = Math.max(MIN_STEPPER_CURRENT, Math.min(MAX_STEPPER_CURRENT, new_current));
+            stepper.setMotorCurrent(new_current);
+        }
+    }
+}
+
+function set_stepper(stepper_info) {
+    var stepper = stepper_info.interface;
+    if (stepper) {
+        let velocity = Math.round(mapRange(stepper_info.velocity.value,
+            0, 100, 0, stepper_info.max_motor_speed.value));
+        if (velocity) {
+            stepper.setMaxVelocity(Math.abs(velocity));
+            if ((velocity<0) != (stepper.reverse.value==true)) {  // XOR operation
+                stepper.driveBackward();
+            }
+            else {
+                stepper.driveForward();
+            }
+        }
+        else {
+            stepper.stop();
+        }
+
+        if (stepper_info.enable.value === true) {
+            stepper.enable();
+        }
+        else {
+            stepper.stop();
+            stepper.disable();
+        }
+    }
+}
+
+function setup_stepper(cascade, id, position) {
+    var stepper_info = {
+        id: id,
+        position: position,
+        interface: devices[id],
+        enable: null,
+        velocity: null,
+        max_motor_speed: null,
+        motor_current: null
+    };
+
+    var stepper = stepper_info.interface;
+
+    if (stepper) {
+        if (stepper.getBasicConfiguration) {
+            // this is a silent stepper, set configurations
+            stepper.setMotorCurrent(MAX_SSTEPPER_CURRENT);
+            stepper.setBasicConfiguration(null, DEFAULT_STEPPER_CURRENT);
+        } else {
+            stepper.setMotorCurrent(DEFAULT_STEPPER_CURRENT);
+        }
+    }
+
+    stepper_info.enable = cascade.create_component({
+        id: id + "_enable",
+        name: id + " Enable",
+        group: PROCESS_CONTROLS_GROUP,
+        display_order: next_display_order(),
+        class: "stepper_enable",
+        type: cascade.TYPES.BOOLEAN,
+        value: false
+    });
+
+    stepper_info.enable.on("value_updated", function () {
+        set_stepper(stepper_info);
+    });
+
+    stepper_info.velocity = cascade.create_component({
+        id: id + "_velocity",
+        name: id + " Velocity Percent",
+        group: PROCESS_CONTROLS_GROUP,
+        display_order: next_display_order(),
+        class: "stepper_velocity",
+        type: cascade.TYPES.NUMBER,
+        units: cascade.UNITS.PERCENTAGE,
+        value: 0
+    });
+
+    stepper_info.velocity.on("value_updated", function () {
+        set_stepper(stepper_info);
+    });
+
+    stepper_info.max_motor_speed = cascade.create_component({
+        id: id + "_max_motor_speed",
+        name: id + " Max Motor Speed (steps/sec)",
+        group: PROCESS_CONTROLS_GROUP,
+        display_order: next_display_order(),
+        class: "stepper_configure",
+        type: cascade.TYPES.NUMBER,
+        value: DEFAULT_STEPPER_MAX_SPEED
+    });
+
+    stepper_info.max_motor_speed.on("value_updated", function () {
+        set_stepper(stepper_info);
+    });
+
+    stepper_info.reverse = cascade.create_component({
+        id: id + "_reverse",
+        name: id + " Reverse",
+        group: PROCESS_CONTROLS_GROUP,
+        display_order: next_display_order(),
+        class: "stepper_configure",
+        type: cascade.TYPES.BOOLEAN,
+        value: false
+    });
+
+    stepper_info.reverse.on("value_updated", function () {
+        set_stepper(stepper_info);
+    });
+
+    stepper_info.motor_current = cascade.create_component({
+        id: id + "_motor_current",
+        name: id + " Motor Current (mA)",
+        group: PROCESS_CONTROLS_GROUP,
+        display_order: next_display_order(),
+        class: "stepper_configure",
+        type: cascade.TYPES.NUMBER,
+        value: 0
+    });
+
+    stepper_info.motor_current.on("value_updated", function () {
+        set_stepper_current(stepper_info);
+    });
+
+    steppers[id] = stepper_info;
+    stepper_names.push(id);
 }
 
 function setup_barometer(cascade, id, position) {
@@ -462,6 +612,8 @@ module.exports.setup = function (cascade) {
             setup_quadrelay(cascade, id, pos);
         }
 
+        setup_stepper(cascade, "STEPPER_4", "4");
+
         setup_barometer(cascade, "barometer_4A", "4A");
     }
     else {
@@ -582,6 +734,60 @@ module.exports.setup = function (cascade) {
                                 setup_barometer(cascade, barometer_id, barometer.position);
                                 break;
                             }
+                            case tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER : {
+                                // this brick can have up to 2 bricklets
+                                masterbrick_position[uid] = position;
+
+                                var sstepper = new tinkerforge.BrickSilentStepper(uid, ipcon);
+                                sstepper.stop();
+                                sstepper.disable();
+
+                                sstepper.uid_string = uid;
+                                sstepper.position = position;
+                                let sstepper_id = "sstepper_" + sstepper.position;
+                                devices[sstepper_id] = sstepper;
+
+                                setup_stepper(cascade, sstepper_id, sstepper.position);
+
+                                break;
+                            }
+                            case tinkerforge.BrickStepper.DEVICE_IDENTIFIER : {
+                                // this brick can have up to 2 bricklets
+                                masterbrick_position[uid] = position;
+
+                                var stepper = new tinkerforge.BrickStepper(uid, ipcon);
+                                stepper.stop();
+                                stepper.disable();
+
+                                stepper.uid_string = uid;
+                                stepper.position = position;
+                                let stepper_id = "stepper_" + stepper.position;
+                                devices[stepper_id] = stepper;
+
+                                setup_stepper(cascade, stepper_id, stepper.position);
+
+                                break;
+                            }
+                            case tinkerforge.BrickletIndustrialDual020mA.DEVICE_IDENTIFIER : {
+
+                                cascade.log_error(new Error("Device not yet supported: BrickletIndustrialDual020mA"));
+                                break;
+                            }
+                            case tinkerforge.BrickletIndustrialDual020mAV2.DEVICE_IDENTIFIER : {
+
+                                cascade.log_error(new Error("Device not yet supported: BrickletIndustrialDual020mAV2"));
+                                break;
+                            }
+                            case tinkerforge.BrickletIO4V2.DEVICE_IDENTIFIER : {
+
+                                cascade.log_error(new Error("Device not yet supported: BrickletIO4V2"));
+                                break;
+                            }
+                            case tinkerforge.BrickletDistanceIRV2.DEVICE_IDENTIFIER : {
+
+                                cascade.log_error(new Error("Device not yet supported: BrickletDistanceIRV2"));
+                                break;
+                            }
                         }
                     }
                 });
@@ -595,6 +801,7 @@ module.exports.setup = function (cascade) {
         // create device selection components from name lists
         create_hard_resource_list_component(cascade, "RELAY_names", relay_names.sort());
         create_hard_resource_list_component(cascade, "DAC_names", dac_names.sort());
+        create_hard_resource_list_component(cascade, "STEPPER_names", stepper_names.sort());
         create_hard_resource_list_component(cascade, "PTC_PROBE_names", ptc_names.sort());
         create_hard_resource_list_component(cascade, "TC_PROBE_names", tc_names.sort());
         create_hard_resource_list_component(cascade, "OW_PROBE_names", ow_names.sort());
