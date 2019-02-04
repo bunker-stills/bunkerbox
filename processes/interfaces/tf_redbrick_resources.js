@@ -226,7 +226,7 @@ function set_stepper(stepper_info) {
             0, 100, 0, stepper_info.max_motor_speed.value));
         if (velocity) {
             stepper.setMaxVelocity(Math.abs(velocity));
-            if ((velocity<0) != (stepper.reverse.value==true)) {  // XOR operation
+            if ((velocity<0) != (stepper_info.reverse.value==true)) {  // XOR operation
                 stepper.driveBackward();
             }
             else {
@@ -776,7 +776,7 @@ module.exports.setup = function (cascade) {
 
                                 sstepper.uid_string = uid;
                                 sstepper.position = position;
-                                let sstepper_id = "sstepper_" + sstepper.position;
+                                let sstepper_id = "SSTEPPER_" + sstepper.position;
                                 devices[sstepper_id] = sstepper;
 
                                 setup_stepper(cascade, sstepper_id, sstepper.position);
@@ -793,7 +793,7 @@ module.exports.setup = function (cascade) {
 
                                 stepper.uid_string = uid;
                                 stepper.position = position;
-                                let stepper_id = "stepper_" + stepper.position;
+                                let stepper_id = "STEPPER_" + stepper.position;
                                 devices[stepper_id] = stepper;
 
                                 setup_stepper(cascade, stepper_id, stepper.position);
