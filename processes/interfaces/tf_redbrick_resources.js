@@ -82,6 +82,8 @@ function setup_quadrelay(cascade, id, position) {
         relay_component.on("value_update", function() { set_relays(quadrelay_info); });
 
         relay_names.push(relay_id);
+        update_hard_resource_list_component(cascade, "RELAY_names", relay_names.sort());
+
     }
 
     quadrelays[id] = quadrelay_info;
@@ -192,6 +194,7 @@ function setup_dac(cascade, id, position) {
 
     dacs[id] = dac_info;
     dac_names.push(id);
+    update_hard_resource_list_component(cascade, "DAC_names", dac_names.sort());
 }
 
 var MIN_STEPPER_CURRENT = Number(process.env.MIN_STEPPER_CURRENT) || 100;
@@ -340,6 +343,7 @@ function setup_stepper(cascade, id, position) {
 
     steppers[id] = stepper_info;
     stepper_names.push(id);
+    update_hard_resource_list_component(cascade, "STEPPER_names", stepper_names.sort());
 }
 
 function setup_barometer(cascade, id, position) {
@@ -384,6 +388,11 @@ function setup_onewire_net(cascade, id, position) {
                             create_temp_probe(cascade, probe_address);
                             ow_info.probes.push(probe_address);
                             ow_names.push(probe_address);
+                            update_hard_resource_list_component(cascade, "OW_PROBE_names",
+                                ow_names.sort());
+                            update_hard_resource_list_component(cascade, "TEMP_PROBE_names",
+                                ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
+
                         }
                     }
                 });
@@ -424,6 +433,11 @@ function setup_1wire_net(cascade, id, position) {
                                 create_temp_probe(probe_address);
                                 ow_info.probes.push(probe_address);
                                 ow_names.push(probe_address);
+                                update_hard_resource_list_component(cascade, "OW_PROBE_names",
+                                    ow_names.sort());
+                                update_hard_resource_list_component(cascade, "TEMP_PROBE_names",
+                                    ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
+
                             }
                         }
                     }
@@ -493,6 +507,9 @@ function setup_ptc_probe(cascade, id, position) {
 
     ptcProbes[id] = ptc_info;
     ptc_names.push(id);
+    update_hard_resource_list_component(cascade, "PTC_PROBE_names", ptc_names.sort());
+    update_hard_resource_list_component(cascade, "TEMP_PROBE_names",
+        ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
 }
 
 function setup_thermocouple_probe(cascade, id, position) {
@@ -513,6 +530,10 @@ function setup_thermocouple_probe(cascade, id, position) {
 
     thermocoupleProbes[id] = tc_info;
     tc_names.push(id);
+    update_hard_resource_list_component(cascade, "TC_PROBE_names", tc_names.sort());
+    update_hard_resource_list_component(cascade, "TEMP_PROBE_names",
+        ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
+
 }
 
 function create_temp_probe(cascade, probe_name) {
@@ -553,25 +574,32 @@ function create_temp_probe(cascade, probe_name) {
     tempProbes[probe_name] = probe_component;
 }
 
-function create_hard_resource_list_component(cascade, id, list) {
-    var type;
+function update_hard_resource_list_component(cascade, id, list) {
+
     var value = list.join(" ");
-    if (value.length > 32) {
-        type = cascade.TYPES.BIG_TEXT;
+    var component = cascade.components.all_current[id];
+
+    if (!component) {
+        var type;
+        if (value.length > 32) {
+            type = cascade.TYPES.BIG_TEXT;
+        }
+        else {
+            type = cascade.TYPES.TEXT;
+        }
+
+        cascade.create_component({
+            id: id,
+            group: RESOURCE_NAMES_GROUP,
+            display_order: next_display_order(),
+            read_only: true,
+            type: type,
+            value: value
+        });
     }
     else {
-        type = cascade.TYPES.TEXT;
+        component.value = value;
     }
-
-    let component = cascade.create_component({
-        id: id,
-        group: RESOURCE_NAMES_GROUP,
-        display_order: next_display_order(),
-        read_only: true,
-        type: type,
-        value: value
-    });
-    component.value = value;
 }
 
 module.exports.setup = function (cascade) {
@@ -589,6 +617,10 @@ module.exports.setup = function (cascade) {
                 create_temp_probe(cascade, probe_address);
                 ow_info.probes.push(probe_address);
                 ow_names.push(probe_address);
+                update_hard_resource_list_component(cascade, "OW_PROBE_names",
+                    ow_names.sort());
+                update_hard_resource_list_component(cascade, "TEMP_PROBE_names",
+                    ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
             }
         }
 
@@ -797,6 +829,7 @@ module.exports.setup = function (cascade) {
     }
 
     // Provide time for tinkerforge stack enumeration to complete.
+    /*
     setTimeout(function() {
         // create device selection components from name lists
         create_hard_resource_list_component(cascade, "RELAY_names", relay_names.sort());
@@ -808,6 +841,7 @@ module.exports.setup = function (cascade) {
         create_hard_resource_list_component(cascade, "TEMP_PROBE_names",
             ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
     }, 2000);
+    */
 };
 
 
