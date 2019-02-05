@@ -98,22 +98,22 @@ function mapRange(value, in_min, in_max, out_min, out_max) {
 var DAC_OUTPUT_TYPES = {
     NO_OUTPUT: undefined,
     VOLTAGE_RANGE_0_TO_5V: function (tfInterface, outputPercent) {
-        tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_5V, 0);
+        tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOutV2.VOLTAGE_RANGE_0_TO_5V, 0);
         var output = Math.round(mapRange(outputPercent, 0, 100, 0, 5000));
         tfInterface.setVoltage(output);
     },
     VOLTAGE_RANGE_0_TO_10V: function (tfInterface, outputPercent) {
-        tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_0_TO_10V, 0);
+        tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOutV2.VOLTAGE_RANGE_0_TO_10V, 0);
         var output = Math.round(mapRange(outputPercent, 0, 100, 0, 10000));
         tfInterface.setVoltage(output);
     },
     VOLTAGE_RANGE_2_TO_10V: function (tfInterface, outputPercent) {
-        tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOut.VOLTAGE_RANGE_2_TO_10V, 0);
+        tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOutV2.VOLTAGE_RANGE_2_TO_10V, 0);
         var output = Math.round(mapRange(outputPercent, 0, 100, 2000, 10000));
         tfInterface.setVoltage(output);
     },
     CURRENT_RANGE_4_TO_20MA: function (tfInterface, outputPercent) {
-        tfInterface.setConfiguration(0, tinkerforge.BrickletIndustrialAnalogOut.CURRENT_RANGE_4_TO_20MA);
+        tfInterface.setConfiguration(0, tinkerforge.BrickletIndustrialAnalogOutV2.CURRENT_RANGE_4_TO_20MA);
         var output = Math.round(mapRange(outputPercent, 0, 100, 4000, 20000));
         tfInterface.setCurrent(output);
     }
@@ -128,14 +128,14 @@ function set_dac(dac_info) {
             dac_info.setFunction(dac_info.interface, dac_info.output.value);
 
             if (dac_info.enable.value === true) {
-                dac_info.interface.enable();
+                dac_info.interface.setEnabled(true);
             }
             else {
-                dac_info.interface.disable();
+                dac_info.interface.setEnabled(false);
             }
         }
         else {
-            dac_info.interface.disable();
+            dac_info.interface.setEnabled(false);
         }
     }
 }
@@ -364,9 +364,12 @@ function setup_barometer(cascade, id, position) {
         group: SENSORS_GROUP,
         display_order: next_display_order(),
         class: "barometer",
+        read_only: true,
         units: "mbar",
         type: cascade.TYPES.NUMBER
     });
+
+    barometers[id] = barometer_info;
 }
 
 function setup_onewire_net(cascade, id, position) {
@@ -732,9 +735,9 @@ module.exports.setup = function (cascade) {
                                 setup_ptc_probe(cascade, ptc_id, ptc.position);
                                 break;
                             }
-                            case tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER : {
-                                var dac = new tinkerforge.BrickletIndustrialAnalogOut(uid, ipcon);
-                                dac.disable();
+                            case tinkerforge.BrickletIndustrialAnalogOutV2.DEVICE_IDENTIFIER : {
+                                var dac = new tinkerforge.BrickletIndustrialAnalogOutV2(uid, ipcon);
+                                dac.setEnabled(false);
                                 dac.setVoltage(0);
                                 dac.setCurrent(0);
 
