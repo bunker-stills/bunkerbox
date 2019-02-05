@@ -79,7 +79,7 @@ function setup_quadrelay(cascade, id, position) {
             value: false
         });
         quadrelay_info.relays[relay_index] = relay_component;
-        relay_component.on("value_update", function() { set_relays(quadrelay_info); });
+        relay_component.on("value_updated", function() { set_relays(quadrelay_info); });
 
         relay_names.push(relay_id);
         update_hard_resource_list_component(cascade, "RELAY_names", relay_names.sort());
@@ -222,6 +222,10 @@ function set_stepper_current(stepper_info) {
 function set_stepper(stepper_info) {
     var stepper = stepper_info.interface;
     if (stepper) {
+        if (stepper_info.enable.value === true) {
+            stepper.enable();
+        }
+
         let velocity = Math.round(mapRange(stepper_info.velocity.value,
             0, 100, 0, stepper_info.max_motor_speed.value));
         if (velocity) {
@@ -240,7 +244,8 @@ function set_stepper(stepper_info) {
         if (stepper_info.enable.value === true) {
             stepper.enable();
         }
-        else {
+
+        if (stepper_info.enable.value === false) {
             stepper.stop();
             stepper.disable();
         }
