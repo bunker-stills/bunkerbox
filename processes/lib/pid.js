@@ -65,11 +65,13 @@ pid.prototype.update = function(measuredValue)
 
     var derivative = 0;
     if (this.Kd != 0) {
-        let denom = this.Kd + this.N * this.Kp * dt;
-        if (denom) {
-            derivative = this.previousDerivative/denom - this.Kp * this.N * 
-                (input-this.previousMeasured)/denom;
-        }
+        //let denom = this.Kd + this.N * this.Kp * dt;
+        //if (denom) {
+        //    derivative = this.previousDerivative/denom - this.Kp * this.N *
+        //        (input-this.previousMeasured)/denom;
+        //}
+        derivative = this.derivativeBeta * this.previousDerivative -
+            (this.derivativeBeta -1) * (input-this.previousMeasured);
     }
 
     var CV = this.Kp * error + newIntegral + this.Kd * derivative;
@@ -111,6 +113,11 @@ pid.prototype.setControlValueLimits = function(lowerLimit, upperLimit, offset)
     this.CVLowerLimit = lowerLimit;
     this.CVUpperLimit = upperLimit;
     this.CVOffset = offset;
+};
+
+pid.prototype.setDerivativeBeta = function(beta)
+{
+    this.derivativeBeta = Math.max(0, Math.min(1, beta));
 };
 
 pid.prototype.getIntegral = function()

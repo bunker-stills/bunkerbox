@@ -167,6 +167,14 @@ function create_pid(cascade, name, description, displayOrder) {
         units: cascade.UNITS.PERCENTAGE
     });
 
+    definition.derivative_beta = cascade.create_component({
+        id: name + "_pid_Beta",
+        name: description + " Derivative Beta",
+        group: description,
+        display_order: displayOrder + 12,
+        persist: true,
+        type: cascade.TYPES.NUMBER,
+    });
     return definition;
 }
 
@@ -328,6 +336,8 @@ function processPIDs() {
                 pid_definition.max_cv.value || 0.0,
                 0
             );
+
+            pid_definition.pid.setDerivativeBeta(pid_definition.derivative_beta.value || 0.5);
 
             pid_definition.pid.setProportionalGain(pid_definition.p_gain.value || 0.0);
             pid_definition.pid.setIntegralGain(pid_definition.i_gain.value || 0.0);
