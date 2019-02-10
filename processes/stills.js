@@ -40,7 +40,8 @@ var std_DAC_names = [
 
 var std_Relay_names = [
     // Solinoid valves (Relay)
-    "heads_draw_relay",
+    "water_cutoff_relay",
+    "feed_cutoff_relay",
 ];
 
 var std_DutyCycle_Relay_names = [
@@ -64,36 +65,49 @@ var std_PID_names = [
     "hearts_draw_pid",
 ];
 
-// Variable definitions are a subset of the component definition and can include
-// name, description, group, ,read_only, persist, units.
+var std_Function_names = [
+    "Function1",
+];
+
+var std_Variable_names = [
+    "Variable1",
+    "Variable2",
+    "Variable3",
+];
+
+// System Variable definitions are a subset of the component definition and can
+// include name, description, group, ,read_only, persist, units.
 // All variables are type number, name is required and is used for 'id' as well.
 // 'units' is the last component of cascade unit , eg cascade.units.C is 'C'.
-// Defaults are 'read_only: false', 'persist: true' 'group: "functions"',
+// Defaults are 'read_only: false', 'persist: false' 'group: "functions"',
 // 'units: "NONE".
-var std_Variables = [
+var system_Variables = [
     // user set variables
     {   name: "feed_abv",
         description: "Percent alcahol in source feed",
-        units: "PERCENTAGE"
+        units: "PERCENTAGE",
+        persist: true,
     },
     {   name: "desired_feed_abv",
         description: "Optimal ABV input to still",
-        units: "PERCENTAGE"
+        units: "PERCENTAGE",
+        persist: true,
     },
     {   name: "desired_feed_rate",
         description: "Feed flow rate into the still (GPH)",
+        persist: true,
     },
     // system set variable
     {   name: "boiling_point",
         description: "Water boiling point at current pressure",
         read_only:true,
-        persist:false,
         units: "F"
     },
     {   name: "failsafe_temp",
         description: "Failsafe Temp.",
         group: RUN_GROUP,
         units: "C",
+        persist: true,
         value: 120
     }
 ];
@@ -116,9 +130,54 @@ var programmedFeedABV;
 
 var currentOptionsList = [];
 
-
 //////////////////////////////////////////////////////////////////////////////
-// cascade process setup
+// cascade process setup and supporting functions
+
+var still_names_display_order = 0;
+function create_still_name_list(cascade, soft_resource_type) {
+
+    let next_display_order = function() {
+        still_names_display_order += 1;
+        return still_names_display_order;
+    }
+
+    names_component = cascade.create_component({
+        id: soft_resource_types + "_names",
+        group: STILL_COMPONENT_LISTS,
+        display_order: next_display_order(),
+        type: cascade.TYPES.BIG_TEXT,
+        presist = true,
+    });
+
+    process_names_list(names_component.value, soft_resource_type);
+
+    names_component.on("value_updated", function() {
+        process_names_list(names_component.value, soft_resource_type);
+    });
+}
+
+function process_names_list(names_string, soft_resource_type) {
+    var name_regex = /[^\s,;]+/g;
+
+    get_name_list = function(s) {
+        var names = [];
+        s.replace(name_regex, function(name) {names.push(name);});
+        return names;
+    }
+
+    names = get_name_list(names_string);
+    for name in soft[soft_resource_type].get_instances():
+        if name not in names:
+            soft[soft_resource_type].get_instance(name).deactivate();
+            // each SR must deactivate all its components, then delete itself
+            // pid options should recognize deactivated components and exclude them
+            // most important, however handled, this should load only the latest
+            // names on the next run.
+            // WHere are soft resource objects stored other than in class list?
+    for name in names:
+        if !soft[soft_resource_type].get_instance(name):
+            new soft[soft_resource_type](cascade, name);
+}
 
 module.exports.setup = function (cascade) {
 
@@ -145,10 +204,6 @@ module.exports.setup = function (cascade) {
         new soft.Stepper(cascade, name);
     }
 
-    for (let vardef of std_Variables) {
-        new soft.Variable(cascade, vardef);
-    }
-
     for (let name of std_TEMP_probe_names) {
         new soft.TEMP_probe(cascade, name);
     }
@@ -157,7 +212,17 @@ module.exports.setup = function (cascade) {
         new soft.PID(cascade, name);
     }
 
-    new soft.Function(cascade, "function1");
+    for (let name of std_Variables) {
+        new soft.Variable(cascade, name);
+    }
+
+    for (let name of std_Functions) {
+        new soft.Function(cascade, name);
+    }
+
+    for (let vardef of system_Variables) {
+        new soft.Variable(cascade, vardef);
+    }
 
     barometer = new soft.Barometer(cascade);
 

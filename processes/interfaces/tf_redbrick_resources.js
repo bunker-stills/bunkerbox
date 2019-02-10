@@ -96,7 +96,6 @@ function mapRange(value, in_min, in_max, out_min, out_max) {
 }
 
 var DAC_OUTPUT_TYPES = {
-    NO_OUTPUT: undefined,
     VOLTAGE_RANGE_0_TO_5V: function (tfInterface, outputPercent) {
         tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOutV2.VOLTAGE_RANGE_0_TO_5V, 0);
         var output = Math.round(mapRange(outputPercent, 0, 100, 0, 5000));
@@ -183,14 +182,16 @@ function setup_dac(cascade, id, position) {
         group: PROCESS_CONTROLS_GROUP,
         display_order: next_display_order(),
         class: "dac_configure",
+        persist: true,
         type: cascade.TYPES.OPTIONS,
         info: {options: Object.keys(DAC_OUTPUT_TYPES)},
-        value: "NO_OUTPUT"
     });
 
     dac_info.output_type.on("value_updated", function () {
         set_dac(dac_info);
     });
+
+    dac_info.output_type.value = dac_info.output_type.value;
 
     dacs[id] = dac_info;
     dac_names.push(id);
@@ -310,13 +311,20 @@ function setup_stepper(cascade, id, position) {
         group: PROCESS_CONTROLS_GROUP,
         display_order: next_display_order(),
         class: "stepper_configure",
+        persist: true,
         type: cascade.TYPES.NUMBER,
-        value: DEFAULT_STEPPER_MAX_SPEED
     });
 
     stepper_info.max_motor_speed.on("value_updated", function () {
         set_stepper(stepper_info);
     });
+
+    if (stepper_info.max_motor_speed.value) {
+        stepper_info.max_motor_speed.value = stepper_info.max_motor_speed.value;
+    }
+    else {
+        stepper_info.max_motor_speed.value = DEFAULT_STEPPER_MAX_SPEED;
+    }
 
     stepper_info.reverse = cascade.create_component({
         id: id + "_reverse",
@@ -324,13 +332,15 @@ function setup_stepper(cascade, id, position) {
         group: PROCESS_CONTROLS_GROUP,
         display_order: next_display_order(),
         class: "stepper_configure",
+        persist: true,
         type: cascade.TYPES.BOOLEAN,
-        value: false
     });
 
     stepper_info.reverse.on("value_updated", function () {
         set_stepper(stepper_info);
     });
+
+    stepper_info.reverse.value = stepper_info.reverse.value;
 
     stepper_info.motor_current = cascade.create_component({
         id: id + "_motor_current",
@@ -461,7 +471,6 @@ function setup_1wire_net(cascade, id, position) {
 }
 
 var PTC_WIRE_MODES = {
-    NO_WIRE_MODE: undefined,
     TWO_WIRE: tinkerforge.BrickletPTCV2.WIRE_MODE_2,
     THREE_WIRE: tinkerforge.BrickletPTCV2.WIRE_MODE_3,
     FOUR_WIRE: tinkerforge.BrickletPTCV2.WIRE_MODE_4
@@ -482,20 +491,22 @@ function setup_ptc_probe(cascade, id, position) {
         group: SENSORS_GROUP,
         display_order: next_display_order(),
         class: "ptc_configure",
+        persist: true,
         type: cascade.TYPES.OPTIONS,
         info: {options: Object.keys(PTC_WIRE_MODES)},
-        value: "NO_WIRE_MODE"
     });
 
     ptc_info.wire_mode.on("value_updated", function () {
         var ptc = ptc_info.interface;
-        if (ptc) {
+        if (ptc && ptc_info.wire_mode.value) {
             ptc.setWireMode(PTC_WIRE_MODES[ptc_info.wire_mode.value], null,
                 function(error) {
                     cascade.log_error(new Error("Error on PTCV2.setWireMode: " + error));
                 });
         }
     });
+
+    ptc_info.wire_mode.value = ptc_info.wire_mode.value;
 
     var ptc = ptc_info.interface;
     if (ptc) {

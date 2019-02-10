@@ -54,12 +54,6 @@ var name_to_description = function(name) {
 
 var name_regex = /[^\s,;]+/g;
 
-//var get_name_list = function(s) {
-//    var names = [];
-//    s.replace(name_regex, function(name) {names.push(name);});
-//    return names;
-//}
-
 var get_name_set = function(s) {
     var names = new Set();
     s.replace(name_regex, function(name) {names.add(name);});
@@ -98,16 +92,16 @@ var unset_driving_components = function(driver, driven) {
     driven.mirror_component();
 };
 
-//var deactivate_component = function(cascade, component) {
-//    // would like a 'delete_component' operation, but cascade does not support that.
-//    component.group = "Unused components";
-//    component.display_order = 0;
-//    component.info = {};
-//    component.units = component.UNITS.NONE;
-//    if (!component.read_only) {
-//        component.value = undefined;
-//    }
-//};
+var deactivate_component = function(cascade, component) {
+    // would like a 'delete_component' operation, but cascade does not support that.
+    component.group = "999 Unused Components";
+    component.display_order = 0;
+    component.info = {};
+    component.units = component.UNITS.NONE;
+    if (!component.read_only) {
+        component.value = undefined;
+    }
+};
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -401,11 +395,6 @@ function SoftResource_Variable(cascade, vardef) {
     this.init_subclass_properties(SoftResource_Variable);
     SoftResource_SR.call(this, cascade, vardef.name);
 
-    var persist_resolved = vardef.persist;
-    if (persist_resolved === undefined) {
-        persist_resolved = true;
-    }
-
     this.component = cascade.create_component({
         id: vardef.name,
         name: (vardef.description || this.description),
@@ -414,9 +403,15 @@ function SoftResource_Variable(cascade, vardef) {
         type: cascade.TYPES.NUMBER,
         units: (vardef.units || cascade.UNITS.NONE),
         read_only: vardef.read_only || false,
-        persist: persist_resolved,
-        value: vardef.value
+        persist: vardef.persist || false,
     });
+
+    if (this.component.value) {
+        this.component.value = this.component.value;
+    }
+    else {
+        this.component.value = vardef.value;
+    }
 }
 
 // Link prototype to base class
@@ -772,11 +767,13 @@ SoftResource_RELAY.prototype.reset_relay = function() {
 };
 
 //////////////////////
-// DUTYCYclE_RElAY  //
+// DUTYCYCLE_RELAY  //
 //////////////////////
 
 // NOTE:  This is a subclass of a subclass of SoftResource_HR.
-// As such, it does not require prototype initialization..
+
+var DEFAULT_DCR_CYCLE_LENGTH = 20
+
 function SoftResource_DUTYCYCLE_RELAY(cascade, name) {
     // install properties before constructing base class
     this.init_subclass_properties(SoftResource_DUTYCYCLE_RELAY, SoftResource_RELAY);
@@ -834,9 +831,14 @@ SoftResource_DUTYCYCLE_RELAY.prototype.attach_HR = function(HR_name) {
             class: "dcr_cycle_length",
             type: this.cascade.TYPES.NUMBER,
             units: "seconds",
-            value: 20,
-            persist: true
+            persist: true,
         });
+        if (this.DCR_cycle_length.value) {
+            this.DCR_cycle_length.value = this.DCR_cycle_length.value;
+        } else {
+            this.DCR_cycle_length.value = DEFAULT_DCR_CYCLE_LENGTH;
+        }
+
         this.DCR_cycle_length.on("value_updated", function(){
             self.stop_timer();
             if(self.DCR_cycle_enable.value)
@@ -984,7 +986,7 @@ SoftResource_DAC.prototype.attach_HR = function(HR_name) {
             value: 0
         });
     }
-    
+
     this.DAC_enable.value = false;
     this.DAC_output.value = 0;
 
