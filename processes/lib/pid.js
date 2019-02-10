@@ -65,16 +65,20 @@ pid.prototype.update = function(measuredValue)
 
     var derivative = 0;
     if (this.Kd != 0) {
+        // This is the high frequency filter from Astrom & Murray, ch. 10
         //let denom = this.Kd + this.N * this.Kp * dt;
         //if (denom) {
-        //    derivative = this.previousDerivative/denom - this.Kp * this.N *
-        //        (input-this.previousMeasured)/denom;
+        //    derivative = this.Kd *
+        //        (this.previousDerivative/denom -
+        //        this.Kp * this.N * (input-this.previousMeasured)/denom);
         //}
-        derivative = this.derivativeBeta * this.previousDerivative -
-            (this.derivativeBeta -1) * (input-this.previousMeasured);
+        // This is the running weighted average filter
+        derivative = this.Kd * (
+            this.derivativeBeta * this.previousDerivative -
+            (this.derivativeBeta -1) * (input-this.previousMeasured));
     }
 
-    var CV = this.Kp * error + newIntegral + this.Kd * derivative;
+    var CV = this.Kp * error + newIntegral + derivative;
 
     if(!_.isUndefined(this.CVUpperLimit) && CV >= this.CVUpperLimit)
     {

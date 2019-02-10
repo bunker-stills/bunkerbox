@@ -343,6 +343,8 @@ function processPIDs() {
             pid_definition.pid.setIntegralGain(pid_definition.i_gain.value || 0.0);
             pid_definition.pid.setDerivativeGain(pid_definition.d_gain.value || 0.0);
 
+            pid_definition.set_point.value = Math.max(0,
+                Math.min(1, pid_definition.set_point.value));
             pid_definition.pid.setDesiredValue(pid_definition.set_point.value || 0.0);
 
 
