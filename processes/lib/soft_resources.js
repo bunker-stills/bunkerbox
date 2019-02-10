@@ -324,6 +324,15 @@ function SoftResource_PID(cascade, name) {
         type: cascade.TYPES.NUMBER,
         units: cascade.UNITS.PERCENTAGE
     });
+
+    this.derivative_beta = cascade.create_component({
+        id: name + "_pid_Beta",
+        name: this.description + " Derivative Beta",
+        group: pid_group,
+        display_order: next_display_order(),
+        persist: true,
+        type: cascade.TYPES.NUMBER,
+    });
 }
 
 // Link prototype to base class
@@ -380,6 +389,10 @@ SoftResource_PID.prototype.process_pid = function() {
         this._pid.setProportionalGain(this.p_gain.value || 0.0);
         this._pid.setIntegralGain(this.i_gain.value || 0.0);
         this._pid.setDerivativeGain(this.d_gain.value || 0.0);
+
+        this.derivative_beta.value = Math.max(0,
+            Math.min(1, this.derivative_beta.value));
+        this._pid.setDerivativeBeta(this.derivative_beta.value || 0.5);
 
         this._pid.setDesiredValue(this.set_point.value || 0.0);
 
@@ -984,7 +997,7 @@ SoftResource_DAC.prototype.attach_HR = function(HR_name) {
             value: 0
         });
     }
-    
+
     this.DAC_enable.value = false;
     this.DAC_output.value = 0;
 
