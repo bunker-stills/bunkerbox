@@ -167,6 +167,14 @@ function create_pid(cascade, name, description, displayOrder) {
         units: cascade.UNITS.PERCENTAGE
     });
 
+    definition.derivative_beta = cascade.create_component({
+        id: name + "_pid_Beta",
+        name: description + " Derivative Beta",
+        group: description,
+        display_order: displayOrder + 12,
+        persist: true,
+        type: cascade.TYPES.NUMBER,
+    });
     return definition;
 }
 
@@ -329,12 +337,15 @@ function processPIDs() {
                 0
             );
 
+            pid_definition.derivative_beta.value = Math.max(0,
+                Math.min(1, pid_definition.derivative_beta.value));
+            pid_definition.pid.setDerivativeBeta(pid_definition.derivative_beta.value || 0.5);
+
             pid_definition.pid.setProportionalGain(pid_definition.p_gain.value || 0.0);
             pid_definition.pid.setIntegralGain(pid_definition.i_gain.value || 0.0);
             pid_definition.pid.setDerivativeGain(pid_definition.d_gain.value || 0.0);
 
             pid_definition.pid.setDesiredValue(pid_definition.set_point.value || 0.0);
-
 
             pid_definition.control_value.value = pid_definition.pid.update(pid_definition.process_value.value || 0.0);
 
