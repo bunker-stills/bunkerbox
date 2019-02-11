@@ -90,6 +90,8 @@ pid.prototype.update = function(measuredValue)
             newIntegral = this.integral;
         }
 
+        derivative = 0;  // out of bounds; this clears previousDerivative
+
         CV = this.CVUpperLimit;
     }
 
@@ -101,6 +103,8 @@ pid.prototype.update = function(measuredValue)
             // Stop integrating, reset the integral back to what it was before.
             newIntegral = this.integral;
         }
+
+        derivative = 0;  // out of bounds; this clears previousDerivative
 
         CV = this.CVLowerLimit;
     }
