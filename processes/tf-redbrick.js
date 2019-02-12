@@ -337,8 +337,8 @@ function processPIDs() {
                 0
             );
 
-            pid_definition.derivative_beta.value = Math.max(0,
-                Math.min(1, pid_definition.derivative_beta.value));
+            pid_definition.derivative_beta.value = Math.max(0, Math.min(1,
+                pid_definition.derivative_beta.value));
             pid_definition.pid.setDerivativeBeta(pid_definition.derivative_beta.value || 0.5);
 
             pid_definition.pid.setProportionalGain(pid_definition.p_gain.value || 0.0);
