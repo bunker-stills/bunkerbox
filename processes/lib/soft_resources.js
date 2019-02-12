@@ -16,7 +16,23 @@ module.exports.PTC_probe = SoftResource_PTC_PROBE;
 module.exports.TEMP_probe = SoftResource_TEMP_PROBE;
 module.exports.Barometer = SoftResource_Barometer;
 
+// export list of soft resource types
+module.exports.resource_types = [
+    "PID",
+    "Variable",
+    "Function",
+    "Relay",
+    "DutyCycleRelay",
+    "DAC",
+    "Stepper",
+    "OW_probe",
+    "TC_probe",
+    "PTC_probe",
+    "TEMP_probe",
+    "Barometer",
+];
 
+module.exports.create_resource_name_list = create_resource_name_list;
 //////////////////
 // GLOBALS      //
 //////////////////
@@ -25,6 +41,7 @@ var PROCESS_CONTROL_GROUP = "01  Process Controls";
 var PROCESS_SENSOR_GROUP = "02  Process Sensors";
 var FUNCTION_GROUP = "03  functions";
 var pid_group_number = 4;
+var SOFT_RESOURCE_LISTS = "70 Soft Resources";
 var HR_ASSIGNMENT_GROUP = "80  Hard Resource Assignment";
 
 // Display orders:
@@ -38,6 +55,44 @@ var next_display_order = function() {
 /////////////////
 // Utilities   //
 /////////////////
+
+// support for creating soft resources by list
+
+function create_resource_name_list(cascade, soft_resource_type) {
+
+    let names_component = cascade.create_component({
+        id: soft_resource_type + "_names",
+        group: SOFT_RESOURCE_LISTS,
+        display_order: next_display_order(),
+        type: cascade.TYPES.BIG_TEXT,
+        persist: true,
+    });
+
+    process_names_list(cascade, names_component.value, soft_resource_type);
+
+    names_component.on("value_updated", function() {
+        process_names_list(cascade, names_component.value, soft_resource_type);
+    });
+}
+
+var process_names_list = function(cascade, names_string, soft_resource_type) {
+    if (!names_string) return;
+    let names = get_name_list(names_string);
+    // FOR NOW WE DO NOT REMOVE DELETED NAMES
+    //for (let resource of soft[soft_resource_type].get_instances()) {
+    //    if (names.getIndex(resource.name)name not in names {
+    //        resource.deactivate();
+    //        // each SR must deactivate all its components, then delete itself
+    //        // pid options should recognize deactivated components and exclude them
+    //}    }
+    
+    // Add any new names
+    for (let name of names) {
+        if (!module.exports[soft_resource_type].get_instance(name)) {
+            new module.exports[soft_resource_type](cascade, name);
+        }
+    }
+};
 
 var name_to_description = function(name) {
     var s = name.replace(/([ ]|^)[a-z]/g, function(match) { return match.toUpperCase(); });
@@ -53,6 +108,12 @@ var name_to_description = function(name) {
 };
 
 var name_regex = /[^\s,;]+/g;
+
+var get_name_list = function(s) {
+    var names = [];
+    s.replace(name_regex, function(name) {names.push(name);});
+    return names;
+};
 
 var get_name_set = function(s) {
     var names = new Set();
@@ -92,6 +153,7 @@ var unset_driving_components = function(driver, driven) {
     driven.mirror_component();
 };
 
+/*
 var deactivate_component = function(cascade, component) {
     // would like a 'delete_component' operation, but cascade does not support that.
     component.group = "999 Unused Components";
@@ -102,7 +164,7 @@ var deactivate_component = function(cascade, component) {
         component.value = undefined;
     }
 };
-
+*/
 
 //////////////////////////////////////////////////////////////////////////////
 // Barometer resource -- a special case
@@ -405,7 +467,13 @@ SoftResource_PID.prototype.process_pid = function() {
 //////////////////////
 
 function SoftResource_Variable(cascade, vardef) {
+
     this.init_subclass_properties(SoftResource_Variable);
+
+    if (typeof vardef === "string") {
+        let name = vardef;
+        vardef = {name: name};
+    }
     SoftResource_SR.call(this, cascade, vardef.name);
 
     this.component = cascade.create_component({
@@ -785,7 +853,7 @@ SoftResource_RELAY.prototype.reset_relay = function() {
 
 // NOTE:  This is a subclass of a subclass of SoftResource_HR.
 
-var DEFAULT_DCR_CYCLE_LENGTH = 20
+var DEFAULT_DCR_CYCLE_LENGTH = 20;
 
 function SoftResource_DUTYCYCLE_RELAY(cascade, name) {
     // install properties before constructing base class

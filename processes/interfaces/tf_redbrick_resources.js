@@ -191,6 +191,7 @@ function setup_dac(cascade, id, position) {
         set_dac(dac_info);
     });
 
+    // eslint-disable-next-line no-self-assign
     dac_info.output_type.value = dac_info.output_type.value;
 
     dacs[id] = dac_info;
@@ -320,6 +321,7 @@ function setup_stepper(cascade, id, position) {
     });
 
     if (stepper_info.max_motor_speed.value) {
+        // eslint-disable-next-line no-self-assign
         stepper_info.max_motor_speed.value = stepper_info.max_motor_speed.value;
     }
     else {
@@ -340,6 +342,7 @@ function setup_stepper(cascade, id, position) {
         set_stepper(stepper_info);
     });
 
+    // eslint-disable-next-line no-self-assign
     stepper_info.reverse.value = stepper_info.reverse.value;
 
     stepper_info.motor_current = cascade.create_component({
@@ -506,6 +509,7 @@ function setup_ptc_probe(cascade, id, position) {
         }
     });
 
+    // eslint-disable-next-line no-self-assign
     ptc_info.wire_mode.value = ptc_info.wire_mode.value;
 
     var ptc = ptc_info.interface;

@@ -9,7 +9,7 @@ var WARMUP_FEED_ABV = Number(process.env.WARMUP_FEED_ABV) || 1;
 var WARMUP_FEED_RATE = Number(process.env.WARMUP_FEED_RATE) || 3;
 var MIN_PUMP_RATE = Number(process.env.MIN_PUMP_RATE) || 1.5;
 
-
+/*
 var std_TEMP_probe_names = [
     // column temps
     "heads_temp",
@@ -31,12 +31,14 @@ var std_DAC_names = [
     "main_heater",
     "pre_heater",
     "post_heater",
-    "pump",
+    "water_pump",
     "feed_pump",
 ];
 
-// stepper motor controls (Future)
-//"hearts_draw_pump",
+var std_Stepper_names = [
+    "heads_draw_pump",
+    "hearts_draw_pump",
+];
 
 var std_Relay_names = [
     // Solinoid valves (Relay)
@@ -44,10 +46,10 @@ var std_Relay_names = [
     "feed_cutoff_relay",
 ];
 
-var std_DutyCycle_Relay_names = [
-    // Pseudo-analog controls (DutyCycleRelay)
-    "feed_mix_dcr",
-];
+//var std_DutyCycle_Relay_names = [  //for still4
+//    // Pseudo-analog controls (DutyCycleRelay)
+//    "feed_mix_dcr",
+//];
 
 var std_Stepper_names = [
     "heads_reflux_pump",
@@ -55,13 +57,12 @@ var std_Stepper_names = [
 ];
 
 var std_PID_names = [
-    // PIDs
     "main_heater_pid",
     "pre_heater_pid",
     "post_heater_pid",
-    "pump_pid",
+    "water_pump_pid",
     "feed_pump_pid",
-    "feed_relay_pid",
+    "heads_draw_pid",
     "hearts_draw_pid",
 ];
 
@@ -74,6 +75,7 @@ var std_Variable_names = [
     "Variable2",
     "Variable3",
 ];
+*/
 
 // System Variable definitions are a subset of the component definition and can
 // include name, description, group, ,read_only, persist, units.
@@ -89,19 +91,13 @@ var system_Variables = [
         persist: true,
     },
     {   name: "desired_feed_abv",
-        description: "Optimal ABV input to still",
+        description: "Desired ABV input to still",
         units: "PERCENTAGE",
         persist: true,
     },
-    {   name: "desired_feed_rate",
+    {   name: "feed_flow_rate",
         description: "Feed flow rate into the still (GPH)",
         persist: true,
-    },
-    // system set variable
-    {   name: "boiling_point",
-        description: "Water boiling point at current pressure",
-        read_only:true,
-        units: "F"
     },
     {   name: "failsafe_temp",
         description: "Failsafe Temp.",
@@ -109,7 +105,13 @@ var system_Variables = [
         units: "C",
         persist: true,
         value: 120
-    }
+    },
+    // system set variable
+    {   name: "boiling_point",
+        description: "Water boiling point at current pressure",
+        read_only:true,
+        units: "F"
+    },
 ];
 
 var run_mode;
@@ -119,11 +121,11 @@ var boiling_point;
 var sump_temp;
 var feed_abv;
 var mix_relay_control;
-var pump_control;
-var pump_pid;
+var water_pump_control;
+var water_pump_pid;
 var feed_pump_control;
 var feed_pump_pid;
-var desired_feed_rate;
+var feed_flow_rate;
 var desired_feed_abv;
 var programmedFeedRate;
 var programmedFeedABV;
@@ -133,51 +135,6 @@ var currentOptionsList = [];
 //////////////////////////////////////////////////////////////////////////////
 // cascade process setup and supporting functions
 
-var still_names_display_order = 0;
-function create_still_name_list(cascade, soft_resource_type) {
-
-    let next_display_order = function() {
-        still_names_display_order += 1;
-        return still_names_display_order;
-    }
-
-    names_component = cascade.create_component({
-        id: soft_resource_types + "_names",
-        group: STILL_COMPONENT_LISTS,
-        display_order: next_display_order(),
-        type: cascade.TYPES.BIG_TEXT,
-        presist = true,
-    });
-
-    process_names_list(names_component.value, soft_resource_type);
-
-    names_component.on("value_updated", function() {
-        process_names_list(names_component.value, soft_resource_type);
-    });
-}
-
-function process_names_list(names_string, soft_resource_type) {
-    var name_regex = /[^\s,;]+/g;
-
-    get_name_list = function(s) {
-        var names = [];
-        s.replace(name_regex, function(name) {names.push(name);});
-        return names;
-    }
-
-    names = get_name_list(names_string);
-    for name in soft[soft_resource_type].get_instances():
-        if name not in names:
-            soft[soft_resource_type].get_instance(name).deactivate();
-            // each SR must deactivate all its components, then delete itself
-            // pid options should recognize deactivated components and exclude them
-            // most important, however handled, this should load only the latest
-            // names on the next run.
-            // WHere are soft resource objects stored other than in class list?
-    for name in names:
-        if !soft[soft_resource_type].get_instance(name):
-            new soft[soft_resource_type](cascade, name);
-}
 
 module.exports.setup = function (cascade) {
 
@@ -188,6 +145,15 @@ module.exports.setup = function (cascade) {
     //cascade.require_process("warm_restart");
     //cascade.require_process("interfaces/data_recorder");
 
+    for (let soft_resource_type of soft.resource_types) {
+        if (soft_resource_type === "Barometer") continue;
+        if (soft_resource_type === "OW_probe") continue;
+        if (soft_resource_type === "TC_probe") continue;
+        if (soft_resource_type === "PTC_probe") continue;
+        soft.create_resource_name_list(cascade, soft_resource_type);
+    }
+
+    /*
     for (let name of std_DAC_names) {
         new soft.DAC(cascade, name);
     }
@@ -219,6 +185,7 @@ module.exports.setup = function (cascade) {
     for (let name of std_Functions) {
         new soft.Function(cascade, name);
     }
+    */
 
     for (let vardef of system_Variables) {
         new soft.Variable(cascade, vardef);
@@ -230,11 +197,11 @@ module.exports.setup = function (cascade) {
     boiling_point = soft.Variable.get_instance("boiling_point");
     sump_temp = soft.Variable.get_instance("sump_temp");
     feed_abv = soft.Variable.get_instance("feed_abv");
-    desired_feed_rate = soft.Variable.get_instance("desired_feed_rate");
+    feed_flow_rate = soft.Variable.get_instance("feed_flow_rate");
     desired_feed_abv = soft.Variable.get_instance("desired_feed_abv");
     mix_relay_control = soft.DutyCycle_Relay.get_instance("feed_mix_DCR");
-    pump_control = soft.DAC.get_instance("pump");
-    pump_pid = soft.PID.get_instance("pump_pid");
+    water_pump_control = soft.DAC.get_instance("water_pump");
+    water_pump_pid = soft.PID.get_instance("water_pump_pid");
     feed_pump_control = soft.DAC.get_instance("feed_pump");
     feed_pump_pid = soft.PID.get_instance("feed_pump_pid");
 
@@ -268,9 +235,10 @@ function setFlowAndMixing(flow, abv)
 {
     var inputABV = feed_abv.value || 0.0;
     var feed_rate;
-    var pump_rate;
+    var water_rate;
 
-    if (mix_relay_control.HR_assignment) {  // relay controlled mix
+    if (mix_relay_control && mix_relay_control.HR_assignment) {
+        // duty cycle relay controlled mix
         if (inputABV <= abv) {
             mix_relay_control.reset_dcr();  // shut down cycling
             mix_relay_control.RELAY_enable.value = true;  // turn on relay
@@ -279,21 +247,22 @@ function setFlowAndMixing(flow, abv)
             mix_relay_control.DCR_cycle_enable.value = true;
             mix_relay_control.DCR_on_percent.value = abv / inputABV;
         }
-        pump_pid.set_point.value = flow;
+        feed_pump_pid.set_point.value = flow;
     }
-    else if (feed_pump_control.HR_assignment && pump_control.HR_assignment) {
+    else if (feed_pump_control && feed_pump_control.HR_assignment && 
+        water_pump_control && water_pump_control.HR_assignment) {
         if(inputABV <= abv) {
             // TODO: We probably want a minimum pump rate to insure
             //       water is flowing through the comumn coils.
             feed_rate = flow - MIN_PUMP_RATE;
-            pump_rate = MIN_PUMP_RATE;
+            water_rate = MIN_PUMP_RATE;
         }
         else {
             feed_rate = flow * abv / inputABV;
-            pump_rate = Math.max(flow - feed_rate, MIN_PUMP_RATE);
-            feed_rate = flow - pump_rate;
+            water_rate = Math.max(flow - feed_rate, MIN_PUMP_RATE);
+            feed_rate = flow - water_rate;
         }
-        pump_pid.set_point.value = pump_rate;
+        water_pump_pid.set_point.value = water_rate;
         feed_pump_pid.set_point.value = feed_rate;
     }
 }
@@ -302,7 +271,7 @@ function should_temp_failsafe()
 {
     var fs_temp = failsafe_temp.value;
 
-    _.each(soft.Temp.get_instances(), function(probe) {
+    _.each(soft.TEMP_probe.get_instances(), function(probe) {
         if(probe.get_temperature() >= fs_temp) return true;
     });
     return false;
@@ -333,7 +302,7 @@ function during_run(cascade) {
         programmedFeedABV = WARMUP_FEED_ABV;
     }
     else {
-        programmedFeedRate = desired_feed_rate.value;
+        programmedFeedRate = feed_flow_rate.value;
         programmedFeedABV = desired_feed_abv.value;
     }
     setFlowAndMixing(programmedFeedRate, programmedFeedABV);
