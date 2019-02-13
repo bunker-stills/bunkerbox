@@ -74,9 +74,8 @@ pid.prototype.update = function(measuredValue)
         //}
 
         // This is the running weighted average filter
-        derivative = this.Kd * (
-            this.derivativeBeta * this.previousDerivative -
-            (1 - this.derivativeBeta) * (input-this.previousMeasured));
+        derivative = this.derivativeBeta * this.previousDerivative -
+            (1 - this.derivativeBeta) * (this.Kd * (input-this.previousMeasured) / dt);
     }
 
     var CV = this.Kp * error + newIntegral + derivative;
