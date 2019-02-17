@@ -620,7 +620,8 @@ function SoftResource_HR(cascade, name) {
             display_order: next_display_order(),
             class: "hard_resource_selector",
             type: cascade.TYPES.OPTIONS,
-            info: {options: this.HR_options}
+            info: {options: this.HR_options},
+            persist: true,
         });
 
     this.HR_selector.on("value_updated",
