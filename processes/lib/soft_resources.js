@@ -16,7 +16,23 @@ module.exports.PTC_probe = SoftResource_PTC_PROBE;
 module.exports.TEMP_probe = SoftResource_TEMP_PROBE;
 module.exports.Barometer = SoftResource_Barometer;
 
+// export list of soft resource types
+module.exports.resource_types = [
+    "PID",
+    "Variable",
+    "Function",
+    "Relay",
+    "DutyCycleRelay",
+    "DAC",
+    "Stepper",
+    "OW_probe",
+    "TC_probe",
+    "PTC_probe",
+    "TEMP_probe",
+    "Barometer",
+];
 
+module.exports.create_resource_name_list = create_resource_name_list;
 //////////////////
 // GLOBALS      //
 //////////////////
@@ -25,6 +41,7 @@ var PROCESS_CONTROL_GROUP = "01  Process Controls";
 var PROCESS_SENSOR_GROUP = "02  Process Sensors";
 var FUNCTION_GROUP = "03  functions";
 var pid_group_number = 4;
+var SOFT_RESOURCE_LISTS = "70 Soft Resources";
 var HR_ASSIGNMENT_GROUP = "80  Hard Resource Assignment";
 
 // Display orders:
@@ -38,6 +55,44 @@ var next_display_order = function() {
 /////////////////
 // Utilities   //
 /////////////////
+
+// support for creating soft resources by list
+
+function create_resource_name_list(cascade, soft_resource_type) {
+
+    let names_component = cascade.create_component({
+        id: soft_resource_type + "_names",
+        group: SOFT_RESOURCE_LISTS,
+        display_order: next_display_order(),
+        type: cascade.TYPES.BIG_TEXT,
+        persist: true,
+    });
+
+    process_names_list(cascade, names_component.value, soft_resource_type);
+
+    names_component.on("value_updated", function() {
+        process_names_list(cascade, names_component.value, soft_resource_type);
+    });
+}
+
+var process_names_list = function(cascade, names_string, soft_resource_type) {
+    if (!names_string) return;
+    let names = get_name_list(names_string);
+    // FOR NOW WE DO NOT REMOVE DELETED NAMES
+    //for (let resource of soft[soft_resource_type].get_instances()) {
+    //    if (names.getIndex(resource.name)name not in names {
+    //        resource.deactivate();
+    //        // each SR must deactivate all its components, then delete itself
+    //        // pid options should recognize deactivated components and exclude them
+    //}    }
+    
+    // Add any new names
+    for (let name of names) {
+        if (!module.exports[soft_resource_type].get_instance(name)) {
+            new module.exports[soft_resource_type](cascade, name);
+        }
+    }
+};
 
 var name_to_description = function(name) {
     var s = name.replace(/([ ]|^)[a-z]/g, function(match) { return match.toUpperCase(); });
@@ -54,11 +109,11 @@ var name_to_description = function(name) {
 
 var name_regex = /[^\s,;]+/g;
 
-//var get_name_list = function(s) {
-//    var names = [];
-//    s.replace(name_regex, function(name) {names.push(name);});
-//    return names;
-//}
+var get_name_list = function(s) {
+    var names = [];
+    s.replace(name_regex, function(name) {names.push(name);});
+    return names;
+};
 
 var get_name_set = function(s) {
     var names = new Set();
@@ -98,17 +153,18 @@ var unset_driving_components = function(driver, driven) {
     driven.mirror_component();
 };
 
-//var deactivate_component = function(cascade, component) {
-//    // would like a 'delete_component' operation, but cascade does not support that.
-//    component.group = "Unused components";
-//    component.display_order = 0;
-//    component.info = {};
-//    component.units = component.UNITS.NONE;
-//    if (!component.read_only) {
-//        component.value = undefined;
-//    }
-//};
-
+/*
+var deactivate_component = function(cascade, component) {
+    // would like a 'delete_component' operation, but cascade does not support that.
+    component.group = "999 Unused Components";
+    component.display_order = 0;
+    component.info = {};
+    component.units = component.UNITS.NONE;
+    if (!component.read_only) {
+        component.value = undefined;
+    }
+};
+*/
 
 //////////////////////////////////////////////////////////////////////////////
 // Barometer resource -- a special case
@@ -411,13 +467,14 @@ SoftResource_PID.prototype.process_pid = function() {
 //////////////////////
 
 function SoftResource_Variable(cascade, vardef) {
-    this.init_subclass_properties(SoftResource_Variable);
-    SoftResource_SR.call(this, cascade, vardef.name);
 
-    var persist_resolved = vardef.persist;
-    if (persist_resolved === undefined) {
-        persist_resolved = true;
+    this.init_subclass_properties(SoftResource_Variable);
+
+    if (typeof vardef === "string") {
+        let name = vardef;
+        vardef = {name: name};
     }
+    SoftResource_SR.call(this, cascade, vardef.name);
 
     this.component = cascade.create_component({
         id: vardef.name,
@@ -427,9 +484,15 @@ function SoftResource_Variable(cascade, vardef) {
         type: cascade.TYPES.NUMBER,
         units: (vardef.units || cascade.UNITS.NONE),
         read_only: vardef.read_only || false,
-        persist: persist_resolved,
-        value: vardef.value
+        persist: vardef.persist || false,
     });
+
+    if (this.component.value) {
+        this.component.value = this.component.value;
+    }
+    else {
+        this.component.value = vardef.value;
+    }
 }
 
 // Link prototype to base class
@@ -557,7 +620,8 @@ function SoftResource_HR(cascade, name) {
             display_order: next_display_order(),
             class: "hard_resource_selector",
             type: cascade.TYPES.OPTIONS,
-            info: {options: this.HR_options}
+            info: {options: this.HR_options},
+            persist: true,
         });
 
     this.HR_selector.on("value_updated",
@@ -785,11 +849,13 @@ SoftResource_RELAY.prototype.reset_relay = function() {
 };
 
 //////////////////////
-// DUTYCYclE_RElAY  //
+// DUTYCYCLE_RELAY  //
 //////////////////////
 
 // NOTE:  This is a subclass of a subclass of SoftResource_HR.
-// As such, it does not require prototype initialization..
+
+var DEFAULT_DCR_CYCLE_LENGTH = 20;
+
 function SoftResource_DUTYCYCLE_RELAY(cascade, name) {
     // install properties before constructing base class
     this.init_subclass_properties(SoftResource_DUTYCYCLE_RELAY, SoftResource_RELAY);
@@ -847,9 +913,14 @@ SoftResource_DUTYCYCLE_RELAY.prototype.attach_HR = function(HR_name) {
             class: "dcr_cycle_length",
             type: this.cascade.TYPES.NUMBER,
             units: "seconds",
-            value: 20,
-            persist: true
+            persist: true,
         });
+        if (this.DCR_cycle_length.value) {
+            this.DCR_cycle_length.value = this.DCR_cycle_length.value;
+        } else {
+            this.DCR_cycle_length.value = DEFAULT_DCR_CYCLE_LENGTH;
+        }
+
         this.DCR_cycle_length.on("value_updated", function(){
             self.stop_timer();
             if(self.DCR_cycle_enable.value)
