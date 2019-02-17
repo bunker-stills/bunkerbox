@@ -82,7 +82,7 @@ function setup_quadrelay(cascade, id, position) {
         relay_component.on("value_updated", function() { set_relays(quadrelay_info); });
 
         relay_names.push(relay_id);
-        update_hard_resource_list_component(cascade, "RELAY_names", relay_names.sort());
+        update_hard_resource_list_component(cascade, "RELAY_HR_names", relay_names.sort());
 
     }
 
@@ -196,7 +196,7 @@ function setup_dac(cascade, id, position) {
 
     dacs[id] = dac_info;
     dac_names.push(id);
-    update_hard_resource_list_component(cascade, "DAC_names", dac_names.sort());
+    update_hard_resource_list_component(cascade, "DAC_HR_names", dac_names.sort());
 }
 
 var MIN_STEPPER_CURRENT = Number(process.env.MIN_STEPPER_CURRENT) || 100;
@@ -361,7 +361,7 @@ function setup_stepper(cascade, id, position) {
 
     steppers[id] = stepper_info;
     stepper_names.push(id);
-    update_hard_resource_list_component(cascade, "STEPPER_names", stepper_names.sort());
+    update_hard_resource_list_component(cascade, "STEPPER_HR_names", stepper_names.sort());
 }
 
 function setup_barometer(cascade, id, position) {
@@ -409,9 +409,9 @@ function setup_onewire_net(cascade, id, position) {
                             create_temp_probe(cascade, probe_address);
                             ow_info.probes.push(probe_address);
                             ow_names.push(probe_address);
-                            update_hard_resource_list_component(cascade, "OW_PROBE_names",
+                            update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
                                 ow_names.sort());
-                            update_hard_resource_list_component(cascade, "TEMP_PROBE_names",
+                            update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
                                 ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
 
                         }
@@ -454,9 +454,9 @@ function setup_1wire_net(cascade, id, position) {
                                 create_temp_probe(probe_address);
                                 ow_info.probes.push(probe_address);
                                 ow_names.push(probe_address);
-                                update_hard_resource_list_component(cascade, "OW_PROBE_names",
+                                update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
                                     ow_names.sort());
-                                update_hard_resource_list_component(cascade, "TEMP_PROBE_names",
+                                update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
                                     ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
 
                             }
@@ -530,8 +530,8 @@ function setup_ptc_probe(cascade, id, position) {
 
     ptcProbes[id] = ptc_info;
     ptc_names.push(id);
-    update_hard_resource_list_component(cascade, "PTC_PROBE_names", ptc_names.sort());
-    update_hard_resource_list_component(cascade, "TEMP_PROBE_names",
+    update_hard_resource_list_component(cascade, "PTC_PROBE_HR_names", ptc_names.sort());
+    update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
         ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
 }
 
@@ -553,8 +553,8 @@ function setup_thermocouple_probe(cascade, id, position) {
 
     thermocoupleProbes[id] = tc_info;
     tc_names.push(id);
-    update_hard_resource_list_component(cascade, "TC_PROBE_names", tc_names.sort());
-    update_hard_resource_list_component(cascade, "TEMP_PROBE_names",
+    update_hard_resource_list_component(cascade, "TC_PROBE_HR_names", tc_names.sort());
+    update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
         ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
 
 }
@@ -640,9 +640,9 @@ module.exports.setup = function (cascade) {
                 create_temp_probe(cascade, probe_address);
                 ow_info.probes.push(probe_address);
                 ow_names.push(probe_address);
-                update_hard_resource_list_component(cascade, "OW_PROBE_names",
+                update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
                     ow_names.sort());
-                update_hard_resource_list_component(cascade, "TEMP_PROBE_names",
+                update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
                     ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
             }
         }
@@ -855,13 +855,13 @@ module.exports.setup = function (cascade) {
     /*
     setTimeout(function() {
         // create device selection components from name lists
-        create_hard_resource_list_component(cascade, "RELAY_names", relay_names.sort());
-        create_hard_resource_list_component(cascade, "DAC_names", dac_names.sort());
-        create_hard_resource_list_component(cascade, "STEPPER_names", stepper_names.sort());
-        create_hard_resource_list_component(cascade, "PTC_PROBE_names", ptc_names.sort());
-        create_hard_resource_list_component(cascade, "TC_PROBE_names", tc_names.sort());
-        create_hard_resource_list_component(cascade, "OW_PROBE_names", ow_names.sort());
-        create_hard_resource_list_component(cascade, "TEMP_PROBE_names",
+        create_hard_resource_list_component(cascade, "RELAY_HR_names", relay_names.sort());
+        create_hard_resource_list_component(cascade, "DAC_HR_names", dac_names.sort());
+        create_hard_resource_list_component(cascade, "STEPPER_HR_names", stepper_names.sort());
+        create_hard_resource_list_component(cascade, "PTC_PROBE_HR_names", ptc_names.sort());
+        create_hard_resource_list_component(cascade, "TC_PROBE_HR_names", tc_names.sort());
+        create_hard_resource_list_component(cascade, "OW_PROBE_HR_names", ow_names.sort());
+        create_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
             ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
     }, 2000);
     */

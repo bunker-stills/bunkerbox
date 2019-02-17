@@ -649,7 +649,7 @@ var create_SoftResource_HR_prototype = function(HR_type, class_prototype, no_HR)
     var prototype = Object.create(class_prototype);
     //  Set class properties
     if (!no_HR) {
-        prototype._HR_names_component_name = HR_type + "_names";
+        prototype._HR_names_component_name = HR_type + "_HR_names";
         prototype._HR_names_component = undefined;
         prototype._HR_options = [];
         prototype._HR_assigned = [];
