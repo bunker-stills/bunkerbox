@@ -634,6 +634,8 @@ function SoftResource_HR(cascade, name) {
                 self.on_HR_names_update();
                 self.HR_names_component.on("update_value",
                     function() {self.on_HR_names_update();});
+                // eslint-disable-next-line no-self-assign
+                self.HR_selector.value = self.HR_selector.value;
             });
     }
     this.instances_of_type[this.name] = this;
@@ -665,12 +667,6 @@ SoftResource_HR.prototype.init_subclass_properties = function(constructor, base_
     if (!base_constructor) {
         base_constructor = constructor;
     }
-    //        Object.defineProperties(this,
-    //            {
-    //                instances_of_type: {
-    //                    get() { return constructor.prototype._instances_of_type; },
-    //                }
-    //            });
     Object.defineProperties(this,
         {
             HR_names_component_name: {
