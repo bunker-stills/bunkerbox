@@ -1168,7 +1168,7 @@ SoftResource_STEPPER.prototype.attach_HR = function(HR_name) {
     this.cascade.components.require_component(HR_name + "_velocity",
         function(component) {
             self.HR_velocity = component;
-            set_driving_components(self.STEPPER_output, self.HR_output);
+            set_driving_components(self.STEPPER_velocity, self.HR_velocity);
         });
     this.HR_assignment = HR_name;
 };

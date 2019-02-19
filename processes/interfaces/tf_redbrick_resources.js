@@ -203,7 +203,7 @@ var MAX_STEPPER_CURRENT = Number(process.env.MAX_STEPPER_CURRENT) || 2291;
 var MIN_SSTEPPER_CURRENT = Number(process.env.MIN_SSTEPPER_CURRENT) || 360;
 var MAX_SSTEPPER_CURRENT = Number(process.env.MAX_SSTEPPER_CURRENT) || 1640;
 var DEFAULT_STEPPER_CURRENT = Number(process.env.DEFAULT_STEPPER_CURRENT) ||800;
-var DEFAULT_STEPPER_MAX_SPEED = Number(process.env.DEFAULT_STEPPER_MAX_SPEED) ||1000;
+var DEFAULT_STEPPER_MAX_SPEED = Number(process.env.DEFAULT_STEPPER_MAX_SPEED) ||5000;
 
 function set_stepper_current(stepper_info) {
     var stepper = stepper_info.interface;
@@ -230,7 +230,7 @@ function set_stepper(stepper_info) {
         let velocity = Math.round(mapRange(stepper_info.velocity.value,
             0, 100, 0, stepper_info.max_motor_speed.value));
         if (velocity) {
-            stepper.setMaxVelocity(Math.abs(velocity));
+            stepper.setMaxVelocity(Math.min(65535, Math.abs(velocity)));
             if ((velocity<0) != (stepper_info.reverse.value==true)) {  // XOR operation
                 stepper.driveBackward();
             }
@@ -240,10 +240,6 @@ function set_stepper(stepper_info) {
         }
         else {
             stepper.stop();
-        }
-
-        if (stepper_info.enable.value === true) {
-            stepper.enable();
         }
 
         if (stepper_info.enable.value === false) {
@@ -350,13 +346,16 @@ function setup_stepper(cascade, id, position) {
         group: PROCESS_CONTROLS_GROUP,
         display_order: next_display_order(),
         class: "stepper_configure",
+        persist: true,
         type: cascade.TYPES.NUMBER,
-        value: 0
     });
 
     stepper_info.motor_current.on("value_updated", function () {
         set_stepper_current(stepper_info);
     });
+
+    // eslint-disable-next-line no-self-assign
+    stepper_info.motor_current.value = stepper_info.motor_current.value;
 
     steppers[id] = stepper_info;
     stepper_names.push(id);
@@ -861,7 +860,7 @@ module.exports.setup = function (cascade) {
         update_hard_resource_list_component(cascade, "OW_PROBE_HR_names", ow_names.sort());
         update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
             ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
-    }, 20000);
+    }, 60000);
 };
 
 
