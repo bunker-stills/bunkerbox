@@ -144,6 +144,7 @@ var set_driving_components = function(driver, driven) {
     if (!driver || !driven) return;
     //driven.read_only = true;  not settable
     driven.mirror_component(driver);
+    //console.log("Mirror: " + driver.id + " -> " + driven.id);
 };
 
 var unset_driving_components = function(driver, driven) {
@@ -151,6 +152,7 @@ var unset_driving_components = function(driver, driven) {
     if (driven.mirrored_component !== driver) return;
     //driven.read_only = false;  not settable
     driven.mirror_component();
+    //console.log("unMirror: " + driver.id + " / " + driven.id);
 };
 
 /*
@@ -814,10 +816,10 @@ SoftResource_RELAY.prototype.attach_HR = function(HR_name) {
         });
     }
     this.RELAY_enable.value = false;
-    this.cascade.components.require_component(HR_name + "_enable",
+    this.cascade.components.require_component(HR_name,
         function(component) {
             self.HR_enable = component;
-            set_driving_components(this.RELAY_enable, this.HR_enable);
+            set_driving_components(self.RELAY_enable, self.HR_enable);
         });
     this.HR_assignment = HR_name;
 };
@@ -1071,12 +1073,12 @@ SoftResource_DAC.prototype.attach_HR = function(HR_name) {
     this.cascade.components.require_component(HR_name + "_enable",
         function(component) {
             self.HR_enable = component;
-            set_driving_components(this.DAC_enable, this.HR_enable);
+            set_driving_components(self.DAC_enable, self.HR_enable);
         });
     this.cascade.components.require_component(HR_name + "_output",
         function(component) {
             self.HR_output = component;
-            set_driving_components(this.DAC_output, this.HR_output);
+            set_driving_components(self.DAC_output, self.HR_output);
         });
     this.HR_assignment = HR_name;
 };
@@ -1161,12 +1163,12 @@ SoftResource_STEPPER.prototype.attach_HR = function(HR_name) {
     this.cascade.components.require_component(HR_name + "_enable",
         function(component) {
             self.HR_enable = component;
-            set_driving_components(this.STEPPER_enable, this.HR_enable);
+            set_driving_components(self.STEPPER_enable, self.HR_enable);
         });
     this.cascade.components.require_component(HR_name + "_velocity",
         function(component) {
             self.HR_velocity = component;
-            set_driving_components(this.STEPPER_output, this.HR_output);
+            set_driving_components(self.STEPPER_output, self.HR_output);
         });
     this.HR_assignment = HR_name;
 };
