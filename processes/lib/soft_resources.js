@@ -39,10 +39,10 @@ module.exports.create_resource_name_list = create_resource_name_list;
 // group oredering using text at start of group name
 var PROCESS_CONTROL_GROUP = "01  Process Controls";
 var PROCESS_SENSOR_GROUP = "02  Process Sensors";
-var FUNCTION_GROUP = "03  functions";
+var FUNCTION_GROUP = "03  Functions";
 var pid_group_number = 4;
 var SOFT_RESOURCE_LISTS = "70 Soft Resources";
-var HR_ASSIGNMENT_GROUP = "80  Hard Resource Assignment";
+var HR_ASSIGNMENT_GROUP = "80  Resource Assignment";
 
 // Display orders:
 var global_display_order = 0;
