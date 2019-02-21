@@ -84,6 +84,7 @@ var std_Variable_names = [
 // Defaults are 'read_only: false', 'persist: false' 'group: "functions"',
 // 'units: "NONE".
 var system_Variables = [
+    /*
     // user set variables
     {   name: "feed_abv",
         description: "Percent alcahol in source feed",
@@ -99,6 +100,7 @@ var system_Variables = [
         description: "Feed flow rate into the still (GPH)",
         persist: true,
     },
+    */
     {   name: "failsafe_temp",
         description: "Failsafe Temp.",
         group: RUN_GROUP,
@@ -145,6 +147,10 @@ module.exports.setup = function (cascade) {
     //cascade.require_process("warm_restart");
     //cascade.require_process("interfaces/data_recorder");
 
+    for (let vardef of system_Variables) {
+        new soft.Variable(cascade, vardef);
+    }
+
     for (let soft_resource_type of soft.resource_types) {
         if (soft_resource_type === "Barometer") continue;
         if (soft_resource_type === "OW_probe") continue;
@@ -186,10 +192,6 @@ module.exports.setup = function (cascade) {
         new soft.Function(cascade, name);
     }
     */
-
-    for (let vardef of system_Variables) {
-        new soft.Variable(cascade, vardef);
-    }
 
     barometer = new soft.Barometer(cascade);
 

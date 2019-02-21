@@ -384,7 +384,7 @@ function SoftResource_PID(cascade, name) {
     });
 
     this.derivative_beta = cascade.create_component({
-        id: name + "'_d_beta",
+        id: name + "_d_beta",
         name: this.description + " Derivative Beta",
         group: pid_group,
         display_order: next_display_order(),
