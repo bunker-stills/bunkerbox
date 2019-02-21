@@ -18,9 +18,6 @@ module.exports.Barometer = SoftResource_Barometer;
 
 // export list of soft resource types
 module.exports.resource_types = [
-    "PID",
-    "Variable",
-    "Function",
     "Relay",
     "DutyCycleRelay",
     "DAC",
@@ -30,6 +27,9 @@ module.exports.resource_types = [
     "PTC_probe",
     "TEMP_probe",
     "Barometer",
+    "PID",
+    "Variable",
+    "Function",
 ];
 
 module.exports.create_resource_name_list = create_resource_name_list;
@@ -384,7 +384,7 @@ function SoftResource_PID(cascade, name) {
     });
 
     this.derivative_beta = cascade.create_component({
-        id: name + "_pid_Beta",
+        id: name + "'_d_beta",
         name: this.description + " Derivative Beta",
         group: pid_group,
         display_order: next_display_order(),
@@ -473,8 +473,11 @@ function SoftResource_Variable(cascade, vardef) {
     this.init_subclass_properties(SoftResource_Variable);
 
     if (typeof vardef === "string") {
-        let name = vardef;
-        vardef = {name: name};
+        let name_parts = vardef.split('/');
+        let name = name_parts.shift();
+        let read_only = parts_name.includes('r');
+        let persist = parts_name.includes('p');
+        vardef = {name: name, read_only: read_only, persist: persist};
     }
     SoftResource_SR.call(this, cascade, vardef.name);
 
