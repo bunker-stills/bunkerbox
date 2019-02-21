@@ -473,10 +473,10 @@ function SoftResource_Variable(cascade, vardef) {
     this.init_subclass_properties(SoftResource_Variable);
 
     if (typeof vardef === "string") {
-        let name_parts = vardef.split('/');
+        let name_parts = vardef.split("/");
         let name = name_parts.shift();
-        let read_only = parts_name.includes('r');
-        let persist = parts_name.includes('p');
+        let read_only = name_parts.includes("r");
+        let persist = name_parts.includes("p");
         vardef = {name: name, read_only: read_only, persist: persist};
     }
     SoftResource_SR.call(this, cascade, vardef.name);
