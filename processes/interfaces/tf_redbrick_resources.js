@@ -118,22 +118,26 @@ var DAC_OUTPUT_TYPES = {
 };
 
 function set_dac(dac_info) {
-    if (dac_info.interface) {
+    let dac = dac_info.interface;
+    if (dac) {
 
         dac_info.setFunction = DAC_OUTPUT_TYPES[dac_info.output_type.value];
         if (dac_info.setFunction) {
 
-            dac_info.setFunction(dac_info.interface, dac_info.output.value);
+            dac_info.setFunction(dac, dac_info.output.value);
 
             if (dac_info.enable.value === true) {
-                dac_info.interface.setEnabled(true);
+                if (dac.setEnabled) dac.setEnabled(true);  // V2
+                else dac.enable();                         // V1
             }
             else {
-                dac_info.interface.setEnabled(false);
+                if (dac.setEnabled) dac.setEnabled(false);  // V2
+                else dac.disable();                         // V1
             }
         }
         else {
-            dac_info.interface.setEnabled(false);
+            if (dac.setEnabled) dac.setEnabled(false);  // V2
+            else dac.disable();                         // V1
         }
     }
 }
@@ -746,9 +750,16 @@ module.exports.setup = function (cascade) {
                                 setup_ptc_probe(cascade, ptc_id, ptc.position);
                                 break;
                             }
+                            case tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER : 
                             case tinkerforge.BrickletIndustrialAnalogOutV2.DEVICE_IDENTIFIER : {
-                                var dac = new tinkerforge.BrickletIndustrialAnalogOutV2(uid, ipcon);
-                                dac.setEnabled(false);
+                                let dac;
+                                if (deviceIdentifier == tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER) {
+                                    dac = new tinkerforge.BrickletIndustrialAnalogOut(uid, ipcon);
+                                    dac.disable();
+                                } else {
+                                    dac = new tinkerforge.BrickletIndustrialAnalogOutV2(uid, ipcon);
+                                    dac.setEnabled(false);
+                                }
                                 dac.setVoltage(0);
                                 dac.setCurrent(0);
 
@@ -785,34 +796,26 @@ module.exports.setup = function (cascade) {
                                 setup_barometer(cascade, barometer_id, barometer.position);
                                 break;
                             }
-                            case tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER : {
-                                // this brick can have up to 2 bricklets
-                                masterbrick_position[uid] = position;
-
-                                var sstepper = new tinkerforge.BrickSilentStepper(uid, ipcon);
-                                sstepper.stop();
-                                sstepper.disable();
-
-                                sstepper.uid_string = uid;
-                                sstepper.position = position;
-                                let sstepper_id = "SSTEPPER_" + sstepper.position;
-                                devices[sstepper_id] = sstepper;
-
-                                setup_stepper(cascade, sstepper_id, sstepper.position);
-
-                                break;
-                            }
+                            case tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER : 
                             case tinkerforge.BrickStepper.DEVICE_IDENTIFIER : {
                                 // this brick can have up to 2 bricklets
                                 masterbrick_position[uid] = position;
 
-                                var stepper = new tinkerforge.BrickStepper(uid, ipcon);
+                                let stepper;
+                                let stepper_id;
+                                if (deviceIdentifier == tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER) {
+                                    stepper = new tinkerforge.BrickSilentStepper(uid, ipcon);
+                                    stepper_id = "SSTEPPER_";
+                                } else {
+                                    stepper = new tinkerforge.BrickStepper(uid, ipcon);
+                                    stepper_id = "STEPPER_";
+                                }
                                 stepper.stop();
                                 stepper.disable();
 
                                 stepper.uid_string = uid;
                                 stepper.position = position;
-                                let stepper_id = "STEPPER_" + stepper.position;
+                                stepper_id = stepper_id + stepper.position;
                                 devices[stepper_id] = stepper;
 
                                 setup_stepper(cascade, stepper_id, stepper.position);
