@@ -5,76 +5,10 @@ var BB_INTERFACE = process.env.BB_INTERFACE || "./interfaces/tf_redbrick_resourc
 
 var RUN_GROUP = "00  Run";
 
+/*
 var WARMUP_FEED_ABV = Number(process.env.WARMUP_FEED_ABV) || 1;
 var WARMUP_FEED_RATE = Number(process.env.WARMUP_FEED_RATE) || 3;
 var MIN_PUMP_RATE = Number(process.env.MIN_PUMP_RATE) || 1.5;
-
-/*
-var std_TEMP_probe_names = [
-    // column temps
-    "heads_temp",
-    "hearts_temp",
-    "tails_temp",
-    "sump_temp",
-    //feed system temps
-    "water_temp",
-    "feed_temp",
-    "pre_heater_temp",
-    "post_heater_temp",
-    "coils_output_temp",
-    "water_feed_mix_temp",
-    "stripper_input_temp",
-];
-
-var std_DAC_names = [
-    // Analog (DAC) controls
-    "main_heater",
-    "pre_heater",
-    "post_heater",
-    "water_pump",
-    "feed_pump",
-];
-
-var std_Stepper_names = [
-    "heads_draw_pump",
-    "hearts_draw_pump",
-];
-
-var std_Relay_names = [
-    // Solinoid valves (Relay)
-    "water_cutoff_relay",
-    "feed_cutoff_relay",
-];
-
-//var std_DutyCycle_Relay_names = [  //for still4
-//    // Pseudo-analog controls (DutyCycleRelay)
-//    "feed_mix_dcr",
-//];
-
-var std_Stepper_names = [
-    "heads_reflux_pump",
-    "hearts_reflux_pump",
-];
-
-var std_PID_names = [
-    "main_heater_pid",
-    "pre_heater_pid",
-    "post_heater_pid",
-    "water_pump_pid",
-    "feed_pump_pid",
-    "heads_draw_pid",
-    "hearts_draw_pid",
-];
-
-var std_Function_names = [
-    "Function1",
-];
-
-var std_Variable_names = [
-    "Variable1",
-    "Variable2",
-    "Variable3",
-];
 */
 
 // System Variable definitions are a subset of the component definition and can
@@ -84,23 +18,6 @@ var std_Variable_names = [
 // Defaults are 'read_only: false', 'persist: false' 'group: "functions"',
 // 'units: "NONE".
 var system_Variables = [
-    /*
-    // user set variables
-    {   name: "feed_abv",
-        description: "Percent alcahol in source feed",
-        units: "PERCENTAGE",
-        persist: true,
-    },
-    {   name: "desired_feed_abv",
-        description: "Desired ABV input to still",
-        units: "PERCENTAGE",
-        persist: true,
-    },
-    {   name: "feed_flow_rate",
-        description: "Feed flow rate into the still (GPH)",
-        persist: true,
-    },
-    */
     {   name: "failsafe_temp",
         description: "Failsafe Temp.",
         group: RUN_GROUP,
@@ -112,15 +29,21 @@ var system_Variables = [
     {   name: "boiling_point",
         description: "Water boiling point at current pressure",
         read_only:true,
-        units: "F"
+        units: "C"
+    },
+    {   name: "max_temp",
+        description: "Peak measured temperature",
+        units: "C",
+        value: 0,
     },
 ];
 
 var run_mode;
 var failsafe_temp;
-var barometer;
 var boiling_point;
-var sump_temp;
+var max_temp;
+var barometer;
+/*
 var feed_abv;
 var mix_relay_control;
 var water_pump_control;
@@ -131,6 +54,7 @@ var feed_flow_rate;
 var desired_feed_abv;
 var programmedFeedRate;
 var programmedFeedABV;
+*/
 
 var currentOptionsList = [];
 
@@ -159,45 +83,16 @@ module.exports.setup = function (cascade) {
         soft.create_resource_name_list(cascade, soft_resource_type);
     }
 
-    /*
-    for (let name of std_DAC_names) {
-        new soft.DAC(cascade, name);
-    }
-
-    for (let name of std_Relay_names) {
-        new soft.Relay(cascade, name);
-    }
-
-    for (let name of std_DutyCycle_Relay_names) {
-        new soft.DutyCycle_Relay(cascade, name);
-    }
-
-    for (let name of std_Stepper_names) {
-        new soft.Stepper(cascade, name);
-    }
-
-    for (let name of std_TEMP_probe_names) {
-        new soft.TEMP_probe(cascade, name);
-    }
-
-    for (let name of std_PID_names) {
-        new soft.PID(cascade, name);
-    }
-
-    for (let name of std_Variables) {
-        new soft.Variable(cascade, name);
-    }
-
-    for (let name of std_Functions) {
-        new soft.Function(cascade, name);
-    }
-    */
-
     barometer = new soft.Barometer(cascade);
+    
+    cascade.components.require_component("failsafe_temp",
+        function(component) {failsafe_temp = component;});
+    cascade.components.require_component("boiling_point",
+        function(component) {boiling_point = component;});
+    cascade.components.require_component("max_temp",
+        function(component) {max_temp = component;});
 
-    failsafe_temp = soft.Variable.get_instance("failsafe_temp");
-    boiling_point = soft.Variable.get_instance("boiling_point");
-    sump_temp = soft.Variable.get_instance("sump_temp");
+    /*
     feed_abv = soft.Variable.get_instance("feed_abv");
     feed_flow_rate = soft.Variable.get_instance("feed_flow_rate");
     desired_feed_abv = soft.Variable.get_instance("desired_feed_abv");
@@ -206,6 +101,7 @@ module.exports.setup = function (cascade) {
     water_pump_pid = soft.PID.get_instance("water_pump_pid");
     feed_pump_control = soft.DAC.get_instance("feed_pump");
     feed_pump_pid = soft.PID.get_instance("feed_pump_pid");
+    */
 
     run_mode = cascade.create_component({
         id: "run_mode",
@@ -233,6 +129,7 @@ function getCurrentH2OBoilingPoint()
     return Math.log(baroInHG) * 49.160999 + 44.93;
 }
 
+/*
 function setFlowAndMixing(flow, abv)
 {
     var inputABV = feed_abv.value || 0.0;
@@ -268,15 +165,18 @@ function setFlowAndMixing(flow, abv)
         feed_pump_pid.set_point.value = feed_rate;
     }
 }
+*/
 
 function should_temp_failsafe()
 {
-    var fs_temp = failsafe_temp.value;
+    let Tmax = max_temp.value;
 
     _.each(soft.TEMP_probe.get_instances(), function(probe) {
-        if(probe.get_temperature() >= fs_temp) return true;
+        let T = probe.get_temperature();
+        if (T > Tmax) Tmax = T;
     });
-    return false;
+    max_temp.value = Tmax;
+    return ( Tmax >= failsafe_temp.value);
 }
 
 function during_stop() {
@@ -297,6 +197,7 @@ function during_run(cascade) {
         return;
     }
 
+    /*
     let warming = sump_temp.value < boiling_point.value - 5;
 
     if (warming) {
@@ -308,7 +209,8 @@ function during_run(cascade) {
         programmedFeedABV = desired_feed_abv.value;
     }
     setFlowAndMixing(programmedFeedRate, programmedFeedABV);
-
+    */
+    
     // process Functions;
     _.each(soft.Function.get_instances(), function(func) {func.process_function(cascade);});
     // process PIDs

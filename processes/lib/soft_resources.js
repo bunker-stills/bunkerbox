@@ -37,9 +37,9 @@ module.exports.create_resource_name_list = create_resource_name_list;
 // GLOBALS      //
 //////////////////
 // group oredering using text at start of group name
-var PROCESS_CONTROL_GROUP = "01  Process Controls";
-var PROCESS_SENSOR_GROUP = "02  Process Sensors";
-var FUNCTION_GROUP = "03  Functions";
+var FUNCTION_GROUP = "01  Functions";
+var PROCESS_CONTROL_GROUP = "02  Process Controls";
+var PROCESS_SENSOR_GROUP = "03  Process Sensors";
 var pid_group_number = 4;
 var SOFT_RESOURCE_LISTS = "70 Soft Resources";
 var HR_ASSIGNMENT_GROUP = "80  Resource Assignment";
@@ -522,6 +522,17 @@ function SoftResource_Function(cascade, name) {
     SoftResource_SR.call(this, cascade, name);
 
     this.script = undefined;
+
+    this.enable = cascade.create_component({
+        id: name + "_enable",
+        name: this.description + " Enable",
+        group: FUNCTION_GROUP,
+        display_order: next_display_order(),
+        type: cascade.TYPES.BOOLEAN,
+        persist: true,
+        value: false,
+    });
+
     this.code = cascade.create_component({
         id: name + "_code",
         name: this.description + " JavaScript Code",
@@ -530,7 +541,7 @@ function SoftResource_Function(cascade, name) {
         type: cascade.TYPES.BIG_TEXT,
         persist: true
     });
-
+    
     this.create_script(cascade);
     this.code.on("value_updated", function () {
         self.create_script(cascade);
@@ -570,7 +581,7 @@ SoftResource_Function.prototype.create_script = function(cascade) {
 
 SoftResource_Function.prototype.process_function = function (cascade) {
     // Evaluate this function
-    if (this.script) {
+    if (this.enable && this.enable.value && this.script) {
 
         // Get the current values of all of our components
         var component_values = {};
@@ -1306,8 +1317,8 @@ var probe_constructor = function(this_probe) {
 var probe_attach_HR = function(this_probe, HR_name) {
     if (!this_probe.probe_temperature) {
         this_probe.probe_temperature = this_probe.cascade.create_component({
-            id: this_probe.name + "_temperature",
-            name: this_probe.description + " Temperature",
+            id: this_probe.name,
+            name: this_probe.description + " (calibrated)",
             group: PROCESS_SENSOR_GROUP,
             display_order: next_display_order(),
             class: "sr_probe",

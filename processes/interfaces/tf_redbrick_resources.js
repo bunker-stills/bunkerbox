@@ -7,7 +7,7 @@ var onewireTempSensors = require("./../lib/onewire_temp_sensors");  // sensor in
 var TESTING = Boolean(process.env.TESTING) || false;
 
 var SENSORS_GROUP = "97  HR Sensors";
-var PROCESS_CONTROLS_GROUP = "98  HR Process Controls";
+var PROCESS_CONTROLS_GROUP = "98  HR Controls";
 var RESOURCE_NAMES_GROUP = "99  Hard Resources";
 
 // Display orders:
