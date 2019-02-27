@@ -39,6 +39,7 @@ var boiling_point;
 var max_temp;
 var barometer;
 
+var do_PID_options = true;
 var currentOptionsList = [];
 
 //////////////////////////////////////////////////////////////////////////////
@@ -138,11 +139,7 @@ function during_run(cascade) {
     _.each(soft.PID.get_instances(), function(pid) {pid.process_pid();});
 }
 
-
-module.exports.loop = function (cascade) {
-
-    boiling_point.value = getCurrentH2OBoilingPoint();
-
+function set_PID_options(cascade) {
     var _optionsComponentList = _.filter(
         _.map(cascade.components.all_current,
             function(component) {
@@ -170,6 +167,21 @@ module.exports.loop = function (cascade) {
             pid.set_pid_options(currentOptionsList);
         });
     }
+}
+
+module.exports.loop = function (cascade) {
+    
+    // Because PID options are a significant procedure and rarely change,
+    // we do them every 30 seconds.
+    if (do_PID_options) {
+        set_pid_options(cascade);
+        do_PID_options = false;
+        setTimeout(function() {
+            do_PID_options = true;
+            }, 30000);
+    }
+    
+    boiling_point.value = getCurrentH2OBoilingPoint();
 
     switch (run_mode.value.toUpperCase()) {
         case "RUN": {

@@ -1321,6 +1321,7 @@ var probe_attach_HR = function(this_probe, HR_name) {
             group: PROCESS_SENSOR_GROUP,
             display_order: next_display_order(),
             class: "sr_probe",
+            read_only: true,
             type: this_probe.cascade.TYPES.NUMBER,
             units: this_probe.cascade.UNITS.C,
             value: 0
