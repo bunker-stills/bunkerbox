@@ -561,6 +561,19 @@ function setup_thermocouple_probe(cascade, id, position) {
 
 function create_temp_probe(cascade, probe_name) {
     var probe_component = {};
+    probe_component.ma_buf = [];
+    probe_component.filterTemp = function(tempValue) {
+        var ma_len = Math.min(20, Math.max(0, Math.trunc(this.ma_filter.value || 0)));
+        if (ma_len) {
+            this.ma_buf.push(tempValue);
+            while (this.ma_buf.length < ma_len) this.ma_buf.push(tempValue);
+            while (this.ma_buf.length > ma_len) this.ma_buf.shift();
+            return this.ma_buf.reduce( (sum, temp) => sum + temp ) / ma_len;
+        }
+        else {
+            return tempValue;
+        }
+    };
 
     probe_component.raw = cascade.create_component({
         id: probe_name + "_raw",
@@ -571,6 +584,17 @@ function create_temp_probe(cascade, probe_name) {
         read_only: true,
         units: cascade.UNITS.C,
         type: cascade.TYPES.NUMBER
+    });
+
+    probe_component.ma_filter = cascade.create_component({
+        id: probe_name + "_MA_filter",
+        name: probe_name + " Moving Avg. Filter",
+        group: SENSORS_GROUP,
+        display_order: next_display_order(),
+        persist: true,
+        units: cascade.UNITS.NONE,
+        type: cascade.TYPES.NUMBER,
+        value: 0,
     });
 
     probe_component.calibration = cascade.create_component({
@@ -899,6 +923,7 @@ module.exports.loop = function (cascade) {
             tcDevice.getTemperature(function (temperature) {
                 var tempValue = temperature / 100;
                 tempProbe.raw.value = tempValue;
+                tempValue = tempProbe.filterTemp(tempValue);
                 tempProbe.calibrated.value = tempValue + (tempProbe.calibration.value || 0);
             });
         }
@@ -917,6 +942,7 @@ module.exports.loop = function (cascade) {
             ptcDevice.getTemperature(function (temperature) {
                 var tempValue = temperature / 100;
                 tempProbe.raw.value = tempValue;
+                tempValue = tempProbe.filterTemp(tempValue);
                 tempProbe.calibrated.value = tempValue + (tempProbe.calibration.value || 0);
             });
         }
@@ -936,14 +962,15 @@ module.exports.loop = function (cascade) {
                 for (let netAddress in probes) {
                     var tempValue = probes[netAddress];
                     let probe_name = id + "_" + netAddress;
-                    var tempComponent = tempProbes[probe_name];
-                    if (!tempComponent) {
+                    var tempProbe = tempProbes[probe_name];
+                    if (!tempProbe) {
                         create_temp_probe(cascade, probe_name);
-                        tempComponent = tempProbes[probe_name];
+                        tempProbe = tempProbes[probe_name];
                     }
 
-                    tempComponent.raw.value = tempValue;
-                    tempComponent.calibrated.value = tempValue + (tempComponent.calibration.value || 0);
+                    tempProbe.raw.value = tempValue;
+                    tempValue = tempProbe.filterTemp(tempValue);
+                    tempProbe.calibrated.value = tempValue + (tempProbe.calibration.value || 0);
                 }
                 ow.in_use = false;
             });
