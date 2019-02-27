@@ -5,11 +5,6 @@ var BB_INTERFACE = process.env.BB_INTERFACE || "./interfaces/tf_redbrick_resourc
 
 var RUN_GROUP = "00  Run";
 
-/*
-var WARMUP_FEED_ABV = Number(process.env.WARMUP_FEED_ABV) || 1;
-var WARMUP_FEED_RATE = Number(process.env.WARMUP_FEED_RATE) || 3;
-var MIN_PUMP_RATE = Number(process.env.MIN_PUMP_RATE) || 1.5;
-*/
 
 // System Variable definitions are a subset of the component definition and can
 // include name, description, group, ,read_only, persist, units.
@@ -43,18 +38,6 @@ var failsafe_temp;
 var boiling_point;
 var max_temp;
 var barometer;
-/*
-var feed_abv;
-var mix_relay_control;
-var water_pump_control;
-var water_pump_pid;
-var feed_pump_control;
-var feed_pump_pid;
-var feed_flow_rate;
-var desired_feed_abv;
-var programmedFeedRate;
-var programmedFeedABV;
-*/
 
 var currentOptionsList = [];
 
@@ -68,8 +51,8 @@ module.exports.setup = function (cascade) {
     cascade.require_process(BB_INTERFACE);
 
     // auxiliary application processes
-    //cascade.require_process("warm_restart");
-    //cascade.require_process("interfaces/data_recorder");
+    cascade.require_process("warm_restart");
+    cascade.require_process("interfaces/data_recorder");
 
     for (let vardef of system_Variables) {
         new soft.Variable(cascade, vardef);
@@ -92,17 +75,6 @@ module.exports.setup = function (cascade) {
     cascade.components.require_component("max_temp",
         function(component) {max_temp = component;});
 
-    /*
-    feed_abv = soft.Variable.get_instance("feed_abv");
-    feed_flow_rate = soft.Variable.get_instance("feed_flow_rate");
-    desired_feed_abv = soft.Variable.get_instance("desired_feed_abv");
-    mix_relay_control = soft.DutyCycle_Relay.get_instance("feed_mix_DCR");
-    water_pump_control = soft.DAC.get_instance("water_pump");
-    water_pump_pid = soft.PID.get_instance("water_pump_pid");
-    feed_pump_control = soft.DAC.get_instance("feed_pump");
-    feed_pump_pid = soft.PID.get_instance("feed_pump_pid");
-    */
-
     run_mode = cascade.create_component({
         id: "run_mode",
         name: "Run Mode",
@@ -124,48 +96,10 @@ function getCurrentH2OBoilingPoint()
     if (!barometer || !barometer.air_pressure) return 212.0;
 
     var baroInHG = barometer.air_pressure.value * 0.02953;
-    if (!baroInHG) return 212.0;
+    if (!baroInHG) return 100.0;
 
-    return Math.log(baroInHG) * 49.160999 + 44.93;
+    return ((Math.log(baroInHG) * 49.160999 + 44.93) -32) * 5/9;
 }
-
-/*
-function setFlowAndMixing(flow, abv)
-{
-    var inputABV = feed_abv.value || 0.0;
-    var feed_rate;
-    var water_rate;
-
-    if (mix_relay_control && mix_relay_control.HR_assignment) {
-        // duty cycle relay controlled mix
-        if (inputABV <= abv) {
-            mix_relay_control.reset_dcr();  // shut down cycling
-            mix_relay_control.RELAY_enable.value = true;  // turn on relay
-        }
-        else {
-            mix_relay_control.DCR_cycle_enable.value = true;
-            mix_relay_control.DCR_on_percent.value = abv / inputABV;
-        }
-        feed_pump_pid.set_point.value = flow;
-    }
-    else if (feed_pump_control && feed_pump_control.HR_assignment && 
-        water_pump_control && water_pump_control.HR_assignment) {
-        if(inputABV <= abv) {
-            // TODO: We probably want a minimum pump rate to insure
-            //       water is flowing through the comumn coils.
-            feed_rate = flow - MIN_PUMP_RATE;
-            water_rate = MIN_PUMP_RATE;
-        }
-        else {
-            feed_rate = flow * abv / inputABV;
-            water_rate = Math.max(flow - feed_rate, MIN_PUMP_RATE);
-            feed_rate = flow - water_rate;
-        }
-        water_pump_pid.set_point.value = water_rate;
-        feed_pump_pid.set_point.value = feed_rate;
-    }
-}
-*/
 
 function should_temp_failsafe()
 {
@@ -197,22 +131,9 @@ function during_run(cascade) {
         return;
     }
 
-    /*
-    let warming = sump_temp.value < boiling_point.value - 5;
-
-    if (warming) {
-        programmedFeedRate = WARMUP_FEED_RATE;
-        programmedFeedABV = WARMUP_FEED_ABV;
-    }
-    else {
-        programmedFeedRate = feed_flow_rate.value;
-        programmedFeedABV = desired_feed_abv.value;
-    }
-    setFlowAndMixing(programmedFeedRate, programmedFeedABV);
-    */
-    
     // process Functions;
     _.each(soft.Function.get_instances(), function(func) {func.process_function(cascade);});
+
     // process PIDs
     _.each(soft.PID.get_instances(), function(pid) {pid.process_pid();});
 }

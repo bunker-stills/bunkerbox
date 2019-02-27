@@ -249,7 +249,7 @@ function SoftResource_PID(cascade, name) {
             self._pid.reset();
         }
         else {
-            self._pid.setIntegral(this.i_term.value);
+            self._pid.setIntegral(self.i_term.value);
         }
     });
 
@@ -260,7 +260,6 @@ function SoftResource_PID(cascade, name) {
         display_order: next_display_order(),
         read_only: false,
         type: cascade.TYPES.NUMBER,
-        units: cascade.UNITS.F
     });
 
     this.process_component_name = cascade.create_component({
