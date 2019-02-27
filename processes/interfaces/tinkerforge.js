@@ -7,9 +7,11 @@ var util = require("util");
 
 var devices = {};
 
-var MAIN_HEATER_DAC_POSITION = process.env.MAIN_HEATER_DAC_POSITION || "A";
-var PRE_HEATER_DAC_POSITION = process.env.PRE_HEATER_DAC_POSITION || "B";
-var PUMP_DAC_POSITION = process.env.PUMP_DAC_POSITION || "C";
+var MAIN_HEATER_DAC_POSITION = process.env.MAIN_HEATER_DAC_POSITION || "1A";
+var PRE_HEATER_DAC_POSITION = process.env.PRE_HEATER_DAC_POSITION || "1B";
+var PUMP_DAC_POSITION = process.env.PUMP_DAC_POSITION || "1C";
+var POST_HEATER_DAC_POSITION = process.env.PRE_HEATER_DAC_POSITION || "3C";
+var FEED_PUMP_DAC_POSITION = process.env.PUMP_DAC_POSITION || "3D";
 
 function mapRange(value, in_min, in_max, out_min, out_max) {
     var output = (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
@@ -43,6 +45,8 @@ var OUTPUT_TYPES = {
 var PUMP_OUTPUT_TYPE = process.env.PUMP_OUTPUT_TYPE || "VOLTAGE_RANGE_0_TO_5V";
 var PRE_HEATER_OUTPUT_TYPE = process.env.PRE_HEATER_OUTPUT_TYPE || "CURRENT_RANGE_4_TO_20MA";
 var MAIN_HEATER_OUTPUT_TYPE = process.env.MAIN_HEATER_OUTPUT_TYPE || "CURRENT_RANGE_4_TO_20MA";
+var FEED_PUMP_OUTPUT_TYPE = process.env.PUMP_OUTPUT_TYPE || "VOLTAGE_RANGE_0_TO_5V";
+var POST_HEATER_OUTPUT_TYPE = process.env.MAIN_HEATER_OUTPUT_TYPE || "CURRENT_RANGE_4_TO_20MA";
 
 var dacs = {};
 var relays = {};
@@ -195,6 +199,7 @@ module.exports.setup = function (cascade) {
             throw error;
         }
 
+        var masterbrick_position = {};
         ipcon.on(tinkerforge.IPConnection.CALLBACK_ENUMERATE,
             function (uid, connectedUid, position, hardwareVersion, firmwareVersion, deviceIdentifier, enumerationType) {
 
@@ -210,11 +215,15 @@ module.exports.setup = function (cascade) {
                 }
                 else if (enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_CONNECTED || enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_AVAILABLE) {
                     switch (deviceIdentifier) {
+                        case tinkerforge.BrickMaster.DEVICE_IDENTIFIER : {
+                            masterbrick_position[uid] = position;
+                            break;
+                        }
                         case tinkerforge.BrickletOneWire.DEVICE_IDENTIFIER : {
                             // This is the new TF one wire bricklet
                             var owTempSensors = new onewireTempSensors(uid, ipcon);
                             owTempSensors.uid_string = uid;
-                            owTempSensors.position = position;
+                            owTempSensors.position = masterbrick_position[connectedUid] + position;
                             owTempSensors.in_use = false;
                             devices["onewire2"] = owTempSensors;
 
@@ -226,7 +235,7 @@ module.exports.setup = function (cascade) {
                         case Bricklet1Wire.DEVICE_IDENTIFIER : {
                             var oneWire = new Bricklet1Wire(uid, ipcon);
                             oneWire.uid_string = uid;
-                            oneWire.position = position;
+                            oneWire.position = masterbrick_position[connectedUid] + position;
                             oneWire.in_use = false;
                             devices["onewire"] = oneWire;
 
@@ -265,24 +274,25 @@ module.exports.setup = function (cascade) {
                         case tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER : {
                             var dac = new tinkerforge.BrickletIndustrialAnalogOut(uid, ipcon);
                             dac.uid_string = uid;
-                            dac.position = position;
+                            dac.position = masterbrick_position[connectedUid] + position;
                             dac.disable();
                             dac.setVoltage(0);
                             dac.setCurrent(0);
-                            devices["dac_" + position.toUpperCase()] = dac;
+                            devices["dac_" + dac.position.toUpperCase()] = dac;
+
                             break;
                         }
                         case tinkerforge.BrickletBarometer.DEVICE_IDENTIFIER : {
                             var barometer = new tinkerforge.BrickletBarometer(uid, ipcon);
                             barometer.uid_string = uid;
-                            barometer.position = position;
+                            barometer.position = masterbrick_position[connectedUid] + position;
                             devices["barometer"] = barometer;
                             break;
                         }
                         case tinkerforge.BrickletIndustrialQuadRelay.DEVICE_IDENTIFIER : {
                             var relay = new tinkerforge.BrickletIndustrialQuadRelay(uid, ipcon);
                             relay.uid_string = uid;
-                            relay.position = position;
+                            relay.position = masterbrick_position[connectedUid] + position;
                             devices["relays"] = relay;
                             break;
                         }
@@ -296,6 +306,8 @@ module.exports.setup = function (cascade) {
     create_dac(cascade, "pump", "Pump", PUMP_DAC_POSITION, PUMP_OUTPUT_TYPE);
     create_dac(cascade, "pre_heater", "Preheater", PRE_HEATER_DAC_POSITION, PRE_HEATER_OUTPUT_TYPE);
     create_dac(cascade, "main_heater", "Main Heater", MAIN_HEATER_DAC_POSITION, MAIN_HEATER_OUTPUT_TYPE);
+    create_dac(cascade, "post_heater", "Postheater", POST_HEATER_DAC_POSITION, POST_HEATER_OUTPUT_TYPE);
+    create_dac(cascade, "feed_pump", "Feedpump", FEED_PUMP_DAC_POSITION, FEED_PUMP_OUTPUT_TYPE);
 
     create_relay(cascade, "relay_0", "Relay 0", 0);
     create_relay(cascade, "relay_1", "Relay 1", 1);
