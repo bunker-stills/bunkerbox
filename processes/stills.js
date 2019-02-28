@@ -139,7 +139,7 @@ function during_run(cascade) {
     _.each(soft.PID.get_instances(), function(pid) {pid.process_pid();});
 }
 
-function set_PID_options(cascade) {
+function set_OptionsList(cascade) {
     var _optionsComponentList = _.filter(
         _.map(cascade.components.all_current,
             function(component) {
@@ -174,7 +174,7 @@ module.exports.loop = function (cascade) {
     // Because PID options are a significant procedure and rarely change,
     // we do them every 30 seconds.
     if (do_PID_options) {
-        set_pid_options(cascade);
+        set_OptionsList(cascade);
         do_PID_options = false;
         setTimeout(function() {
             do_PID_options = true;
