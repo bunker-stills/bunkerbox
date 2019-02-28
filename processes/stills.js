@@ -1,6 +1,7 @@
 var _ = require("underscore");
 var soft = require("./lib/soft_resources");
 
+var TESTING = Boolean(process.env.TESTING) || false;
 var BB_INTERFACE = process.env.BB_INTERFACE || "./interfaces/tf_redbrick_resources";
 
 var RUN_GROUP = "00  Run";
@@ -53,7 +54,9 @@ module.exports.setup = function (cascade) {
 
     // auxiliary application processes
     cascade.require_process("warm_restart");
-    cascade.require_process("interfaces/data_recorder");
+    if (!TESTING) {
+        cascade.require_process("interfaces/data_recorder");
+    }
 
     for (let vardef of system_Variables) {
         new soft.Variable(cascade, vardef);
@@ -178,7 +181,7 @@ module.exports.loop = function (cascade) {
         do_PID_options = false;
         setTimeout(function() {
             do_PID_options = true;
-            }, 30000);
+        }, 30000);
     }
     
     boiling_point.value = getCurrentH2OBoilingPoint();
