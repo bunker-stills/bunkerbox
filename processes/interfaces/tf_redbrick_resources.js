@@ -22,6 +22,9 @@ var next_display_order = function() {
 var relay_names = [];
 var dac_names = [];
 var stepper_names = [];
+var input_names = [];  // of io4
+var output_names = []; // of io4
+var dist_names = [];
 var ow_names = [];
 var ptc_names = [];
 var tc_names = [];
@@ -30,17 +33,38 @@ var tc_names = [];
 var quadrelays = {};
 var dacs = {};
 var steppers = {};
+var io4s = {};
 var barometers = {};
+var distIRs = {};
 var onewireNets = {};
 var thermocoupleProbes = {};
 var ptcProbes = {};
 //var barometer_component;
 
-// all temp probes by probe address (tc_id, ptc_id, or ow_id + probe)
+// all temp probes by probe ids (tc_id, ptc_id, or ow_id + probe)
 var tempProbes = {};
 
 // tinkerforge hardware interfaces indexed by device id (eg "DAC_3C").
 var devices = {};
+
+var add_name_to_list = function(list, name, sorted) {
+    if (!name) return;
+    let i_name = list.indexOf(name);
+    if (i_name >= 0) return;  // already in list
+    list.push(name);
+    if (sorted) {
+        list.sort();
+    }
+    return name;
+};
+
+var remove_name_from_list = function(list, name) {
+    if (!name) return;
+    let i_name = list.indexOf(name);
+    if (i_name < 0) return;
+    list.splice(i_name, 1);
+    return name;
+};
 
 
 function set_relays(quadrelay_info) {
@@ -366,6 +390,105 @@ function setup_stepper(cascade, id, position) {
     //update_hard_resource_list_component(cascade, "STEPPER_HR_names", stepper_names.sort());
 }
 
+var IO4_CONFIGURATION = [
+    "INPUT_WITH_PULLUP",
+    "INPUT_FLOATING",
+    "OUTPUT_INITIALIZED_LOW",
+    "OUTPUT_INITIALIZED_HIGH",
+];
+
+function configure_io4(cascade, io4_info, io_index) {
+    let io = io4_info.interface;
+    if (io && io4_info.configuration[io_index]) {
+        let direction;
+        let value;
+        let configuration = io4_info.configuration[io_index].value;
+        if (configuration.startsWith("INPUT")) {
+            direction = "i";
+            value = configuration.endsWith("FLOATING");
+            add_name_to_list(input_names, io4_info.id, true);
+            remove_name_from_list(output_names, io4_info.id);
+        } else {
+            direction = "o";
+            value = configuration.endsWith("HIGH");
+            add_name_to_list(output_names, io4_info.id, true);
+            remove_name_from_list(input_names, io4_info.id);
+        }
+        
+        io.setConfiguration(io_index, direction, value);
+        
+        if (direction == "i") {
+            io.on(io.CALLBACK_INPUT_VALUE, function(channel, changed, value) {
+                io4_info.port_value[channel].value = value;
+            });
+            io.setInputValueCallbackConfiguration(io_index, 1, true);
+        } else {
+            io.setInputValueCallbackConfiguration(io_index, 0, false);
+        }
+        
+        // If HR_names components are already created, then update them.
+        if (cascade.components.all_current["BIT_IN_HR_names"]) {
+            update_hard_resource_list_component(cascade,
+                "BIT_IN_HR_names", input_names.sort());
+            update_hard_resource_list_component(cascade,
+                "BIT_OUT_HR_names", output_names.sort());
+        }
+    }
+}
+
+function set_io4(io4_info, io_index) {
+    let io = io4_info.interface;
+    if (io && io4_info.port_value[io_index]) {
+        io.setSelectedValue(io_index, io4_info.port_value[io_index].value);
+    }
+}
+
+function setup_io4(cascade, id, position) {
+    var io4_info = {
+        id: id,
+        position: position,
+        interface: devices[id],
+        port_value: [undefined, undefined, undefined, undefined],
+        configuration: [undefined, undefined, undefined, undefined],
+    };
+
+    for(let io_index in [0,1,2,3]) {
+        let io_id_base = "IO_" + position;
+        let io_id = io_id_base + "_" + io_index;
+        io4_info.port_value[io_index] = cascade.create_component({
+            id: io_id,
+            name: io_id_base + " # " + io_index,
+            group: PROCESS_CONTROLS_GROUP,
+            display_order: next_display_order(),
+            class: "io",
+            type: cascade.TYPES.BOOLEAN,
+            value: false
+        });
+        
+        io4_info.configuration[io_index] = cascade.create_component({
+            id: io_id + "_configuration",
+            name: io_id + " IO Configuration",
+            group: PROCESS_CONTROLS_GROUP,
+            display_order: next_display_order(),
+            class: "io_configure",
+            persist: true,
+            type: cascade.TYPES.OPTIONS,
+            info: {options: IO4_CONFIGURATION},
+        });
+    
+        io4_info.configuration[io_index].on("value_updated", function () {
+            configure_io4(cascade, io4_info, io_index);
+        });
+        // eslint-disable-next-line no-self-assign
+        io4_info.configuration[io_index].value = io4_info.configuration[io_index].value;
+
+        io4_info.port_value[io_index].on("value_updated", function() {
+            set_io4(io4_info, io_index); 
+        });
+    }
+    io4s[id] = io4_info;
+}
+
 function setup_barometer(cascade, id, position) {
     var barometer_info = {
         id: id,
@@ -385,6 +508,63 @@ function setup_barometer(cascade, id, position) {
     });
 
     barometers[id] = barometer_info;
+}
+
+function configure_dist_ma(dist_info) {
+    dist = dist_info.interface;
+    if (dist) {
+        dist.setMovingAverageConfiguration(dist_info.dist_ma.value);
+    }
+}
+
+function setup_distIR(cascade, id, position) {
+    var dist_info = {
+        id: id,
+        position: position,
+        interface: devices[id],
+        dist: undefined,
+        dist_ma: undefined,
+    };
+
+    dist_info.dist = cascade.create_component({
+        id: id + "_distance",
+        group: SENSORS_GROUP,
+        display_order: next_display_order(),
+        class: "dist",
+        read_only: true,
+        units: "mm",
+        type: cascade.TYPES.NUMBER
+    });
+
+    let dist = dist_info.interface;
+
+    if (dist) {
+        dist.setDistanceCallbackConfiguration(1000, false, "x", 0, 0);
+            
+        dist.on(dist.CALLBACK_DISTANCE, function(distance) {
+            dist_info.dist.value = distance;
+        });
+    }
+        
+    dist_info.dist_ma = cascade.create_component({
+        id: id + "_ma",
+        name: id + " Moving Average Length",
+        group: SENSORS_GROUP,
+        display_order: next_display_order(),
+        class: "dist_ma",
+        persist: true,
+        type: cascade.TYPES.NUMBER,
+        value: 50,
+    });
+
+    dist_info.dist_ma.on("value_updated", function () {
+        configure_dist_ma(dist_info);
+    });
+    // eslint-disable-next-line no-self-assign
+    dist_info.dist_ma.value = dist_info.dist_ma.value;
+
+    dist_names.push(id);
+    distIRs[id] = dist_info;
 }
 
 function setup_onewire_net(cascade, id, position) {
@@ -662,8 +842,11 @@ module.exports.setup = function (cascade) {
             setup_dac(cascade, id, pos);
         }
 
+        setup_distIR(cascade, "DIST_3A", "3A");
+        setup_io4(cascade, "IO_3B", "3B");
+
         for (let pos of ["3C", "3D"]) {
-            id = "QUADRELAY_"+pos;
+            id = "QUADRELAY_" + pos;
             setup_quadrelay(cascade, id, pos);
         }
 
@@ -834,12 +1017,29 @@ module.exports.setup = function (cascade) {
                             }
                             case tinkerforge.BrickletIO4V2.DEVICE_IDENTIFIER : {
 
+                                var IO4 = new tinkerforge.BrickletIO4V2(uid, ipcon);
+
+                                IO4.uid_string = uid;
+                                IO4.position = masterbrick_position[connectedUid] + position;
+                                let IO4_id = "IO4_" + IO4.position;
+                                devices[IO4_id] = IO4;
+
+                                setup_io4(cascade, IO4_id, IO4.position);
+
                                 cascade.log_error(new Error("Device not yet supported: BrickletIO4V2"));
                                 break;
                             }
                             case tinkerforge.BrickletDistanceIRV2.DEVICE_IDENTIFIER : {
 
-                                cascade.log_error(new Error("Device not yet supported: BrickletDistanceIRV2"));
+                                var distIR = new tinkerforge.BrickletDistanceIRV2(uid, ipcon);
+
+                                distIR.uid_string = uid;
+                                distIR.position = masterbrick_position[connectedUid] + position;
+                                let distIR_id = "DISTIR_" + distIR.position;
+                                devices[distIR_id] = distIR;
+
+                                setup_distIR(cascade, distIR_id, distIR.position);
+
                                 break;
                             }
                         }
@@ -856,6 +1056,9 @@ module.exports.setup = function (cascade) {
         update_hard_resource_list_component(cascade, "RELAY_HR_names", relay_names.sort());
         update_hard_resource_list_component(cascade, "DAC_HR_names", dac_names.sort());
         update_hard_resource_list_component(cascade, "STEPPER_HR_names", stepper_names.sort());
+        update_hard_resource_list_component(cascade, "BIT_IN_HR_names", input_names.sort());
+        update_hard_resource_list_component(cascade, "BIT_OUT_HR_names", output_names.sort());
+        update_hard_resource_list_component(cascade, "DIST_HR_names", dist_names.sort());
         update_hard_resource_list_component(cascade, "PTC_PROBE_HR_names", ptc_names.sort());
         update_hard_resource_list_component(cascade, "TC_PROBE_HR_names", tc_names.sort());
         update_hard_resource_list_component(cascade, "OW_PROBE_HR_names", ow_names.sort());

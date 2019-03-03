@@ -6,10 +6,13 @@ var pid_controller = require("./pid");
 module.exports.PID = SoftResource_PID;
 module.exports.Variable = SoftResource_Variable;
 module.exports.Function = SoftResource_Function;
+module.exports.BitOut = SoftResource_BIT_OUT;
 module.exports.Relay = SoftResource_RELAY;
 module.exports.DutyCycle_Relay = SoftResource_DUTYCYCLE_RELAY;
 module.exports.DAC = SoftResource_DAC;
 module.exports.Stepper = SoftResource_STEPPER;
+module.exports.BitIn = SoftResource_BIT_IN;
+module.exports.Distance = SoftResource_DISTANCE;
 module.exports.OW_probe = SoftResource_OW_PROBE;
 module.exports.TC_probe = SoftResource_TC_PROBE;
 module.exports.PTC_probe = SoftResource_PTC_PROBE;
@@ -18,10 +21,13 @@ module.exports.Barometer = SoftResource_Barometer;
 
 // export list of soft resource types
 module.exports.resource_types = [
+    "BitOut",
     "Relay",
     "DutyCycleRelay",
     "DAC",
     "Stepper",
+    "BitIn",
+    "Distance",
     "OW_probe",
     "TC_probe",
     "PTC_probe",
@@ -791,6 +797,69 @@ SoftResource_HR.prototype.on_HR_names_update = function() {
 };
 
 //////////////////////
+// BIT_OUT          //
+//////////////////////
+
+function SoftResource_BIT_OUT(cascade, name) {
+    this.init_subclass_properties(SoftResource_BIT_OUT);
+    SoftResource_HR.call(this, cascade, name);
+
+    // components for this SR
+    this.HR_port_value = undefined;
+    this.bit_value = undefined;
+}
+
+// Link prototype to base class
+SoftResource_BIT_OUT.prototype = create_SoftResource_HR_prototype("BIT_OUT");
+
+// add psuedo class methods (not inherited by subclasses).
+SoftResource_BIT_OUT.get_instances = function() {
+    return SoftResource_BIT_OUT.prototype._instances_of_type;
+};
+SoftResource_BIT_OUT.get_instance = function(name) {
+    return SoftResource_BIT_OUT.prototype._instances_of_type[name];
+};
+
+// Add type instance methods
+SoftResource_BIT_OUT.prototype.attach_HR = function(HR_name) {
+    var self = this;
+    if (!this.bit_value) {
+        this.bit_value = this.cascade.create_component({
+            id: this.name,
+            name: this.description,
+            group: PROCESS_CONTROL_GROUP,
+            display_order: next_display_order(),
+            class: "bit output",
+            type: this.cascade.TYPES.BOOLEAN,
+            value: false
+        });
+    }
+    this.bit_value.value = false;
+    this.cascade.components.require_component(HR_name,
+        function(component) {
+            self.HR_port_value = component;
+            set_driving_components(self.bit_value, self.HR_port_value);
+        });
+    this.HR_assignment = HR_name;
+};
+
+SoftResource_BIT_OUT.prototype.detach_HR = function() {
+    this.bit_value.value = false;
+    unset_driving_components(this.bit_value, this.HR_port_value);
+
+    this.HR_port_value = undefined;
+    var prior_assignment = this.HR_assignment;
+    this.HR_assignment =  undefined;
+    return prior_assignment;
+};
+
+SoftResource_BIT_OUT.prototype.reset_bit_out = function() {
+    if (this.bit_value) {
+        this.bit_value.value = false;
+    }
+};
+
+//////////////////////
 // RELAY            //
 //////////////////////
 
@@ -1210,6 +1279,130 @@ SoftResource_STEPPER.prototype.reset_stepper = function() {
 };
 
 //////////////////////
+// BIT_IN           //
+//////////////////////
+function SoftResource_BIT_IN(cascade, name) {
+    this.init_subclass_properties(SoftResource_BIT_IN);
+    SoftResource_HR.call(this, cascade, name);
+    this.HR_port_value = undefined;
+    this.bit_value = undefined;
+}
+
+// add psuedo class methods (not inherited by subclasses).
+SoftResource_BIT_IN.get_instances = function() {
+    return SoftResource_BIT_IN.prototype._instances_of_type;
+};
+SoftResource_BIT_IN.get_instance = function(name) {
+    return SoftResource_BIT_IN.prototype._instances_of_type[name];
+};
+
+SoftResource_BIT_IN.prototype = create_SoftResource_HR_prototype("BIT_IN");
+
+SoftResource_BIT_IN.prototype.attach_HR = function(HR_name) {
+    if (!this.bit_value) {
+        this.bit_value = this.cascade.create_component({
+            id: this.name,
+            name: this.description,
+            group: PROCESS_SENSOR_GROUP,
+            display_order: next_display_order(),
+            class: "bit input",
+            read_only: true,
+            type: this.cascade.TYPES.NUMBER,
+            units: this.cascade.UNITS.NONE,
+            value: 0
+        });
+    }
+
+    this.cascade.components.require_component(HR_name,
+        function(component) {
+            this.HR_port_value = component;
+            set_driving_components(this.HR_port_value, this.bit_value);
+        });
+    this.HR_assignment = HR_name;
+};
+
+SoftResource_BIT_IN.prototype.detach_HR = function() { 
+    if (this.HR_port_value) {
+        unset_driving_components(this.HR_port_value, this.bit_value);
+    }
+    this.HR_port_value = undefined;
+    this.bit_value.value = 0;
+
+    var prior_assignment = this.HR_assignment;
+    this.HR_assignment = undefined;
+    return prior_assignment;
+};
+
+SoftResource_BIT_IN.prototype.get_bit_value = function() {
+    if (this.bit_value) {
+        return this.bit_value.value;
+    }
+    return 0;
+};
+
+//////////////////////
+// DISTANCE            //
+//////////////////////
+function SoftResource_DISTANCE(cascade, name) {
+    this.init_subclass_properties(SoftResource_DISTANCE);
+    SoftResource_HR.call(this, cascade, name);
+    this.HR_distance = undefined;
+    this.distance = undefined;
+}
+
+// add psuedo class methods (not inherited by subclasses).
+SoftResource_DISTANCE.get_instances = function() {
+    return SoftResource_DISTANCE.prototype._instances_of_type;
+};
+SoftResource_DISTANCE.get_instance = function(name) {
+    return SoftResource_DISTANCE.prototype._instances_of_type[name];
+};
+
+SoftResource_DISTANCE.prototype = create_SoftResource_HR_prototype("DISTANCE");
+
+SoftResource_DISTANCE.prototype.attach_HR = function(HR_name) {
+    if (!this.distance) {
+        this.distance = this.cascade.create_component({
+            id: this.name,
+            name: this.description + "Distance (mm)",
+            group: PROCESS_SENSOR_GROUP,
+            display_order: next_display_order(),
+            class: "distance",
+            read_only: true,
+            type: this.cascade.TYPES.NUMBER,
+            value: 0
+        });
+    }
+
+    this.cascade.components.require_component(HR_name,
+        function(component) {
+            this.HR_port_value = component;
+            set_driving_components(this.HR_distance, this.distance);
+        });
+    this.HR_assignment = HR_name;
+};
+
+SoftResource_DISTANCE.prototype.detach_HR = function() { 
+    if (this.HR_distance) {
+        unset_driving_components(this.HR_distance, this.distance);
+    }
+    this.HR_distance = undefined;
+    this.distance.value = 0;
+
+    var prior_assignment = this.HR_assignment;
+    this.HR_assignment = undefined;
+    return prior_assignment;
+};
+
+SoftResource_DISTANCE.prototype.get_distance = function() {
+    if (this.distance) {
+        return this.distance.value;
+    }
+    return 0;
+};
+
+
+//////////////////////
 // OW_PROBE         //
 //////////////////////
 
@@ -1234,15 +1427,15 @@ SoftResource_OW_PROBE.prototype.detach_HR = function() { return probe_detach_HR(
 SoftResource_OW_PROBE.prototype.get_temperature = function() { return probe_get_temperature(this);};
 
 
+//////////////////////
+// TC_PROBE         //
+//////////////////////
+
 function SoftResource_TC_PROBE(cascade, name) {
     this.init_subclass_properties(SoftResource_TC_PROBE);
     SoftResource_HR.call(this, cascade, name);
     probe_constructor(this, cascade, name);
 }
-
-//////////////////////
-// TC_PROBE         //
-//////////////////////
 
 // add psuedo class methods (not inherited by subclasses).
 SoftResource_TC_PROBE.get_instances = function() {
