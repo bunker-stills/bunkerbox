@@ -403,35 +403,42 @@ function configure_io4(cascade, io4_info, io_index) {
         let direction;
         let value;
         let configuration = io4_info.configuration[io_index].value;
-        if (configuration.startsWith("INPUT")) {
-            direction = "i";
-            value = configuration.endsWith("FLOATING");
-            add_name_to_list(input_names, io4_info.id, true);
-            remove_name_from_list(output_names, io4_info.id);
-        } else {
-            direction = "o";
-            value = configuration.endsWith("HIGH");
-            add_name_to_list(output_names, io4_info.id, true);
-            remove_name_from_list(input_names, io4_info.id);
-        }
-        
-        io.setConfiguration(io_index, direction, value);
-        
-        if (direction == "i") {
-            io.on(io.CALLBACK_INPUT_VALUE, function(channel, changed, value) {
-                io4_info.port_value[channel].value = value;
-            });
-            io.setInputValueCallbackConfiguration(io_index, 1, true);
-        } else {
-            io.setInputValueCallbackConfiguration(io_index, 0, false);
-        }
-        
-        // If HR_names components are already created, then update them.
-        if (cascade.components.all_current["BIT_IN_HR_names"]) {
-            update_hard_resource_list_component(cascade,
-                "BIT_IN_HR_names", input_names.sort());
-            update_hard_resource_list_component(cascade,
-                "BIT_OUT_HR_names", output_names.sort());
+        if (configuration) {
+            let port_name = io4_info.port_value[io_index].id;
+            if (configuration.startsWith("INPUT")) {
+                direction = "i";
+                value = configuration.endsWith("PULLUP");
+                add_name_to_list(input_names, port_name, true);
+                remove_name_from_list(output_names, port_name);
+            } else {
+                direction = "o";
+                value = configuration.endsWith("HIGH");
+                add_name_to_list(output_names, port_name, true);
+                remove_name_from_list(input_names, port_name);
+            }
+            
+            io.setConfiguration(io_index, direction, value);
+            
+            if (direction == "i") {
+                io.on(tinkerforge.BrickletIO4V2.CALLBACK_INPUT_VALUE, 
+                    function(channel, changed, value) {
+                        io4_info.port_value[channel].value = value;
+                    });
+                io.setInputValueCallbackConfiguration(io_index, 30, true);
+                io.getValue(function(value) {
+                    io4_info.port_value[io_index].value = value[io_index];
+                });
+            } else {
+                io.setInputValueCallbackConfiguration(io_index, 0, false);
+            }
+            
+            // If HR_names components are already created, then update them.
+            if (cascade.components.all_current["BIT_IN_HR_names"]) {
+                update_hard_resource_list_component(cascade,
+                    "BIT_IN_HR_names", input_names.sort());
+                update_hard_resource_list_component(cascade,
+                    "BIT_OUT_HR_names", output_names.sort());
+            }
         }
     }
 }
@@ -511,7 +518,7 @@ function setup_barometer(cascade, id, position) {
 }
 
 function configure_dist_ma(dist_info) {
-    dist = dist_info.interface;
+    let dist = dist_info.interface;
     if (dist) {
         dist.setMovingAverageConfiguration(dist_info.dist_ma.value);
     }
@@ -541,7 +548,7 @@ function setup_distIR(cascade, id, position) {
     if (dist) {
         dist.setDistanceCallbackConfiguration(1000, false, "x", 0, 0);
             
-        dist.on(dist.CALLBACK_DISTANCE, function(distance) {
+        dist.on(tinkerforge.BrickletDistanceIRV2.CALLBACK_DISTANCE, function(distance) {
             dist_info.dist.value = distance;
         });
     }
@@ -1026,7 +1033,6 @@ module.exports.setup = function (cascade) {
 
                                 setup_io4(cascade, IO4_id, IO4.position);
 
-                                cascade.log_error(new Error("Device not yet supported: BrickletIO4V2"));
                                 break;
                             }
                             case tinkerforge.BrickletDistanceIRV2.DEVICE_IDENTIFIER : {
@@ -1058,7 +1064,7 @@ module.exports.setup = function (cascade) {
         update_hard_resource_list_component(cascade, "STEPPER_HR_names", stepper_names.sort());
         update_hard_resource_list_component(cascade, "BIT_IN_HR_names", input_names.sort());
         update_hard_resource_list_component(cascade, "BIT_OUT_HR_names", output_names.sort());
-        update_hard_resource_list_component(cascade, "DIST_HR_names", dist_names.sort());
+        update_hard_resource_list_component(cascade, "DISTANCE_HR_names", dist_names.sort());
         update_hard_resource_list_component(cascade, "PTC_PROBE_HR_names", ptc_names.sort());
         update_hard_resource_list_component(cascade, "TC_PROBE_HR_names", tc_names.sort());
         update_hard_resource_list_component(cascade, "OW_PROBE_HR_names", ow_names.sort());

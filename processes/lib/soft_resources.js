@@ -1299,6 +1299,7 @@ SoftResource_BIT_IN.get_instance = function(name) {
 SoftResource_BIT_IN.prototype = create_SoftResource_HR_prototype("BIT_IN");
 
 SoftResource_BIT_IN.prototype.attach_HR = function(HR_name) {
+    var self = this;
     if (!this.bit_value) {
         this.bit_value = this.cascade.create_component({
             id: this.name,
@@ -1307,16 +1308,15 @@ SoftResource_BIT_IN.prototype.attach_HR = function(HR_name) {
             display_order: next_display_order(),
             class: "bit input",
             read_only: true,
-            type: this.cascade.TYPES.NUMBER,
+            type: this.cascade.TYPES.BOOLEAN,
             units: this.cascade.UNITS.NONE,
-            value: 0
         });
     }
 
     this.cascade.components.require_component(HR_name,
         function(component) {
-            this.HR_port_value = component;
-            set_driving_components(this.HR_port_value, this.bit_value);
+            self.HR_port_value = component;
+            set_driving_components(self.HR_port_value, self.bit_value);
         });
     this.HR_assignment = HR_name;
 };
@@ -1361,10 +1361,11 @@ SoftResource_DISTANCE.get_instance = function(name) {
 SoftResource_DISTANCE.prototype = create_SoftResource_HR_prototype("DISTANCE");
 
 SoftResource_DISTANCE.prototype.attach_HR = function(HR_name) {
+    var self = this;
     if (!this.distance) {
         this.distance = this.cascade.create_component({
             id: this.name,
-            name: this.description + "Distance (mm)",
+            name: this.description + " Distance (mm)",
             group: PROCESS_SENSOR_GROUP,
             display_order: next_display_order(),
             class: "distance",
@@ -1374,10 +1375,10 @@ SoftResource_DISTANCE.prototype.attach_HR = function(HR_name) {
         });
     }
 
-    this.cascade.components.require_component(HR_name,
+    this.cascade.components.require_component(HR_name + "_distance",
         function(component) {
-            this.HR_port_value = component;
-            set_driving_components(this.HR_distance, this.distance);
+            self.HR_distance = component;
+            set_driving_components(self.HR_distance, self.distance);
         });
     this.HR_assignment = HR_name;
 };
