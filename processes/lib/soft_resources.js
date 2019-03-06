@@ -57,6 +57,28 @@ var next_display_order = function() {
     return global_display_order;
 };
 
+// Function source text processing
+var commentRegex = /\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm;
+var identifierRegex = /[$A-Z_][0-9A-Z_$]*/gi;
+var structuredRegex = /[$A-Z_][0-9A-Z_$]*(\.[$A-Z_][0-9A-Z_$]*)+/gi;
+
+var reserveWords = new Set([
+    "abstract", "arguments", "await", "boolean",
+    "break", "byte", "case", "catch",
+    "char", "class", "const", "continue",
+    "debugger", "default", "delete", "do",
+    "double", "else", "enum", "eval",
+    "export", "extends", "false", "final",
+    "finally", "float", "for", "function",
+    "goto", "if", "implements", "import",
+    "in", "instanceof", "int", "interface",
+    "let", "long", "native", "new",
+    "null", "package", "private", "protected",
+    "public", "return", "short", "static",
+    "super", "switch", "synchronized", "this",
+    "throw", "throws", "transient", "true",
+    "try", "typeof", "var", "void",
+]);
 
 /////////////////
 // Utilities   //
@@ -150,7 +172,6 @@ var set_driving_components = function(driver, driven) {
     if (!driver || !driven) return;
     //driven.read_only = true;  not settable
     driven.mirror_component(driver);
-    //console.log("Mirror: " + driver.id + " -> " + driven.id);
 };
 
 var unset_driving_components = function(driver, driven) {
@@ -158,7 +179,6 @@ var unset_driving_components = function(driver, driven) {
     if (driven.mirrored_component !== driver) return;
     //driven.read_only = false;  not settable
     driven.mirror_component();
-    //console.log("unMirror: " + driver.id + " / " + driven.id);
 };
 
 /*
@@ -527,6 +547,7 @@ function SoftResource_Function(cascade, name) {
     SoftResource_SR.call(this, cascade, name);
 
     this.script = undefined;
+    this.context = undefined;
 
     this.enable = cascade.create_component({
         id: name + "_enable",
@@ -567,6 +588,8 @@ SoftResource_Function.get_instance = function(name) {
 // Add type instance methods
 SoftResource_Function.prototype.create_script = function(cascade) {
 
+    var self = this;
+    
     if (!this.code.value) {
         this.script = undefined;
         return;
@@ -582,38 +605,49 @@ SoftResource_Function.prototype.create_script = function(cascade) {
     catch (e) {
         cascade.log_error("ERROR: " + e.toString());
     }
+    
+    // create the context object
+    this.context = {};
+    
+    var source = this.code.value.replace(commentRegex, function() { return "";});
+    source = source.replace(structuredRegex, function() { return "";});
+    source.replace(identifierRegex, function(id) {
+        if (reserveWords.has(id)) return;
+        self.context[id] = undefined;
+    });
 };
 
 SoftResource_Function.prototype.process_function = function (cascade) {
     // Evaluate this function
     if (this.enable && this.enable.value && this.script) {
 
-        // Get the current values of all of our components
-        var component_values = {};
-        var functions = _.values(this.instances_of_type);
-        _.each(cascade.components.all_current, function(component) {
-            // Remove any functions themselves from the list
-            if (_.find(functions,
-                function (custom_function) {
-                    return (component === custom_function.code);})) {
-                return;
+        // Get the current values of all referenced components
+        for (let id in this.context) {
+            let component = cascade.components.all_current[id];
+            if (component) {
+                this.context[id] = component.value;
+            } else {
+                let func_obj = SoftResource_Function.get_instance(id);
+                if (func_obj) {
+                    this.context[id] = func_obj.code.value;
+                }
             }
-
-            component_values[component.id] = component.value;
-        });
-
+        }
+        
         try {
-            this.script.runInNewContext(component_values, {timeout: 3000});
+            this.script.runInNewContext(this.context, {timeout: 3000});
         }
         catch (e) {
             cascade.log_error("ERROR: function " + this.name + ": " + e.toString());
             return;
         }
 
-        _.each(component_values, function (value, id) {
-            var component = cascade.components.all_current[id];
-            if (component && !component.read_only && value != component.value) {
-                component.value = value;
+        _.each(this.context, function (value, id) {
+            let component = cascade.components.all_current[id];
+            if (component && !component.read_only) {
+                if (component.value != value) {
+                    component.value = value;
+                }
             }
         });
     }
