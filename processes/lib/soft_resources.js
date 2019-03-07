@@ -555,9 +555,10 @@ function SoftResource_Function(cascade, name) {
         group: FUNCTION_GROUP,
         display_order: next_display_order(),
         type: cascade.TYPES.BOOLEAN,
-        persist: true,
-        value: false,
+        value: this.name == "$Init$",
     });
+    // Note that $Init$ is the only function that comes up enabled.
+    // It can enable other functions and/or disable itself.
 
     this.code = cascade.create_component({
         id: name + "_code",
