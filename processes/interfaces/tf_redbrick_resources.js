@@ -120,32 +120,45 @@ function mapRange(value, in_min, in_max, out_min, out_max) {
 
 var DAC_OUTPUT_TYPES = {
     VOLTAGE_RANGE_0_TO_5V: function (tfInterface, outputPercent) {
-        tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOutV2.VOLTAGE_RANGE_0_TO_5V, 0);
+        //tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOutV2.VOLTAGE_RANGE_0_TO_5V, 0);
         var output = Math.round(mapRange(outputPercent, 0, 100, 0, 5000));
         tfInterface.setVoltage(output);
     },
     VOLTAGE_RANGE_0_TO_10V: function (tfInterface, outputPercent) {
-        tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOutV2.VOLTAGE_RANGE_0_TO_10V, 0);
+        //tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOutV2.VOLTAGE_RANGE_0_TO_10V, 0);
         var output = Math.round(mapRange(outputPercent, 0, 100, 0, 10000));
         tfInterface.setVoltage(output);
     },
-    VOLTAGE_RANGE_2_TO_10V: function (tfInterface, outputPercent) {
-        tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOutV2.VOLTAGE_RANGE_2_TO_10V, 0);
-        var output = Math.round(mapRange(outputPercent, 0, 100, 2000, 10000));
-        tfInterface.setVoltage(output);
-    },
     CURRENT_RANGE_4_TO_20MA: function (tfInterface, outputPercent) {
-        tfInterface.setConfiguration(0, tinkerforge.BrickletIndustrialAnalogOutV2.CURRENT_RANGE_4_TO_20MA);
+        //tfInterface.setConfiguration(0, tinkerforge.BrickletIndustrialAnalogOutV2.CURRENT_RANGE_4_TO_20MA);
         var output = Math.round(mapRange(outputPercent, 0, 100, 4000, 20000));
         tfInterface.setCurrent(output);
-    }
+    },
+    CURRENT_RANGE_0_TO_20MA: function (tfInterface, outputPercent) {
+        //tfInterface.setConfiguration(0, tinkerforge.BrickletIndustrialAnalogOutV2.CURRENT_RANGE_0_TO_20MA);
+        var output = Math.round(mapRange(outputPercent, 0, 100, 0, 20000));
+        tfInterface.setCurrent(output);
+    },
+    CURRENT_RANGE_0_TO_24MA: function (tfInterface, outputPercent) {
+        //tfInterface.setConfiguration(0, tinkerforge.BrickletIndustrialAnalogOutV2.CURRENT_RANGE_0_TO_24MA);
+        var output = Math.round(mapRange(outputPercent, 0, 100, 0, 24000));
+        tfInterface.setCurrent(output);
+    },
 };
 
 function set_dac(dac_info) {
     let dac = dac_info.interface;
     if (dac) {
 
-        dac_info.setFunction = DAC_OUTPUT_TYPES[dac_info.output_type.value];
+        if (dac_info.set_configuration) {
+            let config = dac_info.output_type.value;
+            if (config) {
+                dac_info.set_configuration = false;
+                dac_info.setFunction = DAC_OUTPUT_TYPES[config];
+                dac.setConfiguration(0, tinkerforge.BrickletIndustrialAnalogOutV2[config]);
+            }
+        }
+    
         if (dac_info.setFunction) {
 
             dac_info.setFunction(dac, dac_info.output.value);
@@ -171,7 +184,8 @@ function setup_dac(cascade, id, position) {
         id: id,
         position: position,
         interface: devices[id],
-        setFunction: DAC_OUTPUT_TYPES.NO_OUTPUT
+        setFunction: DAC_OUTPUT_TYPES.NO_OUTPUT,
+        set_configuration: true;
     };
 
     dac_info.enable = cascade.create_component({
@@ -215,7 +229,8 @@ function setup_dac(cascade, id, position) {
     });
 
     dac_info.output_type.on("value_updated", function () {
-        set_dac(dac_info);
+        dac_info.set_configuration = true;
+        //set_dac(dac_info);
     });
 
     // eslint-disable-next-line no-self-assign
