@@ -59,6 +59,7 @@ var next_display_order = function() {
 
 // Function source text processing
 var commentRegex = /\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm;
+var stringLiteralRegex = /(['"])(?:(?!(?:\\|\1)).|\\.)*\1/g;
 var identifierRegex = /[$A-Z_][0-9A-Z_$]*/gi;
 var structuredRegex = /[$A-Z_][0-9A-Z_$]*(\.[$A-Z_][0-9A-Z_$]*)+/gi;
 
@@ -568,9 +569,10 @@ function SoftResource_Function(cascade, name) {
         group: FUNCTION_GROUP,
         display_order: next_display_order(),
         type: cascade.TYPES.BOOLEAN,
-        persist: true,
-        value: false,
+        value: this.name == "_Init_",
     });
+    // Note that _Init_ is the only function that comes up enabled.
+    // It can enable other functions and/or disable itself.
 
     this.code = cascade.create_component({
         id: name + "_code",
@@ -620,9 +622,13 @@ SoftResource_Function.prototype.create_script = function(cascade) {
     }
     
     // create the context object
-    this.context = {};
+    this.context = {
+        console: console,   // for output eg debug, errors, etc.
+        myStore: {},        // for persistent data
+    };
     
     var source = this.code.value.replace(commentRegex, function() { return "";});
+    source = source.replace(stringLiteralRegex, function() { return "";});
     source = source.replace(structuredRegex, function() { return "";});
     source.replace(identifierRegex, function(id) {
         if (reserveWords.has(id)) return;
