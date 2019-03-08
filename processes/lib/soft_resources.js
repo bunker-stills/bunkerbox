@@ -59,6 +59,7 @@ var next_display_order = function() {
 
 // Function source text processing
 var commentRegex = /\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm;
+var stringLiteralRegex = /(['"])(?:(?!(?:\\|\1)).|\\.)*\1/g;
 var identifierRegex = /[$A-Z_][0-9A-Z_$]*/gi;
 var structuredRegex = /[$A-Z_][0-9A-Z_$]*(\.[$A-Z_][0-9A-Z_$]*)+/gi;
 
@@ -598,9 +599,9 @@ SoftResource_Function.prototype.create_script = function(cascade) {
 
     try {
         var script_code =
-                "var _return_value; function custom(){" +
+                "var _return_value; function " + name + "(){" +
                 this.code.value +
-                "}; _return_value = custom();";
+                "}; _return_value = " + name + "();";
         this.script = vm.createScript(script_code);
     }
     catch (e) {
@@ -611,6 +612,7 @@ SoftResource_Function.prototype.create_script = function(cascade) {
     this.context = {};
     
     var source = this.code.value.replace(commentRegex, function() { return "";});
+    source = source.replace(stringLiteralRegex, function() { return "";});
     source = source.replace(structuredRegex, function() { return "";});
     source.replace(identifierRegex, function(id) {
         if (reserveWords.has(id)) return;
