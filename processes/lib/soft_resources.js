@@ -556,9 +556,9 @@ function SoftResource_Function(cascade, name) {
         group: FUNCTION_GROUP,
         display_order: next_display_order(),
         type: cascade.TYPES.BOOLEAN,
-        value: this.name == "$Init$",
+        value: this.name == "_Init_",
     });
-    // Note that $Init$ is the only function that comes up enabled.
+    // Note that _Init_ is the only function that comes up enabled.
     // It can enable other functions and/or disable itself.
 
     this.code = cascade.create_component({
@@ -599,9 +599,9 @@ SoftResource_Function.prototype.create_script = function(cascade) {
 
     try {
         var script_code =
-                "var _return_value; function " + name + "(){" +
+                "var _return_value; function custom(){" +
                 this.code.value +
-                "}; _return_value = " + name + "();";
+                "}; _return_value = custom();";
         this.script = vm.createScript(script_code);
     }
     catch (e) {
@@ -609,7 +609,10 @@ SoftResource_Function.prototype.create_script = function(cascade) {
     }
     
     // create the context object
-    this.context = {};
+    this.context = {
+        console: console,   // for output eg debug, errors, etc.
+        myStore: {},        // for persistent data
+    };
     
     var source = this.code.value.replace(commentRegex, function() { return "";});
     source = source.replace(stringLiteralRegex, function() { return "";});
