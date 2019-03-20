@@ -71,7 +71,7 @@ module.exports.setup = function (cascade) {
     }
 
     barometer = new soft.Barometer(cascade);
-    
+
     cascade.components.require_component("failsafe_temp",
         function(component) {failsafe_temp = component;});
     cascade.components.require_component("boiling_point",
@@ -97,7 +97,7 @@ module.exports.setup = function (cascade) {
 
 function getCurrentH2OBoilingPoint()
 {
-    if (!barometer || !barometer.air_pressure) return 212.0;
+    if (!barometer || !barometer.air_pressure) return 100.0;
 
     var baroInHG = barometer.air_pressure.value * 0.02953;
     if (!baroInHG) return 100.0;
@@ -173,7 +173,7 @@ function set_OptionsList(cascade) {
 }
 
 module.exports.loop = function (cascade) {
-    
+
     // Because PID options are a significant procedure and rarely change,
     // we do them every 30 seconds.
     if (do_PID_options) {
@@ -183,7 +183,7 @@ module.exports.loop = function (cascade) {
             do_PID_options = true;
         }, 30000);
     }
-    
+
     boiling_point.value = getCurrentH2OBoilingPoint();
 
     switch (run_mode.value.toUpperCase()) {

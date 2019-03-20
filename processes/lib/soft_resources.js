@@ -114,7 +114,7 @@ var process_names_list = function(cascade, names_string, soft_resource_type) {
     //        // each SR must deactivate all its components, then delete itself
     //        // pid options should recognize deactivated components and exclude them
     //}    }
-    
+
     // Add any new names
     for (let name of names) {
         if (!module.exports[soft_resource_type].get_instance(name)) {
@@ -569,7 +569,7 @@ function SoftResource_Function(cascade, name) {
         type: cascade.TYPES.BIG_TEXT,
         persist: true
     });
-    
+
     this.create_script(cascade);
     this.code.on("value_updated", function () {
         self.create_script(cascade);
@@ -591,7 +591,9 @@ SoftResource_Function.get_instance = function(name) {
 SoftResource_Function.prototype.create_script = function(cascade) {
 
     var self = this;
-    
+
+    cascade.log_info("Compile function " + this.name)
+
     if (!this.code.value) {
         this.script = undefined;
         return;
@@ -605,15 +607,15 @@ SoftResource_Function.prototype.create_script = function(cascade) {
         this.script = vm.createScript(script_code);
     }
     catch (e) {
-        cascade.log_error("ERROR: " + e.toString());
+        cascade.log_error("Compile error in " + this.name + ": " + e.toString());
     }
-    
+
     // create the context object
     this.context = {
         console: console,   // for output eg debug, errors, etc.
         myStore: {},        // for persistent data
     };
-    
+
     var source = this.code.value.replace(commentRegex, function() { return "";});
     source = source.replace(stringLiteralRegex, function() { return "";});
     source = source.replace(structuredRegex, function() { return "";});
@@ -639,12 +641,12 @@ SoftResource_Function.prototype.process_function = function (cascade) {
                 }
             }
         }
-        
+
         try {
             this.script.runInNewContext(this.context, {timeout: 3000});
         }
         catch (e) {
-            cascade.log_error("ERROR: function " + this.name + ": " + e.toString());
+            cascade.log_error("Runtime error in function " + this.name + ": " + e.toString());
             return;
         }
 
@@ -658,7 +660,6 @@ SoftResource_Function.prototype.process_function = function (cascade) {
         });
     }
 };
-
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1361,7 +1362,7 @@ SoftResource_BIT_IN.prototype.attach_HR = function(HR_name) {
     this.HR_assignment = HR_name;
 };
 
-SoftResource_BIT_IN.prototype.detach_HR = function() { 
+SoftResource_BIT_IN.prototype.detach_HR = function() {
     if (this.HR_port_value) {
         unset_driving_components(this.HR_port_value, this.bit_value);
     }
@@ -1423,7 +1424,7 @@ SoftResource_DISTANCE.prototype.attach_HR = function(HR_name) {
     this.HR_assignment = HR_name;
 };
 
-SoftResource_DISTANCE.prototype.detach_HR = function() { 
+SoftResource_DISTANCE.prototype.detach_HR = function() {
     if (this.HR_distance) {
         unset_driving_components(this.HR_distance, this.distance);
     }
