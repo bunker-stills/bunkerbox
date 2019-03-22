@@ -512,7 +512,7 @@ function SoftResource_Variable(cascade, vardef) {
         name: (vardef.description || this.description),
         group: (vardef.group || FUNCTION_GROUP),
         display_order: next_display_order(),
-        type: cascade.TYPES.NUMBER,
+        type: (vardef.type || cascade.TYPES.NUMBER),
         units: (vardef.units || cascade.UNITS.NONE),
         read_only: vardef.read_only || false,
         persist: vardef.persist || false,
@@ -522,7 +522,7 @@ function SoftResource_Variable(cascade, vardef) {
         this.component.value = this.component.value;
     }
     else {
-        this.component.value = vardef.value;
+        this.component.value = vardef.value || 0;
     }
 }
 
@@ -592,7 +592,7 @@ SoftResource_Function.prototype.create_script = function(cascade) {
 
     var self = this;
 
-    cascade.log_info("Compile function " + this.name)
+    cascade.log_info("Compile function " + this.name);
 
     if (!this.code.value) {
         this.script = undefined;

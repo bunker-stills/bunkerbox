@@ -21,6 +21,12 @@ var system_Variables = [
         persist: true,
         value: 120
     },
+    {   name: "log_message",
+        description: "Log a console message",
+        group: RUN_GROUP,
+        type: "TEXT",
+        value: " ",
+    },
     // system set variable
     {   name: "boiling_point",
         description: "Water boiling point at current pressure",
@@ -61,6 +67,13 @@ module.exports.setup = function (cascade) {
     for (let vardef of system_Variables) {
         new soft.Variable(cascade, vardef);
     }
+
+    cascade.components.require_component("log_message",
+        function(component) {
+            component.on("value_updated", function() {
+                cascade.log_info("OPERATOR MSG: " + component.value);
+            });
+        });
 
     for (let soft_resource_type of soft.resource_types) {
         if (soft_resource_type === "Barometer") continue;
