@@ -71,7 +71,7 @@ module.exports.setup = function (cascade) {
     cascade.components.require_component("log_message",
         function(component) {
             component.on("value_updated", function() {
-                cascade.log_info("OPERATOR MSG: " + component.value);
+                cascade.log_notice("OPERATOR MSG: " + component.value);
             });
         });
 
