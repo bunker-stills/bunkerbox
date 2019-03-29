@@ -21,6 +21,12 @@ var system_Variables = [
         persist: true,
         value: 120
     },
+    {   name: "log_message",
+        description: "Log a console message",
+        group: RUN_GROUP,
+        type: "TEXT",
+        value: " ",
+    },
     // system set variable
     {   name: "boiling_point",
         description: "Water boiling point at current pressure",
@@ -62,6 +68,13 @@ module.exports.setup = function (cascade) {
         new soft.Variable(cascade, vardef);
     }
 
+    cascade.components.require_component("log_message",
+        function(component) {
+            component.on("value_updated", function() {
+                cascade.log_notice("OPERATOR MSG: " + component.value);
+            });
+        });
+
     for (let soft_resource_type of soft.resource_types) {
         if (soft_resource_type === "Barometer") continue;
         if (soft_resource_type === "OW_probe") continue;
@@ -71,7 +84,7 @@ module.exports.setup = function (cascade) {
     }
 
     barometer = new soft.Barometer(cascade);
-    
+
     cascade.components.require_component("failsafe_temp",
         function(component) {failsafe_temp = component;});
     cascade.components.require_component("boiling_point",
@@ -97,7 +110,7 @@ module.exports.setup = function (cascade) {
 
 function getCurrentH2OBoilingPoint()
 {
-    if (!barometer || !barometer.air_pressure) return 212.0;
+    if (!barometer || !barometer.air_pressure) return 100.0;
 
     var baroInHG = barometer.air_pressure.value * 0.02953;
     if (!baroInHG) return 100.0;
@@ -173,7 +186,7 @@ function set_OptionsList(cascade) {
 }
 
 module.exports.loop = function (cascade) {
-    
+
     // Because PID options are a significant procedure and rarely change,
     // we do them every 30 seconds.
     if (do_PID_options) {
@@ -183,7 +196,7 @@ module.exports.loop = function (cascade) {
             do_PID_options = true;
         }, 30000);
     }
-    
+
     boiling_point.value = getCurrentH2OBoilingPoint();
 
     switch (run_mode.value.toUpperCase()) {

@@ -11,11 +11,22 @@ var PROCESS_CONTROLS_GROUP = "98  HR Controls";
 var RESOURCE_NAMES_GROUP = "99  Hard Resources";
 
 // Display orders:
-var global_display_order = 1000;
-var next_display_order = function() {
-    global_display_order += 1;
-    return global_display_order;
+var global_display_order = 100;
+var next_display_order = function(skip) {
+    let rtn = global_display_order;
+    global_display_order += skip || 1;
+    return rtn;
 };
+var RELAY_DISPLAY_BASE = 1000;
+var IO4_DISPLAY_BASE = 2000;
+var DAC_DISPLAY_BASE = 3000;
+var STEPPER_DISPLAY_BASE = 4000;
+var BAROMETER_DISPLAY_BASE = 10000;
+var DISTIR_DISPLAY_BASE = 11000;
+var PTC_DISPLAY_BASE = 12000;
+var TC_DISPLAY_BASE = 13000;
+var OW_DISPLAY_BASE = 14000;
+var HR_LISTS_DISPLAY_BASE = 20000;
 
 
 // hard resource names at individual relay or probe level, eg "OW_2A_28af3098c5b7041d", "DAc_3a", "RELAY_2B_2"
@@ -83,6 +94,8 @@ function set_relays(quadrelay_info) {
 }
 
 function setup_quadrelay(cascade, id, position) {
+    let display_base = RELAY_DISPLAY_BASE + next_display_order(5);
+
     var quadrelay_info = {
         id: id,
         position: position,
@@ -97,7 +110,7 @@ function setup_quadrelay(cascade, id, position) {
             id: relay_id,
             name: relay_id_base + " # " + relay_index,
             group: PROCESS_CONTROLS_GROUP,
-            display_order: next_display_order(),
+            display_order: display_base + Number(relay_index),
             class: "relay",
             type: cascade.TYPES.BOOLEAN,
             value: false
@@ -180,6 +193,8 @@ function set_dac(dac_info) {
 }
 
 function setup_dac(cascade, id, position) {
+    let display_base = DAC_DISPLAY_BASE + next_display_order(5);
+
     var dac_info = {
         id: id,
         position: position,
@@ -192,7 +207,7 @@ function setup_dac(cascade, id, position) {
         id: id + "_enable",
         name: id + " Enable",
         group: PROCESS_CONTROLS_GROUP,
-        display_order: next_display_order(),
+        display_order: display_base,
         class: "dac_enable",
         type: cascade.TYPES.BOOLEAN,
         value: false
@@ -206,7 +221,7 @@ function setup_dac(cascade, id, position) {
         id: id + "_output",
         name: id + " Output Percent",
         group: PROCESS_CONTROLS_GROUP,
-        display_order: next_display_order(),
+        display_order: display_base + 1,
         class: "dac_output",
         type: cascade.TYPES.NUMBER,
         units: cascade.UNITS.PERCENTAGE,
@@ -221,7 +236,7 @@ function setup_dac(cascade, id, position) {
         id: id + "_output_type",
         name: id + " Output Type",
         group: PROCESS_CONTROLS_GROUP,
-        display_order: next_display_order(),
+        display_order: display_base + 2,
         class: "dac_configure",
         persist: true,
         type: cascade.TYPES.OPTIONS,
@@ -293,6 +308,8 @@ function set_stepper(stepper_info) {
 }
 
 function setup_stepper(cascade, id, position) {
+    let display_base = STEPPER_DISPLAY_BASE + next_display_order(10);
+
     var stepper_info = {
         id: id,
         position: position,
@@ -319,7 +336,7 @@ function setup_stepper(cascade, id, position) {
         id: id + "_enable",
         name: id + " Enable",
         group: PROCESS_CONTROLS_GROUP,
-        display_order: next_display_order(),
+        display_order: display_base,
         class: "stepper_enable",
         type: cascade.TYPES.BOOLEAN,
         value: false
@@ -333,7 +350,7 @@ function setup_stepper(cascade, id, position) {
         id: id + "_velocity",
         name: id + " Velocity Percent",
         group: PROCESS_CONTROLS_GROUP,
-        display_order: next_display_order(),
+        display_order: display_base + 1,
         class: "stepper_velocity",
         type: cascade.TYPES.NUMBER,
         units: cascade.UNITS.PERCENTAGE,
@@ -346,12 +363,13 @@ function setup_stepper(cascade, id, position) {
 
     stepper_info.max_motor_speed = cascade.create_component({
         id: id + "_max_motor_speed",
-        name: id + " Max Motor Speed (steps/sec)",
+        name: id + " Max Motor Speed",
         group: PROCESS_CONTROLS_GROUP,
-        display_order: next_display_order(),
+        display_order: display_base + 2,
         class: "stepper_configure",
         persist: true,
         type: cascade.TYPES.NUMBER,
+        units: "steps/sec",
     });
 
     stepper_info.max_motor_speed.on("value_updated", function () {
@@ -370,7 +388,7 @@ function setup_stepper(cascade, id, position) {
         id: id + "_reverse",
         name: id + " Reverse",
         group: PROCESS_CONTROLS_GROUP,
-        display_order: next_display_order(),
+        display_order: display_base + 3,
         class: "stepper_configure",
         persist: true,
         type: cascade.TYPES.BOOLEAN,
@@ -385,12 +403,13 @@ function setup_stepper(cascade, id, position) {
 
     stepper_info.motor_current = cascade.create_component({
         id: id + "_motor_current",
-        name: id + " Motor Current (mA)",
+        name: id + " Motor Current",
         group: PROCESS_CONTROLS_GROUP,
-        display_order: next_display_order(),
+        display_order: display_base + 4,
         class: "stepper_configure",
         persist: true,
         type: cascade.TYPES.NUMBER,
+        units: "mA",
     });
 
     stepper_info.motor_current.on("value_updated", function () {
@@ -431,11 +450,11 @@ function configure_io4(cascade, io4_info, io_index) {
                 add_name_to_list(output_names, port_name, true);
                 remove_name_from_list(input_names, port_name);
             }
-            
+
             io.setConfiguration(io_index, direction, value);
-            
+
             if (direction == "i") {
-                io.on(tinkerforge.BrickletIO4V2.CALLBACK_INPUT_VALUE, 
+                io.on(tinkerforge.BrickletIO4V2.CALLBACK_INPUT_VALUE,
                     function(channel, changed, value) {
                         io4_info.port_value[channel].value = value;
                     });
@@ -446,7 +465,7 @@ function configure_io4(cascade, io4_info, io_index) {
             } else {
                 io.setInputValueCallbackConfiguration(io_index, 0, false);
             }
-            
+
             // If HR_names components are already created, then update them.
             if (cascade.components.all_current["BIT_IN_HR_names"]) {
                 update_hard_resource_list_component(cascade,
@@ -466,6 +485,8 @@ function set_io4(io4_info, io_index) {
 }
 
 function setup_io4(cascade, id, position) {
+    let display_base = IO4_DISPLAY_BASE + next_display_order(20);
+
     var io4_info = {
         id: id,
         position: position,
@@ -481,23 +502,23 @@ function setup_io4(cascade, id, position) {
             id: io_id,
             name: io_id_base + " # " + io_index,
             group: PROCESS_CONTROLS_GROUP,
-            display_order: next_display_order(),
+            display_order: display_base + 3 * io_index,
             class: "io",
             type: cascade.TYPES.BOOLEAN,
             value: false
         });
-        
+
         io4_info.configuration[io_index] = cascade.create_component({
             id: io_id + "_configuration",
             name: io_id + " IO Configuration",
             group: PROCESS_CONTROLS_GROUP,
-            display_order: next_display_order(),
+            display_order: display_base + 3 * io_index + 1,
             class: "io_configure",
             persist: true,
             type: cascade.TYPES.OPTIONS,
             info: {options: IO4_CONFIGURATION},
         });
-    
+
         io4_info.configuration[io_index].on("value_updated", function () {
             configure_io4(cascade, io4_info, io_index);
         });
@@ -505,7 +526,7 @@ function setup_io4(cascade, id, position) {
         io4_info.configuration[io_index].value = io4_info.configuration[io_index].value;
 
         io4_info.port_value[io_index].on("value_updated", function() {
-            set_io4(io4_info, io_index); 
+            set_io4(io4_info, io_index);
         });
     }
     io4s[id] = io4_info;
@@ -522,7 +543,7 @@ function setup_barometer(cascade, id, position) {
         id: "barometer",  // assumes only one barometer per system
         name: "Barometer",
         group: SENSORS_GROUP,
-        display_order: next_display_order(),
+        display_order: BAROMETER_DISPLAY_BASE + next_display_order(),
         class: "barometer",
         read_only: true,
         units: "mbar",
@@ -540,6 +561,7 @@ function configure_dist_ma(dist_info) {
 }
 
 function setup_distIR(cascade, id, position) {
+    let display_base = DISTIR_DISPLAY_BASE + next_display_order(5);
     var dist_info = {
         id: id,
         position: position,
@@ -551,7 +573,7 @@ function setup_distIR(cascade, id, position) {
     dist_info.dist = cascade.create_component({
         id: id + "_distance",
         group: SENSORS_GROUP,
-        display_order: next_display_order(),
+        display_order: display_base,
         class: "dist",
         read_only: true,
         units: "mm",
@@ -562,17 +584,17 @@ function setup_distIR(cascade, id, position) {
 
     if (dist) {
         dist.setDistanceCallbackConfiguration(1000, false, "x", 0, 0);
-            
+
         dist.on(tinkerforge.BrickletDistanceIRV2.CALLBACK_DISTANCE, function(distance) {
             dist_info.dist.value = distance;
         });
     }
-        
+
     dist_info.dist_ma = cascade.create_component({
         id: id + "_ma",
         name: id + " Moving Average Length",
         group: SENSORS_GROUP,
-        display_order: next_display_order(),
+        display_order: display_base + 1,
         class: "dist_ma",
         persist: true,
         type: cascade.TYPES.NUMBER,
@@ -590,6 +612,7 @@ function setup_distIR(cascade, id, position) {
 }
 
 function setup_onewire_net(cascade, id, position) {
+    let display_base = OW_DISPLAY_BASE + next_display_order(100);
     var ow_info = {
         id: id,
         position: position,
@@ -614,7 +637,8 @@ function setup_onewire_net(cascade, id, position) {
                 else {
                     for (let ow_address of probes) {
                         let probe_address = id + "_" + ow_address;
-                        create_temp_probe(cascade, probe_address);
+                        create_temp_probe(cascade, probe_address, display_base);
+                        display_base += 5;
                         ow_info.probes.push(probe_address);
                         ow_names.push(probe_address);
                         //update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
@@ -630,6 +654,7 @@ function setup_onewire_net(cascade, id, position) {
 }
 
 function setup_1wire_net(cascade, id, position) {
+    let display_base = OW_DISPLAY_BASE + next_display_order(100);
     var ow_info = {
         id: id,
         position: position,
@@ -653,7 +678,8 @@ function setup_1wire_net(cascade, id, position) {
                             // Check device_family for temperature probes.  Silently ignore others.
                             if (ow_address.startsWith("10") || ow_address.startsWith("28")) {
                                 let probe_address = id + "_" + ow_address;
-                                create_temp_probe(probe_address);
+                                create_temp_probe(cascade, probe_address, display_base);
+                                display_base += 5;
                                 ow_info.probes.push(probe_address);
                                 ow_names.push(probe_address);
                                 //update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
@@ -682,19 +708,20 @@ var PTC_WIRE_MODES = {
 };
 
 function setup_ptc_probe(cascade, id, position) {
+    let display_base = PTC_DISPLAY_BASE + next_display_order(10);
     var ptc_info = {
         id: id,
         position: position,
         interface: devices[id]
     };
 
-    create_temp_probe(cascade, id);
+    create_temp_probe(cascade, id, display_base);
 
     ptc_info.wire_mode = cascade.create_component({
         id: id + "_wire_mode",
         name: id + " Wire Mode",
         group: SENSORS_GROUP,
-        display_order: next_display_order(),
+        display_order: display_base + 5,
         class: "ptc_configure",
         persist: true,
         type: cascade.TYPES.OPTIONS,
@@ -744,7 +771,7 @@ function setup_thermocouple_probe(cascade, id, position) {
         interface: devices[id]
     };
 
-    create_temp_probe(cascade, id);
+    create_temp_probe(cascade, id, TC_DISPLAY_BASE + next_display_order(5));
 
     var tc = tc_info.interface;
     if (tc) {
@@ -761,14 +788,14 @@ function setup_thermocouple_probe(cascade, id, position) {
 
 }
 
-function create_temp_probe(cascade, probe_name) {
+function create_temp_probe(cascade, probe_name, display_base) {
     var probe_component = {};
 
     probe_component.raw = cascade.create_component({
         id: probe_name + "_raw",
         name: probe_name + " Raw",
         group: SENSORS_GROUP,
-        display_order: next_display_order(),
+        display_order: display_base,
         class: "raw_temperature",
         read_only: true,
         units: cascade.UNITS.C,
@@ -779,7 +806,7 @@ function create_temp_probe(cascade, probe_name) {
         id: probe_name + "_calibration",
         name: probe_name + " Calibration",
         group: SENSORS_GROUP,
-        display_order: next_display_order(),
+        display_order: display_base + 1,
         persist: true,
         units: cascade.UNITS.C,
         type: cascade.TYPES.NUMBER
@@ -789,7 +816,7 @@ function create_temp_probe(cascade, probe_name) {
         id: probe_name + "_calibrated",
         name: probe_name + " Calibrated",
         group: SENSORS_GROUP,
-        display_order: next_display_order(),
+        display_order: display_base + 2,
         class: "calibrated_temperature",
         read_only: true,
         units: cascade.UNITS.C,
@@ -816,7 +843,7 @@ function update_hard_resource_list_component(cascade, id, list) {
         cascade.create_component({
             id: id,
             group: RESOURCE_NAMES_GROUP,
-            display_order: next_display_order(),
+            display_order: HR_LISTS_DISPLAY_BASE + next_display_order(),
             read_only: true,
             type: type,
             value: value
@@ -839,7 +866,8 @@ module.exports.setup = function (cascade) {
             for (let x of [0, 1, 2, 3, 4]) {
                 let ow_address =  "28" + "0" + x + Math.random().toString(16).slice(2,12);
                 let probe_address = id + "_" + ow_address;
-                create_temp_probe(cascade, probe_address);
+                create_temp_probe(cascade, probe_address,
+                    OW_DISPLAY_BASE + next_display_order(5));
                 ow_info.probes.push(probe_address);
                 ow_names.push(probe_address);
                 //update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
@@ -955,7 +983,7 @@ module.exports.setup = function (cascade) {
                                 setup_ptc_probe(cascade, ptc_id, ptc.position);
                                 break;
                             }
-                            case tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER : 
+                            case tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER :
                             case tinkerforge.BrickletIndustrialAnalogOutV2.DEVICE_IDENTIFIER : {
                                 let dac;
                                 if (deviceIdentifier == tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER) {
@@ -1001,7 +1029,7 @@ module.exports.setup = function (cascade) {
                                 setup_barometer(cascade, barometer_id, barometer.position);
                                 break;
                             }
-                            case tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER : 
+                            case tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER :
                             case tinkerforge.BrickStepper.DEVICE_IDENTIFIER : {
                                 // this brick can have up to 2 bricklets
                                 masterbrick_position[uid] = position;
@@ -1114,7 +1142,7 @@ module.exports.loop = function (cascade) {
         let tempProbe = tempProbes[id];
 
         if(!tempProbe) {
-            create_temp_probe(cascade, id);
+            create_temp_probe(cascade, id, TC_DISPLAY_BASE + next_display_order(5));
             tempProbe = tempProbes[id];
         }
 
@@ -1132,7 +1160,7 @@ module.exports.loop = function (cascade) {
         let tempProbe = tempProbes[id];
 
         if(!tempProbe) {
-            create_temp_probe(cascade, id);
+            create_temp_probe(cascade, id, PTC_DISPLAY_BASE + next_display_order(5));
             tempProbe = tempProbes[id];
         }
 
@@ -1152,7 +1180,9 @@ module.exports.loop = function (cascade) {
             ow.in_use = true;
             ow.getAllTemperatures(function (error, probes) {
                 if (error) {
-                    cascade.log_error(new Error("Unable to retrieve temperatures from onewire " + id + ": " + error));
+                    cascade.log_warning(new Error(
+                        "Unable to retrieve temperatures from onewire " + id +
+                        ": " + error));
                     ow.in_use = false;
                     return;
                 }
@@ -1162,7 +1192,8 @@ module.exports.loop = function (cascade) {
                     let probe_name = id + "_" + netAddress;
                     var tempComponent = tempProbes[probe_name];
                     if (!tempComponent) {
-                        create_temp_probe(cascade, probe_name);
+                        create_temp_probe(cascade, probe_name,
+                            OW_DISPLAY_BASE + next_display_order(5));
                         tempComponent = tempProbes[probe_name];
                     }
 
