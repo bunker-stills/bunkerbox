@@ -170,7 +170,7 @@ function get_probes_and_controls(cascade) {
         probe.display_order = utils.next_display_order();
         temp_probe = cascade.create_component(probe);
 
-        setup_probe(temp_probe);
+        setup_temp_probe(temp_probe);
     }
     utils.update_hard_resource_list_component(cascade,
         "TEMP_PROBE_HR_names", temp_probe_names.sort());
@@ -230,7 +230,7 @@ function update_control(control, section_name) {
     do_request("update", {section_name: {"name": name, "value", value}});
 }
 
-function setup_probe(temp_probe) {
+function setup_temp_probe(temp_probe) {
     //XXX do more stuff here
     temp_probe_names.push(probe.name);
 }
@@ -238,6 +238,17 @@ function setup_probe(temp_probe) {
 function setup_dac(dac) {
     //XXX do more stuff here
     // need a max_scale configuration variable
+    // need enable component
+    //
+    dac_info = {
+        name: dac.name,
+        dac_output = dac,
+        dac_enable = undefined,
+        dac_full_scale = undefined,
+        dac_updated = false,
+    }
+
+    dac_info.
     dac_names.push(dac.name);
     dac.on("value_updated",
         function() { update_control(component, "model_control"); });
