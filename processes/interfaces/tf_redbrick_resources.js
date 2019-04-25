@@ -242,6 +242,10 @@ var MIN_SSTEPPER_CURRENT = Number(process.env.MIN_SSTEPPER_CURRENT) || 360;
 var MAX_SSTEPPER_CURRENT = Number(process.env.MAX_SSTEPPER_CURRENT) || 1640;
 var DEFAULT_STEPPER_CURRENT = Number(process.env.DEFAULT_STEPPER_CURRENT) ||800;
 var DEFAULT_STEPPER_MAX_SPEED = Number(process.env.DEFAULT_STEPPER_MAX_SPEED) ||5000;
+var STEPPER_RESOLUTION = Number(process.env.STEPPER_RESOLUTION) ||
+    tinkerforge.BrickStepper.STEP_MODE_EIGHTH_STEP;
+var SSTEPPER_RESOLUTION = Number(process.env.STEPPER_RESOLUTION) ||
+    tinkerforge.BrickSilentStepper.STEP_RESOLUTION_16;
 
 function set_stepper_current(stepper_info) {
     var stepper = stepper_info.interface;
@@ -307,8 +311,10 @@ function setup_stepper(cascade, id, position) {
             // this is a silent stepper, set configurations
             stepper.setMotorCurrent(MAX_SSTEPPER_CURRENT);
             stepper.setBasicConfiguration(null, DEFAULT_STEPPER_CURRENT);
+            stepper.setStepConfiguration(SSTEPPER_RESOLUTION, true);
         } else {
             stepper.setMotorCurrent(DEFAULT_STEPPER_CURRENT);
+            stepper.setStepMode(STEPPER_RESOLUTION);
         }
     }
 
@@ -1065,7 +1071,7 @@ module.exports.setup = function (cascade) {
         utils.update_hard_resource_list_component(cascade, "OW_PROBE_HR_names", ow_names.sort());
         utils.update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
             ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
-    }, 10000);
+    }, 30000);
 };
 
 
