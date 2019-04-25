@@ -3,6 +3,7 @@ var tinkerforge = require("tinkerforge");
 var tinkerforge_connection = require("./../lib/tinkerforge_connection");
 var Bricklet1Wire = require("./../lib/Bricklet1Wire");  // old 1wire bricklet
 var onewireTempSensors = require("./../lib/onewire_temp_sensors");  // sensor interface for new 1wire bricklet
+var utils = require("./utils");
 
 var TESTING = Boolean(process.env.TESTING) || false;
 
@@ -11,12 +12,6 @@ var PROCESS_CONTROLS_GROUP = "98  HR Controls";
 var RESOURCE_NAMES_GROUP = "99  Hard Resources";
 
 // Display orders:
-var global_display_order = 100;
-var next_display_order = function(skip) {
-    let rtn = global_display_order;
-    global_display_order += skip || 1;
-    return rtn;
-};
 var RELAY_DISPLAY_BASE = 1000;
 var IO4_DISPLAY_BASE = 2000;
 var DAC_DISPLAY_BASE = 3000;
@@ -94,7 +89,7 @@ function set_relays(quadrelay_info) {
 }
 
 function setup_quadrelay(cascade, id, position) {
-    let display_base = RELAY_DISPLAY_BASE + next_display_order(5);
+    let display_base = RELAY_DISPLAY_BASE + utils.next_display_order(5);
 
     var quadrelay_info = {
         id: id,
@@ -119,7 +114,7 @@ function setup_quadrelay(cascade, id, position) {
         relay_component.on("value_updated", function() { set_relays(quadrelay_info); });
 
         relay_names.push(relay_id);
-        //update_hard_resource_list_component(cascade, "RELAY_HR_names", relay_names.sort());
+        //utils.update_hard_resource_list_component(cascade, "RELAY_HR_names", relay_names.sort());
     }
 
     quadrelays[id] = quadrelay_info;
@@ -180,7 +175,7 @@ function set_dac(dac_info) {
 }
 
 function setup_dac(cascade, id, position) {
-    let display_base = DAC_DISPLAY_BASE + next_display_order(5);
+    let display_base = DAC_DISPLAY_BASE + utils.next_display_order(5);
 
     var dac_info = {
         id: id,
@@ -238,7 +233,7 @@ function setup_dac(cascade, id, position) {
 
     dacs[id] = dac_info;
     dac_names.push(id);
-    //update_hard_resource_list_component(cascade, "DAC_HR_names", dac_names.sort());
+    //utils.update_hard_resource_list_component(cascade, "DAC_HR_names", dac_names.sort());
 }
 
 var MIN_STEPPER_CURRENT = Number(process.env.MIN_STEPPER_CURRENT) || 100;
@@ -293,7 +288,7 @@ function set_stepper(stepper_info) {
 }
 
 function setup_stepper(cascade, id, position) {
-    let display_base = STEPPER_DISPLAY_BASE + next_display_order(10);
+    let display_base = STEPPER_DISPLAY_BASE + utils.next_display_order(10);
 
     var stepper_info = {
         id: id,
@@ -406,7 +401,7 @@ function setup_stepper(cascade, id, position) {
 
     steppers[id] = stepper_info;
     stepper_names.push(id);
-    //update_hard_resource_list_component(cascade, "STEPPER_HR_names", stepper_names.sort());
+    //utils.update_hard_resource_list_component(cascade, "STEPPER_HR_names", stepper_names.sort());
 }
 
 var IO4_CONFIGURATION = [
@@ -453,9 +448,9 @@ function configure_io4(cascade, io4_info, io_index) {
 
             // If HR_names components are already created, then update them.
             if (cascade.components.all_current["BIT_IN_HR_names"]) {
-                update_hard_resource_list_component(cascade,
+                utils.update_hard_resource_list_component(cascade,
                     "BIT_IN_HR_names", input_names.sort());
-                update_hard_resource_list_component(cascade,
+                utils.update_hard_resource_list_component(cascade,
                     "BIT_OUT_HR_names", output_names.sort());
             }
         }
@@ -470,7 +465,7 @@ function set_io4(io4_info, io_index) {
 }
 
 function setup_io4(cascade, id, position) {
-    let display_base = IO4_DISPLAY_BASE + next_display_order(20);
+    let display_base = IO4_DISPLAY_BASE + utils.next_display_order(20);
 
     var io4_info = {
         id: id,
@@ -528,7 +523,7 @@ function setup_barometer(cascade, id, position) {
         id: "barometer",  // assumes only one barometer per system
         name: "Barometer",
         group: SENSORS_GROUP,
-        display_order: BAROMETER_DISPLAY_BASE + next_display_order(),
+        display_order: BAROMETER_DISPLAY_BASE + utils.next_display_order(),
         class: "barometer",
         read_only: true,
         units: "mbar",
@@ -546,7 +541,7 @@ function configure_dist_ma(dist_info) {
 }
 
 function setup_distIR(cascade, id, position) {
-    let display_base = DISTIR_DISPLAY_BASE + next_display_order(5);
+    let display_base = DISTIR_DISPLAY_BASE + utils.next_display_order(5);
     var dist_info = {
         id: id,
         position: position,
@@ -597,7 +592,7 @@ function setup_distIR(cascade, id, position) {
 }
 
 function setup_onewire_net(cascade, id, position) {
-    let display_base = OW_DISPLAY_BASE + next_display_order(100);
+    let display_base = OW_DISPLAY_BASE + utils.next_display_order(100);
     var ow_info = {
         id: id,
         position: position,
@@ -626,9 +621,9 @@ function setup_onewire_net(cascade, id, position) {
                         display_base += 5;
                         ow_info.probes.push(probe_address);
                         ow_names.push(probe_address);
-                        //update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
+                        //utils.update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
                         //    ow_names.sort());
-                        //update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
+                        //utils.update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
                         //    ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
                     }
                 }
@@ -639,7 +634,7 @@ function setup_onewire_net(cascade, id, position) {
 }
 
 function setup_1wire_net(cascade, id, position) {
-    let display_base = OW_DISPLAY_BASE + next_display_order(100);
+    let display_base = OW_DISPLAY_BASE + utils.next_display_order(100);
     var ow_info = {
         id: id,
         position: position,
@@ -667,9 +662,9 @@ function setup_1wire_net(cascade, id, position) {
                                 display_base += 5;
                                 ow_info.probes.push(probe_address);
                                 ow_names.push(probe_address);
-                                //update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
+                                //utils.update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
                                 //    ow_names.sort());
-                                //update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
+                                //utils.update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
                                 //    ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
 
                             }
@@ -693,7 +688,7 @@ var PTC_WIRE_MODES = {
 };
 
 function setup_ptc_probe(cascade, id, position) {
-    let display_base = PTC_DISPLAY_BASE + next_display_order(10);
+    let display_base = PTC_DISPLAY_BASE + utils.next_display_order(10);
     var ptc_info = {
         id: id,
         position: position,
@@ -744,8 +739,8 @@ function setup_ptc_probe(cascade, id, position) {
 
     ptcProbes[id] = ptc_info;
     ptc_names.push(id);
-    //update_hard_resource_list_component(cascade, "PTC_PROBE_HR_names", ptc_names.sort());
-    //update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
+    //utils.update_hard_resource_list_component(cascade, "PTC_PROBE_HR_names", ptc_names.sort());
+    //utils.update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
     //    ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
 }
 
@@ -756,7 +751,7 @@ function setup_thermocouple_probe(cascade, id, position) {
         interface: devices[id]
     };
 
-    create_temp_probe(cascade, id, TC_DISPLAY_BASE + next_display_order(5));
+    create_temp_probe(cascade, id, TC_DISPLAY_BASE + utils.next_display_order(5));
 
     var tc = tc_info.interface;
     if (tc) {
@@ -767,8 +762,8 @@ function setup_thermocouple_probe(cascade, id, position) {
 
     thermocoupleProbes[id] = tc_info;
     tc_names.push(id);
-    //update_hard_resource_list_component(cascade, "TC_PROBE_HR_names", tc_names.sort());
-    //update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
+    //utils.update_hard_resource_list_component(cascade, "TC_PROBE_HR_names", tc_names.sort());
+    //utils.update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
     //    ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
 
 }
@@ -811,34 +806,6 @@ function create_temp_probe(cascade, probe_name, display_base) {
     tempProbes[probe_name] = probe_component;
 }
 
-function update_hard_resource_list_component(cascade, id, list) {
-
-    var value = list.join(" ");
-    var component = cascade.components.all_current[id];
-
-    if (!component) {
-        var type;
-        if (value.length > 32) {
-            type = cascade.TYPES.BIG_TEXT;
-        }
-        else {
-            type = cascade.TYPES.TEXT;
-        }
-
-        cascade.create_component({
-            id: id,
-            group: RESOURCE_NAMES_GROUP,
-            display_order: HR_LISTS_DISPLAY_BASE + next_display_order(),
-            read_only: true,
-            type: type,
-            value: value
-        });
-    }
-    else {
-        component.value = value;
-    }
-}
-
 module.exports.setup = function (cascade) {
 
     if (TESTING) {
@@ -852,12 +819,12 @@ module.exports.setup = function (cascade) {
                 let ow_address =  "28" + "0" + x + Math.random().toString(16).slice(2,12);
                 let probe_address = id + "_" + ow_address;
                 create_temp_probe(cascade, probe_address,
-                    OW_DISPLAY_BASE + next_display_order(5));
+                    OW_DISPLAY_BASE + utils.next_display_order(5));
                 ow_info.probes.push(probe_address);
                 ow_names.push(probe_address);
-                //update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
+                //utils.update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
                 //    ow_names.sort());
-                //update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
+                //utils.update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
                 //    ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
             }
         }
@@ -1087,16 +1054,16 @@ module.exports.setup = function (cascade) {
     // Provide time for tinkerforge stack enumeration to complete.
     setTimeout(function() {
         // create device selection components from name lists
-        update_hard_resource_list_component(cascade, "RELAY_HR_names", relay_names.sort());
-        update_hard_resource_list_component(cascade, "DAC_HR_names", dac_names.sort());
-        update_hard_resource_list_component(cascade, "STEPPER_HR_names", stepper_names.sort());
-        update_hard_resource_list_component(cascade, "BIT_IN_HR_names", input_names.sort());
-        update_hard_resource_list_component(cascade, "BIT_OUT_HR_names", output_names.sort());
-        update_hard_resource_list_component(cascade, "DISTANCE_HR_names", dist_names.sort());
-        update_hard_resource_list_component(cascade, "PTC_PROBE_HR_names", ptc_names.sort());
-        update_hard_resource_list_component(cascade, "TC_PROBE_HR_names", tc_names.sort());
-        update_hard_resource_list_component(cascade, "OW_PROBE_HR_names", ow_names.sort());
-        update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
+        utils.update_hard_resource_list_component(cascade, "RELAY_HR_names", relay_names.sort());
+        utils.update_hard_resource_list_component(cascade, "DAC_HR_names", dac_names.sort());
+        utils.update_hard_resource_list_component(cascade, "STEPPER_HR_names", stepper_names.sort());
+        utils.update_hard_resource_list_component(cascade, "BIT_IN_HR_names", input_names.sort());
+        utils.update_hard_resource_list_component(cascade, "BIT_OUT_HR_names", output_names.sort());
+        utils.update_hard_resource_list_component(cascade, "DISTANCE_HR_names", dist_names.sort());
+        utils.update_hard_resource_list_component(cascade, "PTC_PROBE_HR_names", ptc_names.sort());
+        utils.update_hard_resource_list_component(cascade, "TC_PROBE_HR_names", tc_names.sort());
+        utils.update_hard_resource_list_component(cascade, "OW_PROBE_HR_names", ow_names.sort());
+        utils.update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
             ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
     }, 10000);
 };
@@ -1127,7 +1094,7 @@ module.exports.loop = function (cascade) {
         let tempProbe = tempProbes[id];
 
         if(!tempProbe) {
-            create_temp_probe(cascade, id, TC_DISPLAY_BASE + next_display_order(5));
+            create_temp_probe(cascade, id, TC_DISPLAY_BASE + utils.next_display_order(5));
             tempProbe = tempProbes[id];
         }
 
@@ -1145,7 +1112,7 @@ module.exports.loop = function (cascade) {
         let tempProbe = tempProbes[id];
 
         if(!tempProbe) {
-            create_temp_probe(cascade, id, PTC_DISPLAY_BASE + next_display_order(5));
+            create_temp_probe(cascade, id, PTC_DISPLAY_BASE + utils.next_display_order(5));
             tempProbe = tempProbes[id];
         }
 
@@ -1178,7 +1145,7 @@ module.exports.loop = function (cascade) {
                     var tempComponent = tempProbes[probe_name];
                     if (!tempComponent) {
                         create_temp_probe(cascade, probe_name,
-                            OW_DISPLAY_BASE + next_display_order(5));
+                            OW_DISPLAY_BASE + utils.next_display_order(5));
                         tempComponent = tempProbes[probe_name];
                     }
 

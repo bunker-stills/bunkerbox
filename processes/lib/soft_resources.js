@@ -43,10 +43,10 @@ module.exports.create_resource_name_list = create_resource_name_list;
 // GLOBALS      //
 //////////////////
 // group oredering using text at start of group name
-var FUNCTION_GROUP = "01  Functions";
-var PROCESS_CONTROL_GROUP = "02  Process Controls";
-var PROCESS_SENSOR_GROUP = "03  Process Sensors";
-var pid_group_number = 4;
+var FUNCTION_GROUP = "10  Functions";
+var PROCESS_CONTROL_GROUP = "20  Process Controls";
+var PROCESS_SENSOR_GROUP = "30  Process Sensors";
+var pid_group_number = 40;
 var SOFT_RESOURCE_LISTS = "70 Soft Resources";
 var HR_ASSIGNMENT_GROUP = "80  Resource Assignment";
 

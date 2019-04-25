@@ -149,7 +149,8 @@ function during_run(cascade) {
     }
 
     // process Functions;
-    _.each(soft.Function.get_instances(), function(func) {func.process_function(cascade);});
+    _.each(soft.Function.get_instances(),
+        function(func) {func.process_function(cascade);});
 
     // process PIDs
     _.each(soft.PID.get_instances(), function(pid) {pid.process_pid();});
