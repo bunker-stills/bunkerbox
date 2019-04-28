@@ -9,6 +9,7 @@ var TESTING = Boolean(process.env.TESTING) || false;
 var SENSORS_GROUP = "97  HR Sensors";
 var PROCESS_CONTROLS_GROUP = "98  HR Controls";
 var RESOURCE_NAMES_GROUP = "99  Hard Resources";
+var RUN_GROUP = "00  Run";
 
 // Display orders:
 var global_display_order = 100;
@@ -54,6 +55,7 @@ var ptcProbes = {};
 
 // all temp probes by probe ids (tc_id, ptc_id, or ow_id + probe)
 var tempProbes = {};
+var max_temp;  // max value of all probes (component)
 
 // tinkerforge hardware interfaces indexed by device id (eg "DAC_3C").
 var devices = {};
@@ -846,6 +848,16 @@ function update_hard_resource_list_component(cascade, id, list) {
 }
 
 module.exports.setup = function (cascade) {
+    // Create max_temp component used by stills overtemp shutdown feature.
+    max_temp = cascade.create_component({
+        id: "max_temp",
+        name: "Max Temperature",
+        description: "Peak measured temperature",
+        group: RUN_GROUP,
+        display_order: 1000,
+        units: "C",
+        value: 0,
+    });
 
     if (TESTING) {
         let id;
@@ -1091,6 +1103,7 @@ module.exports.setup = function (cascade) {
     }
 
     // Provide time for tinkerforge stack enumeration to complete.
+    // Then create lists of all hard resources by type.
     setTimeout(function() {
         // create device selection components from name lists
         update_hard_resource_list_component(cascade, "RELAY_HR_names", relay_names.sort());
@@ -1104,7 +1117,7 @@ module.exports.setup = function (cascade) {
         update_hard_resource_list_component(cascade, "OW_PROBE_HR_names", ow_names.sort());
         update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
             ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
-    }, 30000);
+    }, 60000);
 };
 
 
@@ -1142,7 +1155,9 @@ module.exports.loop = function (cascade) {
             tcDevice.getTemperature(function (temperature) {
                 var tempValue = temperature / 100;
                 tempProbe.raw.value = tempValue;
-                tempProbe.calibrated.value = tempValue + (tempProbe.calibration.value || 0);
+                tempValue = tempValue + (tempProbe.calibration.value || 0);
+                tempProbe.calibrated.value = tempValue;
+                if (tempValue > max_temp.value) {max_temp.value = tempValue;}
             });
         }
     });
@@ -1160,8 +1175,11 @@ module.exports.loop = function (cascade) {
             ptcDevice.getTemperature(function (temperature) {
                 var tempValue = temperature / 100;
                 tempProbe.raw.value = tempValue;
-                tempProbe.calibrated.value = tempValue + (tempProbe.calibration.value || 0);
+                tempValue = tempValue + (tempProbe.calibration.value || 0);
+                tempProbe.calibrated.value = tempValue;
+                if (tempValue > max_temp.value) {max_temp.value = tempValue;}
             });
+
         }
     });
 
@@ -1189,7 +1207,9 @@ module.exports.loop = function (cascade) {
                     }
 
                     tempComponent.raw.value = tempValue;
-                    tempComponent.calibrated.value = tempValue + (tempComponent.calibration.value || 0);
+                    tempValue = tempValue + (tempComponent.calibration.value || 0);
+                    tempComponent.calibrated.value = tempValue;
+                    if (tempValue > max_temp.value) {max_temp.value = tempValue;}
                 }
                 ow.in_use = false;
             });

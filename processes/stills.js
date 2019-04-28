@@ -33,11 +33,11 @@ var system_Variables = [
         read_only:true,
         units: "C"
     },
-    {   name: "max_temp",
-        description: "Peak measured temperature",
-        units: "C",
-        value: 0,
-    },
+//    {   name: "max_temp",
+//        description: "Peak measured temperature",
+//        units: "C",
+//        value: 0,
+//    },
 ];
 
 var run_mode;
@@ -64,6 +64,10 @@ module.exports.setup = function (cascade) {
         cascade.require_process("interfaces/data_recorder");
     }
 
+    // Get max_temp component for failsafe check.
+    cascade.components.require_component("max_temp",
+        function(component) {max_temp = component;});
+
     for (let vardef of system_Variables) {
         new soft.Variable(cascade, vardef);
     }
@@ -89,8 +93,6 @@ module.exports.setup = function (cascade) {
         function(component) {failsafe_temp = component;});
     cascade.components.require_component("boiling_point",
         function(component) {boiling_point = component;});
-    cascade.components.require_component("max_temp",
-        function(component) {max_temp = component;});
 
     run_mode = cascade.create_component({
         id: "run_mode",
@@ -118,18 +120,6 @@ function getCurrentH2OBoilingPoint()
     return ((Math.log(baroInHG) * 49.160999 + 44.93) -32) * 5/9;
 }
 
-function should_temp_failsafe()
-{
-    let Tmax = max_temp.value;
-
-    _.each(soft.TEMP_probe.get_instances(), function(probe) {
-        let T = probe.get_temperature();
-        if (T > Tmax) Tmax = T;
-    });
-    max_temp.value = Tmax;
-    return ( Tmax >= failsafe_temp.value);
-}
-
 function during_stop() {
 
     // Turn off all our PIDs
@@ -142,10 +132,15 @@ function during_stop() {
 }
 
 function during_run(cascade) {
-    if(should_temp_failsafe())
-    {
-        run_mode.value = "STOP";
-        return;
+    if(max_temp) {
+        if (max_temp.value >= failsafe_temp.value)
+        {
+            run_mode.value = "STOP";
+            return;
+        }
+    } else {
+        cascade.log_warning(new Error(
+            "stills.loop: no max_temp component at this time."));
     }
 
     // process Functions;
