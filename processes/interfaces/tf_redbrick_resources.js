@@ -1,8 +1,7 @@
 var _ = require("underscore");
 var tinkerforge = require("tinkerforge");
 var tinkerforge_connection = require("./../lib/tinkerforge_connection");
-var Bricklet1Wire = require("./../lib/Bricklet1Wire");  // old 1wire bricklet
-var onewireTempSensors = require("./../lib/onewire_temp_sensors");  // sensor interface for new 1wire bricklet
+var onewireTempSensors = require("./../lib/onewire_temp_sensors");  // sensor interface for 1wire bricklet
 
 var SENSORS_GROUP = "97  HR Sensors";
 var PROCESS_CONTROLS_GROUP = "98  HR Controls";
@@ -647,54 +646,6 @@ function setup_onewire_net(cascade, id, position) {
     onewireNets[id] = ow_info;
 }
 
-function setup_1wire_net(cascade, id, position) {
-    let display_base = OW_DISPLAY_BASE + next_display_order(100);
-    var ow_info = {
-        id: id,
-        position: position,
-        interface: devices[id],
-        probes: []
-    };
-
-    //  Set 12 bit resolution and generate individual OW probes.
-    var owNet = devices[id];
-    if (owNet) {
-
-        owNet.tempSetResolution(12,
-            function() {
-
-                owNet.getConnectedDevices(function(error, probes) {
-                    if (error) {
-                        cascade.log_error(new Error("Onewire get-all-probes error: " + error));
-                    }
-                    else {
-                        for (let ow_address of probes) {
-                            // Check device_family for temperature probes.  Silently ignore others.
-                            if (ow_address.startsWith("10") || ow_address.startsWith("28")) {
-                                let probe_address = id + "_" + ow_address;
-                                create_temp_probe(cascade, probe_address, display_base);
-                                display_base += 5;
-                                ow_info.probes.push(probe_address);
-                                ow_names.push(probe_address);
-                                //update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
-                                //    ow_names.sort());
-                                //update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
-                                //    ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
-
-                            }
-                        }
-                    }
-                });
-            },
-            function(error) {
-                cascade.log_error(new Error("Onewire set-resolution error: " + error));
-            }
-        );
-
-        onewireNets[id] = ow_info;
-    }
-}
-
 var PTC_WIRE_MODES = {
     TWO_WIRE: tinkerforge.BrickletPTCV2.WIRE_MODE_2,
     THREE_WIRE: tinkerforge.BrickletPTCV2.WIRE_MODE_3,
@@ -890,7 +841,6 @@ module.exports.setup = function (cascade) {
                             break;
                         }
                         case tinkerforge.BrickletOneWire.DEVICE_IDENTIFIER : {
-                            // This is the new TF one wire bricklet
                             let owNet = new onewireTempSensors(uid, ipcon);
                             owNet.in_use = false;
 
@@ -901,19 +851,6 @@ module.exports.setup = function (cascade) {
                             devices[ow_id] = owNet;
 
                             setup_onewire_net(cascade, ow_id, owNet.position);
-                            break;
-                        }
-                        case Bricklet1Wire.DEVICE_IDENTIFIER : {
-                            let owNet = new Bricklet1Wire(uid, ipcon);
-                            owNet.in_use = false;
-
-                            owNet.uid_string = uid;
-                            owNet.position = masterbrick_position[connectedUid] + position;
-
-                            let ow_id = "OW_" + owNet.position;
-                            devices[ow_id] = owNet;
-
-                            setup_1wire_net(cascade, ow_id, owNet.position);
                             break;
                         }
                         case tinkerforge.BrickletThermocouple.DEVICE_IDENTIFIER : {
