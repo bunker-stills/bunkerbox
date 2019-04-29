@@ -1117,6 +1117,7 @@ module.exports.setup = function (cascade) {
         update_hard_resource_list_component(cascade, "OW_PROBE_HR_names", ow_names.sort());
         update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
             ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
+        max_temp.value = 0;  // last chance in setup to clear this value.
     }, 60000);
 };
 
@@ -1146,6 +1147,7 @@ module.exports.loop = function (cascade) {
         let tempProbe = tempProbes[id];
 
         if(!tempProbe) {
+            cascade.log_error(new Error("creating probe " +id+ " in loop function."));
             create_temp_probe(cascade, id, TC_DISPLAY_BASE + next_display_order(5));
             tempProbe = tempProbes[id];
         }
@@ -1157,7 +1159,9 @@ module.exports.loop = function (cascade) {
                 tempProbe.raw.value = tempValue;
                 tempValue = tempValue + (tempProbe.calibration.value || 0);
                 tempProbe.calibrated.value = tempValue;
-                if (tempValue > max_temp.value) {max_temp.value = tempValue;}
+                if (tempValue > max_temp.value && tempValue < 4000) {
+                    max_temp.value = tempValue;
+                }
             });
         }
     });
@@ -1166,6 +1170,7 @@ module.exports.loop = function (cascade) {
         let tempProbe = tempProbes[id];
 
         if(!tempProbe) {
+            cascade.log_error(new Error("creating probe " +id+ " in loop function."));
             create_temp_probe(cascade, id, PTC_DISPLAY_BASE + next_display_order(5));
             tempProbe = tempProbes[id];
         }
@@ -1177,7 +1182,9 @@ module.exports.loop = function (cascade) {
                 tempProbe.raw.value = tempValue;
                 tempValue = tempValue + (tempProbe.calibration.value || 0);
                 tempProbe.calibrated.value = tempValue;
-                if (tempValue > max_temp.value) {max_temp.value = tempValue;}
+                if (tempValue > max_temp.value && tempValue < 4000) {
+                    max_temp.value = tempValue;
+                }
             });
 
         }
@@ -1200,16 +1207,23 @@ module.exports.loop = function (cascade) {
                     var tempValue = probes[netAddress];
                     let probe_name = id + "_" + netAddress;
                     var tempComponent = tempProbes[probe_name];
+                    if (!tempComponent) continue;
+                    /*
                     if (!tempComponent) {
+                        cascade.log_error(new Error(
+                            "creating probe " +probe_name+ " in loop function."));
                         create_temp_probe(cascade, probe_name,
                             OW_DISPLAY_BASE + next_display_order(5));
                         tempComponent = tempProbes[probe_name];
                     }
+                    */
 
                     tempComponent.raw.value = tempValue;
                     tempValue = tempValue + (tempComponent.calibration.value || 0);
                     tempComponent.calibrated.value = tempValue;
-                    if (tempValue > max_temp.value) {max_temp.value = tempValue;}
+                    if (tempValue > max_temp.value && tempValue < 4000) {
+                        max_temp.value = tempValue;
+                    }
                 }
                 ow.in_use = false;
             });

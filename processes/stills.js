@@ -14,18 +14,18 @@ var RUN_GROUP = "00  Run";
 // Defaults are 'read_only: false', 'persist: false' 'group: "functions"',
 // 'units: "NONE".
 var system_Variables = [
+    {   name: "log_message",
+        description: "Log a console message",
+        group: RUN_GROUP,
+        type: "TEXT",
+        value: " ",
+    },
     {   name: "failsafe_temp",
         description: "Failsafe Temp.",
         group: RUN_GROUP,
         units: "C",
         persist: true,
         value: 120
-    },
-    {   name: "log_message",
-        description: "Log a console message",
-        group: RUN_GROUP,
-        type: "TEXT",
-        value: " ",
     },
     // system set variable
     {   name: "boiling_point",
