@@ -4,8 +4,6 @@ var tinkerforge_connection = require("./../lib/tinkerforge_connection");
 var Bricklet1Wire = require("./../lib/Bricklet1Wire");  // old 1wire bricklet
 var onewireTempSensors = require("./../lib/onewire_temp_sensors");  // sensor interface for new 1wire bricklet
 
-var TESTING = Boolean(process.env.TESTING) || false;
-
 var SENSORS_GROUP = "97  HR Sensors";
 var PROCESS_CONTROLS_GROUP = "98  HR Controls";
 var RESOURCE_NAMES_GROUP = "99  Hard Resources";
@@ -862,248 +860,199 @@ module.exports.setup = function (cascade) {
         value: 0,
     });
 
-    if (TESTING) {
-        let id;
-        // for testing we fabricate some hardware interfaces
-        for (let pos of ["3A", "3B"]) {
-            id = "OW_"+pos;
-            setup_onewire_net(cascade, id, pos);
-            let ow_info = onewireNets[id];
-            for (let x of [0, 1, 2, 3, 4]) {
-                let ow_address =  "28" + "0" + x + Math.random().toString(16).slice(2,12);
-                let probe_address = id + "_" + ow_address;
-                create_temp_probe(cascade, probe_address,
-                    OW_DISPLAY_BASE + next_display_order(5));
-                ow_info.probes.push(probe_address);
-                ow_names.push(probe_address);
-                //update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
-                //    ow_names.sort());
-                //update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
-                //    ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
-            }
+    // Discover resources on the tf stack.
+    tinkerforge_connection.create(function (error, ipcon) {
+        if (error) {
+            throw error;
         }
 
-        for (let pos of ["1A", "1B"]) {
-            id = "TC_"+pos;
-            setup_thermocouple_probe(cascade, id, pos);
-        }
+        var masterbrick_position = {};
+        ipcon.on(tinkerforge.IPConnection.CALLBACK_ENUMERATE,
+            function (uid, connectedUid, position, hardwareVersion, firmwareVersion, deviceIdentifier, enumerationType) {
 
-        for (let pos of ["1C", "1D"]) {
-            id = "PTC_"+pos;
-            setup_ptc_probe(cascade, id, pos);
-        }
+                position = position.toUpperCase();
 
-        for (let pos of ["2A", "2B", "2C", "2D"]) {
-            id = "DAC_"+pos;
-            setup_dac(cascade, id, pos);
-        }
+                if (enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_DISCONNECTED) {
+                    for (var key in devices) {
+                        var device = devices[key];
 
-        setup_distIR(cascade, "DIST_3A", "3A");
-        setup_io4(cascade, "IO_3B", "3B");
-
-        for (let pos of ["3C", "3D"]) {
-            id = "QUADRELAY_" + pos;
-            setup_quadrelay(cascade, id, pos);
-        }
-
-        setup_stepper(cascade, "STEPPER_4", "4");
-
-        setup_barometer(cascade, "barometer_4A", "4A");
-    }
-    else {
-        tinkerforge_connection.create(function (error, ipcon) {
-            if (error) {
-                throw error;
-            }
-
-            var masterbrick_position = {};
-            ipcon.on(tinkerforge.IPConnection.CALLBACK_ENUMERATE,
-                function (uid, connectedUid, position, hardwareVersion, firmwareVersion, deviceIdentifier, enumerationType) {
-
-                    position = position.toUpperCase();
-
-                    if (enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_DISCONNECTED) {
-                        for (var key in devices) {
-                            var device = devices[key];
-
-                            if (device.uid_string === uid) {
-                                delete devices[key];
-                                return;
-                            }
+                        if (device.uid_string === uid) {
+                            delete devices[key];
+                            return;
                         }
                     }
-                    else if (enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_CONNECTED ||
-                             enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_AVAILABLE) {
-                        switch (deviceIdentifier) {
-                            case tinkerforge.BrickMaster.DEVICE_IDENTIFIER : {
-                                masterbrick_position[uid] = position;
-                                break;
+                }
+                else if (enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_CONNECTED ||
+                         enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_AVAILABLE) {
+                    switch (deviceIdentifier) {
+                        case tinkerforge.BrickMaster.DEVICE_IDENTIFIER : {
+                            masterbrick_position[uid] = position;
+                            break;
+                        }
+                        case tinkerforge.BrickletOneWire.DEVICE_IDENTIFIER : {
+                            // This is the new TF one wire bricklet
+                            let owNet = new onewireTempSensors(uid, ipcon);
+                            owNet.in_use = false;
+
+                            owNet.uid_string = uid;
+                            owNet.position = masterbrick_position[connectedUid] + position;
+
+                            let ow_id = "OW_" + owNet.position;
+                            devices[ow_id] = owNet;
+
+                            setup_onewire_net(cascade, ow_id, owNet.position);
+                            break;
+                        }
+                        case Bricklet1Wire.DEVICE_IDENTIFIER : {
+                            let owNet = new Bricklet1Wire(uid, ipcon);
+                            owNet.in_use = false;
+
+                            owNet.uid_string = uid;
+                            owNet.position = masterbrick_position[connectedUid] + position;
+
+                            let ow_id = "OW_" + owNet.position;
+                            devices[ow_id] = owNet;
+
+                            setup_1wire_net(cascade, ow_id, owNet.position);
+                            break;
+                        }
+                        case tinkerforge.BrickletThermocouple.DEVICE_IDENTIFIER : {
+                            var tc = new tinkerforge.BrickletThermocouple(uid, ipcon);
+
+                            tc.uid_string = uid;
+                            tc.position = masterbrick_position[connectedUid] + position;
+
+                            var tc_id = "TC_" + tc.position;
+                            devices[tc_id] = tc;
+
+                            setup_thermocouple_probe(cascade, tc_id, tc.position);
+                            break;
+                        }
+                        case tinkerforge.BrickletPTCV2.DEVICE_IDENTIFIER : {
+                            var ptc = new tinkerforge.BrickletPTCV2(uid, ipcon);
+
+                            ptc.uid_string = uid;
+                            ptc.position = masterbrick_position[connectedUid] + position;
+                            let ptc_id = "PTC_" + ptc.position;
+                            devices[ptc_id] = ptc;
+
+                            setup_ptc_probe(cascade, ptc_id, ptc.position);
+                            break;
+                        }
+                        case tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER :
+                        case tinkerforge.BrickletIndustrialAnalogOutV2.DEVICE_IDENTIFIER : {
+                            let dac;
+                            if (deviceIdentifier == tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER) {
+                                dac = new tinkerforge.BrickletIndustrialAnalogOut(uid, ipcon);
+                                dac.disable();
+                            } else {
+                                dac = new tinkerforge.BrickletIndustrialAnalogOutV2(uid, ipcon);
+                                dac.setEnabled(false);
                             }
-                            case tinkerforge.BrickletOneWire.DEVICE_IDENTIFIER : {
-                                // This is the new TF one wire bricklet
-                                let owNet = new onewireTempSensors(uid, ipcon);
-                                owNet.in_use = false;
+                            dac.setVoltage(0);
+                            dac.setCurrent(0);
 
-                                owNet.uid_string = uid;
-                                owNet.position = masterbrick_position[connectedUid] + position;
+                            dac.uid_string = uid;
+                            dac.position = masterbrick_position[connectedUid] + position;
 
-                                let ow_id = "OW_" + owNet.position;
-                                devices[ow_id] = owNet;
+                            var dac_id = "DAC_" + dac.position;
+                            devices[dac_id] = dac;
 
-                                setup_onewire_net(cascade, ow_id, owNet.position);
-                                break;
+                            setup_dac(cascade, dac_id, dac.position);
+                            break;
+                        }
+                        case tinkerforge.BrickletIndustrialQuadRelay.DEVICE_IDENTIFIER : {
+                            var quadrelay = new tinkerforge.BrickletIndustrialQuadRelay(uid, ipcon);
+
+                            quadrelay.uid_string = uid;
+                            quadrelay.position = masterbrick_position[connectedUid] + position;
+
+                            var quadrelay_id = "QUADRELAY_" + quadrelay.position;
+                            devices[quadrelay_id] = quadrelay;
+
+                            setup_quadrelay(cascade, quadrelay_id, quadrelay.position );
+                            break;
+                        }
+                        case tinkerforge.BrickletBarometer.DEVICE_IDENTIFIER : {
+                            var barometer = new tinkerforge.BrickletBarometer(uid, ipcon);
+
+                            barometer.uid_string = uid;
+                            barometer.position = masterbrick_position[connectedUid] + position.toUpperCase;
+
+                            var barometer_id = "barometer_" + barometer.position;
+                            devices[barometer_id] = barometer;
+
+                            setup_barometer(cascade, barometer_id, barometer.position);
+                            break;
+                        }
+                        case tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER :
+                        case tinkerforge.BrickStepper.DEVICE_IDENTIFIER : {
+                            // this brick can have up to 2 bricklets
+                            masterbrick_position[uid] = position;
+
+                            let stepper;
+                            let stepper_id;
+                            if (deviceIdentifier == tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER) {
+                                stepper = new tinkerforge.BrickSilentStepper(uid, ipcon);
+                                stepper_id = "SSTEPPER_";
+                            } else {
+                                stepper = new tinkerforge.BrickStepper(uid, ipcon);
+                                stepper_id = "STEPPER_";
                             }
-                            case Bricklet1Wire.DEVICE_IDENTIFIER : {
-                                let owNet = new Bricklet1Wire(uid, ipcon);
-                                owNet.in_use = false;
+                            stepper.stop();
+                            stepper.disable();
 
-                                owNet.uid_string = uid;
-                                owNet.position = masterbrick_position[connectedUid] + position;
+                            stepper.uid_string = uid;
+                            stepper.position = position;
+                            stepper_id = stepper_id + stepper.position;
+                            devices[stepper_id] = stepper;
 
-                                let ow_id = "OW_" + owNet.position;
-                                devices[ow_id] = owNet;
+                            setup_stepper(cascade, stepper_id, stepper.position);
 
-                                setup_1wire_net(cascade, ow_id, owNet.position);
-                                break;
-                            }
-                            case tinkerforge.BrickletThermocouple.DEVICE_IDENTIFIER : {
-                                var tc = new tinkerforge.BrickletThermocouple(uid, ipcon);
+                            break;
+                        }
+                        case tinkerforge.BrickletIndustrialDual020mA.DEVICE_IDENTIFIER : {
 
-                                tc.uid_string = uid;
-                                tc.position = masterbrick_position[connectedUid] + position;
+                            cascade.log_error(new Error("Device not yet supported: BrickletIndustrialDual020mA"));
+                            break;
+                        }
+                        case tinkerforge.BrickletIndustrialDual020mAV2.DEVICE_IDENTIFIER : {
 
-                                var tc_id = "TC_" + tc.position;
-                                devices[tc_id] = tc;
+                            cascade.log_error(new Error("Device not yet supported: BrickletIndustrialDual020mAV2"));
+                            break;
+                        }
+                        case tinkerforge.BrickletIO4V2.DEVICE_IDENTIFIER : {
 
-                                setup_thermocouple_probe(cascade, tc_id, tc.position);
-                                break;
-                            }
-                            case tinkerforge.BrickletPTCV2.DEVICE_IDENTIFIER : {
-                                var ptc = new tinkerforge.BrickletPTCV2(uid, ipcon);
+                            var IO4 = new tinkerforge.BrickletIO4V2(uid, ipcon);
 
-                                ptc.uid_string = uid;
-                                ptc.position = masterbrick_position[connectedUid] + position;
-                                let ptc_id = "PTC_" + ptc.position;
-                                devices[ptc_id] = ptc;
+                            IO4.uid_string = uid;
+                            IO4.position = masterbrick_position[connectedUid] + position;
+                            let IO4_id = "IO4_" + IO4.position;
+                            devices[IO4_id] = IO4;
 
-                                setup_ptc_probe(cascade, ptc_id, ptc.position);
-                                break;
-                            }
-                            case tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER :
-                            case tinkerforge.BrickletIndustrialAnalogOutV2.DEVICE_IDENTIFIER : {
-                                let dac;
-                                if (deviceIdentifier == tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER) {
-                                    dac = new tinkerforge.BrickletIndustrialAnalogOut(uid, ipcon);
-                                    dac.disable();
-                                } else {
-                                    dac = new tinkerforge.BrickletIndustrialAnalogOutV2(uid, ipcon);
-                                    dac.setEnabled(false);
-                                }
-                                dac.setVoltage(0);
-                                dac.setCurrent(0);
+                            setup_io4(cascade, IO4_id, IO4.position);
 
-                                dac.uid_string = uid;
-                                dac.position = masterbrick_position[connectedUid] + position;
+                            break;
+                        }
+                        case tinkerforge.BrickletDistanceIRV2.DEVICE_IDENTIFIER : {
 
-                                var dac_id = "DAC_" + dac.position;
-                                devices[dac_id] = dac;
+                            var distIR = new tinkerforge.BrickletDistanceIRV2(uid, ipcon);
 
-                                setup_dac(cascade, dac_id, dac.position);
-                                break;
-                            }
-                            case tinkerforge.BrickletIndustrialQuadRelay.DEVICE_IDENTIFIER : {
-                                var quadrelay = new tinkerforge.BrickletIndustrialQuadRelay(uid, ipcon);
+                            distIR.uid_string = uid;
+                            distIR.position = masterbrick_position[connectedUid] + position;
+                            let distIR_id = "DISTIR_" + distIR.position;
+                            devices[distIR_id] = distIR;
 
-                                quadrelay.uid_string = uid;
-                                quadrelay.position = masterbrick_position[connectedUid] + position;
+                            setup_distIR(cascade, distIR_id, distIR.position);
 
-                                var quadrelay_id = "QUADRELAY_" + quadrelay.position;
-                                devices[quadrelay_id] = quadrelay;
-
-                                setup_quadrelay(cascade, quadrelay_id, quadrelay.position );
-                                break;
-                            }
-                            case tinkerforge.BrickletBarometer.DEVICE_IDENTIFIER : {
-                                var barometer = new tinkerforge.BrickletBarometer(uid, ipcon);
-
-                                barometer.uid_string = uid;
-                                barometer.position = masterbrick_position[connectedUid] + position.toUpperCase;
-
-                                var barometer_id = "barometer_" + barometer.position;
-                                devices[barometer_id] = barometer;
-
-                                setup_barometer(cascade, barometer_id, barometer.position);
-                                break;
-                            }
-                            case tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER :
-                            case tinkerforge.BrickStepper.DEVICE_IDENTIFIER : {
-                                // this brick can have up to 2 bricklets
-                                masterbrick_position[uid] = position;
-
-                                let stepper;
-                                let stepper_id;
-                                if (deviceIdentifier == tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER) {
-                                    stepper = new tinkerforge.BrickSilentStepper(uid, ipcon);
-                                    stepper_id = "SSTEPPER_";
-                                } else {
-                                    stepper = new tinkerforge.BrickStepper(uid, ipcon);
-                                    stepper_id = "STEPPER_";
-                                }
-                                stepper.stop();
-                                stepper.disable();
-
-                                stepper.uid_string = uid;
-                                stepper.position = position;
-                                stepper_id = stepper_id + stepper.position;
-                                devices[stepper_id] = stepper;
-
-                                setup_stepper(cascade, stepper_id, stepper.position);
-
-                                break;
-                            }
-                            case tinkerforge.BrickletIndustrialDual020mA.DEVICE_IDENTIFIER : {
-
-                                cascade.log_error(new Error("Device not yet supported: BrickletIndustrialDual020mA"));
-                                break;
-                            }
-                            case tinkerforge.BrickletIndustrialDual020mAV2.DEVICE_IDENTIFIER : {
-
-                                cascade.log_error(new Error("Device not yet supported: BrickletIndustrialDual020mAV2"));
-                                break;
-                            }
-                            case tinkerforge.BrickletIO4V2.DEVICE_IDENTIFIER : {
-
-                                var IO4 = new tinkerforge.BrickletIO4V2(uid, ipcon);
-
-                                IO4.uid_string = uid;
-                                IO4.position = masterbrick_position[connectedUid] + position;
-                                let IO4_id = "IO4_" + IO4.position;
-                                devices[IO4_id] = IO4;
-
-                                setup_io4(cascade, IO4_id, IO4.position);
-
-                                break;
-                            }
-                            case tinkerforge.BrickletDistanceIRV2.DEVICE_IDENTIFIER : {
-
-                                var distIR = new tinkerforge.BrickletDistanceIRV2(uid, ipcon);
-
-                                distIR.uid_string = uid;
-                                distIR.position = masterbrick_position[connectedUid] + position;
-                                let distIR_id = "DISTIR_" + distIR.position;
-                                devices[distIR_id] = distIR;
-
-                                setup_distIR(cascade, distIR_id, distIR.position);
-
-                                break;
-                            }
+                            break;
                         }
                     }
-                });
+                }
+            });
 
-            ipcon.enumerate();
-        });
-    }
+        ipcon.enumerate();
+    });
 
     // Provide time for tinkerforge stack enumeration to complete.
     // Then create lists of all hard resources by type.
