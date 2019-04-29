@@ -60,6 +60,9 @@ var max_temp;  // max value of all probes (component)
 // tinkerforge hardware interfaces indexed by device id (eg "DAC_3C").
 var devices = {};
 
+// flag to signal loop function when setup is complete and it can proceed.
+var setup_complete = false;
+
 var add_name_to_list = function(list, name, sorted) {
     if (!name) return;
     let i_name = list.indexOf(name);
@@ -1118,12 +1121,15 @@ module.exports.setup = function (cascade) {
         update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
             ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
         max_temp.value = 0;  // last chance in setup to clear this value.
+        setup_complete = true;
     }, 60000);
 };
 
 
 module.exports.loop = function (cascade) {
     //var online = true;
+
+    if (!setup_complete) return;
 
     _.each(quadrelays, function(quadrelay_info, id) {
         if (!devices[id]) null;  //online = false;
