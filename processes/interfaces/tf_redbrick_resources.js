@@ -48,12 +48,9 @@ var distIRs = {};
 var onewireNets = {};
 var thermocoupleProbes = {};
 var ptcProbes = {};
-//var barometer_component;
+var allDevices = {};
 
 var max_temp;  // max value of all probes (component)
-
-// tinkerforge hardware interfaces indexed by device id (eg "DAC_3C").
-var devices = {};
 
 // flag to signal loop function when setup is complete and it can proceed.
 var setup_complete = false;
@@ -93,18 +90,17 @@ function set_relays(quadrelay_info) {
     }
 }
 
-function setup_quadrelay(cascade, id, position) {
+function setup_quadrelay(cascade, id, quadrelay) {
     let display_base = RELAY_DISPLAY_BASE + next_display_order(5);
 
     var quadrelay_info = {
         id: id,
-        position: position,
-        interface: devices[id],
+        interface: quadrelay,
         relays: []
     };
 
     for(let relay_index in [0,1,2,3]) {
-        let relay_id_base = "RELAY_" + position;
+        let relay_id_base = "RELAY_" + quadrelay.position;
         let relay_id = relay_id_base + "_" + relay_index;
         let relay_component = cascade.create_component({
             id: relay_id,
@@ -123,6 +119,7 @@ function setup_quadrelay(cascade, id, position) {
     }
 
     quadrelays[id] = quadrelay_info;
+    allDevices[id] = quadrelay_info;
 }
 
 function mapRange(value, in_min, in_max, out_min, out_max) {
@@ -179,13 +176,12 @@ function set_dac(dac_info) {
     }
 }
 
-function setup_dac(cascade, id, position) {
+function setup_dac(cascade, id, dac) {
     let display_base = DAC_DISPLAY_BASE + next_display_order(5);
 
     var dac_info = {
         id: id,
-        position: position,
-        interface: devices[id],
+        interface: dac,
         setFunction: DAC_OUTPUT_TYPES.NO_OUTPUT
     };
 
@@ -237,6 +233,7 @@ function setup_dac(cascade, id, position) {
     dac_info.output_type.value = dac_info.output_type.value;
 
     dacs[id] = dac_info;
+    allDevices[id] = dac_info;
     dac_names.push(id);
     //update_hard_resource_list_component(cascade, "DAC_HR_names", dac_names.sort());
 }
@@ -296,20 +293,17 @@ function set_stepper(stepper_info) {
     }
 }
 
-function setup_stepper(cascade, id, position) {
+function setup_stepper(cascade, id, stepper) {
     let display_base = STEPPER_DISPLAY_BASE + next_display_order(10);
 
     var stepper_info = {
         id: id,
-        position: position,
-        interface: devices[id],
+        interface: stepper,
         enable: null,
         velocity: null,
         max_motor_speed: null,
         motor_current: null
     };
-
-    var stepper = stepper_info.interface;
 
     if (stepper) {
         if (stepper.getBasicConfiguration) {
@@ -411,6 +405,7 @@ function setup_stepper(cascade, id, position) {
     stepper_info.motor_current.value = stepper_info.motor_current.value;
 
     steppers[id] = stepper_info;
+    allDevices[id] = stepper_info;
     stepper_names.push(id);
     //update_hard_resource_list_component(cascade, "STEPPER_HR_names", stepper_names.sort());
 }
@@ -475,19 +470,18 @@ function set_io4(io4_info, io_index) {
     }
 }
 
-function setup_io4(cascade, id, position) {
+function setup_io4(cascade, id, io4) {
     let display_base = IO4_DISPLAY_BASE + next_display_order(20);
 
     var io4_info = {
         id: id,
-        position: position,
-        interface: devices[id],
+        interface: io4,
         port_value: [undefined, undefined, undefined, undefined],
         configuration: [undefined, undefined, undefined, undefined],
     };
 
     for(let io_index in [0,1,2,3]) {
-        let io_id_base = "IO_" + position;
+        let io_id_base = "IO_" + io4.position;
         let io_id = io_id_base + "_" + io_index;
         io4_info.port_value[io_index] = cascade.create_component({
             id: io_id,
@@ -521,13 +515,13 @@ function setup_io4(cascade, id, position) {
         });
     }
     io4s[id] = io4_info;
+    allDevices[id] = io4_info;
 }
 
-function setup_barometer(cascade, id, position) {
+function setup_barometer(cascade, id, barometer) {
     var barometer_info = {
         id: id,
-        position: position,
-        interface: devices[id],
+        interface: barometer,
         component: undefined
     };
     barometer_info.component = cascade.create_component({
@@ -542,6 +536,7 @@ function setup_barometer(cascade, id, position) {
     });
 
     barometers[id] = barometer_info;
+    allDevices[id] = barometer_info;
 }
 
 function configure_dist_ma(dist_info) {
@@ -551,12 +546,11 @@ function configure_dist_ma(dist_info) {
     }
 }
 
-function setup_distIR(cascade, id, position) {
+function setup_distIR(cascade, id, distIR) {
     let display_base = DISTIR_DISPLAY_BASE + next_display_order(5);
     var dist_info = {
         id: id,
-        position: position,
-        interface: devices[id],
+        interface: distIR,
         dist: undefined,
         dist_ma: undefined,
     };
@@ -571,12 +565,10 @@ function setup_distIR(cascade, id, position) {
         type: cascade.TYPES.NUMBER
     });
 
-    let dist = dist_info.interface;
+    if (distIR) {
+        distIR.setDistanceCallbackConfiguration(1000, false, "x", 0, 0);
 
-    if (dist) {
-        dist.setDistanceCallbackConfiguration(1000, false, "x", 0, 0);
-
-        dist.on(tinkerforge.BrickletDistanceIRV2.CALLBACK_DISTANCE, function(distance) {
+        distIR.on(tinkerforge.BrickletDistanceIRV2.CALLBACK_DISTANCE, function(distance) {
             dist_info.dist.value = distance;
         });
     }
@@ -600,19 +592,18 @@ function setup_distIR(cascade, id, position) {
 
     dist_names.push(id);
     distIRs[id] = dist_info;
+    allDevices[id] = dist_info;
 }
 
-function setup_onewire_net(cascade, id, position) {
+function setup_onewire_net(cascade, id, owNet) {
     let display_base = OW_DISPLAY_BASE + next_display_order(100);
     var ow_info = {
         id: id,
-        position: position,
-        interface: devices[id],
+        interface: owNet,
         probes: {},
     };
 
     //  Set 12 bit resolution and generate individual OW probes.
-    var owNet = devices[id];
     if (owNet) {
 
         // The tempSetResolution call does not return nor error -- unknown bug
@@ -642,6 +633,7 @@ function setup_onewire_net(cascade, id, position) {
     }
 
     onewireNets[id] = ow_info;
+    allDevices[id] = ow_info;
 }
 
 var PTC_WIRE_MODES = {
@@ -650,12 +642,11 @@ var PTC_WIRE_MODES = {
     FOUR_WIRE: tinkerforge.BrickletPTCV2.WIRE_MODE_4
 };
 
-function setup_ptc_probe(cascade, id, position) {
+function setup_ptc_probe(cascade, id, ptc) {
     let display_base = PTC_DISPLAY_BASE + next_display_order(10);
     var ptc_info = {
         id: id,
-        position: position,
-        interface: devices[id],
+        interface: ptc,
         probe: create_temp_probe(cascade, id, display_base),
     };
 
@@ -683,7 +674,6 @@ function setup_ptc_probe(cascade, id, position) {
     // eslint-disable-next-line no-self-assign
     ptc_info.wire_mode.value = ptc_info.wire_mode.value;
 
-    var ptc = ptc_info.interface;
     if (ptc) {
         ptc.isSensorConnected(
             function(connected) {
@@ -700,23 +690,22 @@ function setup_ptc_probe(cascade, id, position) {
     }
 
     ptcProbes[id] = ptc_info;
+    allDevices[id] = ptc_info;
     ptc_names.push(id);
     //update_hard_resource_list_component(cascade, "PTC_PROBE_HR_names", ptc_names.sort());
     //update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
     //    ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
 }
 
-function setup_thermocouple_probe(cascade, id, position) {
+function setup_thermocouple_probe(cascade, id, tc) {
     var display_base = TC_DISPLAY_BASE + next_display_order(5);
     var tc_info = {
         id: id,
-        position: position,
-        interface: devices[id],
+        interface: tc,
         probe: create_temp_probe(cascade, id, display_base),
     };
 
 
-    var tc = tc_info.interface;
     if (tc) {
         tc.setConfiguration(tinkerforge.BrickletThermocouple.AVERAGING_16,
             tinkerforge.BrickletThermocouple.TYPE_K,
@@ -724,6 +713,7 @@ function setup_thermocouple_probe(cascade, id, position) {
     }
 
     thermocoupleProbes[id] = tc_info;
+    allDevices[id] = tc_info;
     tc_names.push(id);
     //update_hard_resource_list_component(cascade, "TC_PROBE_HR_names", tc_names.sort());
     //update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
@@ -822,11 +812,11 @@ module.exports.setup = function (cascade) {
                 position = position.toUpperCase();
 
                 if (enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_DISCONNECTED) {
-                    for (var key in devices) {
-                        var device = devices[key];
+                    for (var key in allDevices) {
+                        var info = allDevices[key];
 
-                        if (device.uid_string === uid) {
-                            delete devices[key];
+                        if (info.interface.uid_string === uid) {
+                            info.interface = undefined;
                             return;
                         }
                     }
@@ -846,9 +836,8 @@ module.exports.setup = function (cascade) {
                             owNet.position = masterbrick_position[connectedUid] + position;
 
                             let ow_id = "OW_" + owNet.position;
-                            devices[ow_id] = owNet;
 
-                            setup_onewire_net(cascade, ow_id, owNet.position);
+                            setup_onewire_net(cascade, ow_id, owNet);
                             break;
                         }
                         case tinkerforge.BrickletThermocouple.DEVICE_IDENTIFIER : {
@@ -858,9 +847,8 @@ module.exports.setup = function (cascade) {
                             tc.position = masterbrick_position[connectedUid] + position;
 
                             var tc_id = "TC_" + tc.position;
-                            devices[tc_id] = tc;
 
-                            setup_thermocouple_probe(cascade, tc_id, tc.position);
+                            setup_thermocouple_probe(cascade, tc_id, tc);
                             break;
                         }
                         case tinkerforge.BrickletPTCV2.DEVICE_IDENTIFIER : {
@@ -869,9 +857,8 @@ module.exports.setup = function (cascade) {
                             ptc.uid_string = uid;
                             ptc.position = masterbrick_position[connectedUid] + position;
                             let ptc_id = "PTC_" + ptc.position;
-                            devices[ptc_id] = ptc;
 
-                            setup_ptc_probe(cascade, ptc_id, ptc.position);
+                            setup_ptc_probe(cascade, ptc_id, ptc);
                             break;
                         }
                         case tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER :
@@ -891,9 +878,8 @@ module.exports.setup = function (cascade) {
                             dac.position = masterbrick_position[connectedUid] + position;
 
                             var dac_id = "DAC_" + dac.position;
-                            devices[dac_id] = dac;
 
-                            setup_dac(cascade, dac_id, dac.position);
+                            setup_dac(cascade, dac_id, dac);
                             break;
                         }
                         case tinkerforge.BrickletIndustrialQuadRelay.DEVICE_IDENTIFIER : {
@@ -903,9 +889,8 @@ module.exports.setup = function (cascade) {
                             quadrelay.position = masterbrick_position[connectedUid] + position;
 
                             var quadrelay_id = "QUADRELAY_" + quadrelay.position;
-                            devices[quadrelay_id] = quadrelay;
 
-                            setup_quadrelay(cascade, quadrelay_id, quadrelay.position );
+                            setup_quadrelay(cascade, quadrelay_id, quadrelay);
                             break;
                         }
                         case tinkerforge.BrickletBarometer.DEVICE_IDENTIFIER : {
@@ -915,7 +900,6 @@ module.exports.setup = function (cascade) {
                             barometer.position = masterbrick_position[connectedUid] + position.toUpperCase;
 
                             var barometer_id = "barometer_" + barometer.position;
-                            devices[barometer_id] = barometer;
 
                             setup_barometer(cascade, barometer_id, barometer.position);
                             break;
@@ -940,9 +924,8 @@ module.exports.setup = function (cascade) {
                             stepper.uid_string = uid;
                             stepper.position = position;
                             stepper_id = stepper_id + stepper.position;
-                            devices[stepper_id] = stepper;
 
-                            setup_stepper(cascade, stepper_id, stepper.position);
+                            setup_stepper(cascade, stepper_id, stepper);
 
                             break;
                         }
@@ -963,9 +946,8 @@ module.exports.setup = function (cascade) {
                             IO4.uid_string = uid;
                             IO4.position = masterbrick_position[connectedUid] + position;
                             let IO4_id = "IO4_" + IO4.position;
-                            devices[IO4_id] = IO4;
 
-                            setup_io4(cascade, IO4_id, IO4.position);
+                            setup_io4(cascade, IO4_id, IO4);
 
                             break;
                         }
@@ -976,9 +958,8 @@ module.exports.setup = function (cascade) {
                             distIR.uid_string = uid;
                             distIR.position = masterbrick_position[connectedUid] + position;
                             let distIR_id = "DISTIR_" + distIR.position;
-                            devices[distIR_id] = distIR;
 
-                            setup_distIR(cascade, distIR_id, distIR.position);
+                            setup_distIR(cascade, distIR_id, distIR);
 
                             break;
                         }
@@ -1011,14 +992,9 @@ module.exports.setup = function (cascade) {
 
 
 module.exports.loop = function (cascade) {
-    //var online = true;
-
     if (!setup_complete) return;
 
-    _.each(quadrelays, function(quadrelay_info, id) {
-        if (!devices[id]) null;  //online = false;
-    });
-
+    /*
     _.each(dacs, function (dac_info, id) {
 
         var dac_interface = devices[id];
@@ -1032,9 +1008,11 @@ module.exports.loop = function (cascade) {
             set_dac(dac_info);
         }
     });
+    */
 
     for (let id in thermocoupleProbes) {
         let tc_info = thermocoupleProbes[id];
+        let tc = tc_info.interface;
         let tempProbe = tc_info.probe;
 
         if(!tempProbe) {
@@ -1042,9 +1020,8 @@ module.exports.loop = function (cascade) {
             continue;
         }
 
-        var tcDevice = devices[id];
-        if (tcDevice) {
-            tcDevice.getTemperature(function (temperature) {
+        if (tc) {
+            tc.getTemperature(function (temperature) {
                 var tempValue = temperature / 100;
                 tempProbe.raw.value = tempValue;
                 tempValue = tempValue + (tempProbe.calibration.value || 0);
@@ -1058,6 +1035,7 @@ module.exports.loop = function (cascade) {
 
     for (let id in ptcProbes) {
         let ptc_info = ptcProbes[id];
+        let ptc = ptc_info.interface;
         let tempProbe = ptc_info.probe;
 
         if(!tempProbe) {
@@ -1065,9 +1043,8 @@ module.exports.loop = function (cascade) {
             continue;
         }
 
-        var ptcDevice = devices[id];
-        if (ptcDevice) {
-            ptcDevice.getTemperature(function (temperature) {
+        if (ptc) {
+            ptc.getTemperature(function (temperature) {
                 var tempValue = temperature / 100;
                 tempProbe.raw.value = tempValue;
                 tempValue = tempValue + (tempProbe.calibration.value || 0);
@@ -1082,10 +1059,10 @@ module.exports.loop = function (cascade) {
 
     for (let id in onewireNets) {
         let ow_info = onewireNets[id];
-        var ow = devices[id];
+        var ow = ow_info.interface;
         if (ow && !ow.in_use) {
             ow.in_use = true;
-            ow.getAllTemperatures(function (error, probes) {
+            ow.getAllTemperatures(function (error, ow_probes) {
                 if (error) {
                     cascade.log_warning(new Error(
                         "Unable to retrieve temperatures from onewire " + id +
@@ -1094,19 +1071,19 @@ module.exports.loop = function (cascade) {
                     return;
                 }
 
-                for (let ow_address in probes) {
-                    var tempValue = probes[ow_address];
-                    var tempComponent = ow_info.probes[ow_address];
-                    if (!tempComponent) {
+                for (let ow_address in ow_probes) {
+                    var tempProbe = ow_info.probes[ow_address];
+                    var tempValue = ow_probes[ow_address];
+                    if (!tempProbe) {
                         let probe_name = id + "_" + ow_address;
                         cascade.log_error(new Error(
                             "No temp probe for " +probe_name+ " in loop function."));
                         continue;
                     }
 
-                    tempComponent.raw.value = tempValue;
-                    tempValue = tempValue + (tempComponent.calibration.value || 0);
-                    tempComponent.calibrated.value = tempValue;
+                    tempProbe.raw.value = tempValue;
+                    tempValue = tempValue + (tempProbe.calibration.value || 0);
+                    tempProbe.calibrated.value = tempValue;
                     if (tempValue > max_temp.value && tempValue < 4000) {
                         max_temp.value = tempValue;
                     }
@@ -1116,11 +1093,14 @@ module.exports.loop = function (cascade) {
         }
     }
 
-    _.each(barometers, function(barometer_info, id) {
-        var barometerDevice = devices[id];
-        if (barometerDevice) {
-            barometerDevice.getAirPressure(
-                function(airPressure) {barometer_info.component.value = airPressure / 1000;});
+    for (let id in barometers) {
+        let barometer_info = barometers[id];
+        var barometer = barometer_info.interface;
+        if (barometer) {
+            barometer.getAirPressure(
+                function(airPressure) {
+                    barometer_info.component.value = airPressure / 1000;
+                });
         }
-    });
+    }
 };
