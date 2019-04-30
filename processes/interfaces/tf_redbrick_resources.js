@@ -50,8 +50,6 @@ var thermocoupleProbes = {};
 var ptcProbes = {};
 //var barometer_component;
 
-// all temp probes by probe ids (tc_id, ptc_id, or ow_id + probe)
-var tempProbes = {};
 var max_temp;  // max value of all probes (component)
 
 // tinkerforge hardware interfaces indexed by device id (eg "DAC_3C").
@@ -610,7 +608,7 @@ function setup_onewire_net(cascade, id, position) {
         id: id,
         position: position,
         interface: devices[id],
-        probes: []
+        probes: {},
     };
 
     //  Set 12 bit resolution and generate individual OW probes.
@@ -629,11 +627,11 @@ function setup_onewire_net(cascade, id, position) {
                 }
                 else {
                     for (let ow_address of probes) {
-                        let probe_address = id + "_" + ow_address;
-                        create_temp_probe(cascade, probe_address, display_base);
+                        let probe_name = id + "_" + ow_address;
+                        let probe = create_temp_probe(cascade, probe_name, display_base);
                         display_base += 5;
-                        ow_info.probes.push(probe_address);
-                        ow_names.push(probe_address);
+                        ow_info.probes.push[ow_address] = probe;
+                        ow_names.push(probe_name);
                         //update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
                         //    ow_names.sort());
                         //update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
@@ -657,10 +655,9 @@ function setup_ptc_probe(cascade, id, position) {
     var ptc_info = {
         id: id,
         position: position,
-        interface: devices[id]
+        interface: devices[id],
+        probe: create_temp_probe(cascade, id, display_base),
     };
-
-    create_temp_probe(cascade, id, display_base);
 
     ptc_info.wire_mode = cascade.create_component({
         id: id + "_wire_mode",
@@ -710,13 +707,14 @@ function setup_ptc_probe(cascade, id, position) {
 }
 
 function setup_thermocouple_probe(cascade, id, position) {
+    var display_base = TC_DISPLAY_BASE + next_display_order(5);
     var tc_info = {
         id: id,
         position: position,
-        interface: devices[id]
+        interface: devices[id],
+        probe: create_temp_probe(cascade, id, display_base),
     };
 
-    create_temp_probe(cascade, id, TC_DISPLAY_BASE + next_display_order(5));
 
     var tc = tc_info.interface;
     if (tc) {
@@ -768,7 +766,7 @@ function create_temp_probe(cascade, probe_name, display_base) {
         type: cascade.TYPES.NUMBER
     });
 
-    tempProbes[probe_name] = probe_component;
+    return probe_component;
 }
 
 function update_hard_resource_list_component(cascade, id, list) {
@@ -1035,13 +1033,13 @@ module.exports.loop = function (cascade) {
         }
     });
 
-    _.each(thermocoupleProbes, function (tc_info, id) {
-        let tempProbe = tempProbes[id];
+    for (let id in thermocoupleProbes) {
+        let tc_info = thermocoupleProbes[id];
+        let tempProbe = tc_info.probe;
 
         if(!tempProbe) {
-            cascade.log_error(new Error("creating probe " +id+ " in loop function."));
-            create_temp_probe(cascade, id, TC_DISPLAY_BASE + next_display_order(5));
-            tempProbe = tempProbes[id];
+            cascade.log_error(new Error("No temp probe for " +id+ " in loop function."));
+            continue;
         }
 
         var tcDevice = devices[id];
@@ -1056,15 +1054,15 @@ module.exports.loop = function (cascade) {
                 }
             });
         }
-    });
+    }
 
-    _.each(ptcProbes, function (ptc_info, id) {
-        let tempProbe = tempProbes[id];
+    for (let id in ptcProbes) {
+        let ptc_info = ptcProbes[id];
+        let tempProbe = ptc_info.probe;
 
         if(!tempProbe) {
-            cascade.log_error(new Error("creating probe " +id+ " in loop function."));
-            create_temp_probe(cascade, id, PTC_DISPLAY_BASE + next_display_order(5));
-            tempProbe = tempProbes[id];
+            cascade.log_error(new Error("No temp probe for " +id+ " in loop function."));
+            continue;
         }
 
         var ptcDevice = devices[id];
@@ -1080,9 +1078,10 @@ module.exports.loop = function (cascade) {
             });
 
         }
-    });
+    }
 
-    _.each(onewireNets, function(ow_info, id) {
+    for (let id in onewireNets) {
+        let ow_info = onewireNets[id];
         var ow = devices[id];
         if (ow && !ow.in_use) {
             ow.in_use = true;
@@ -1095,20 +1094,15 @@ module.exports.loop = function (cascade) {
                     return;
                 }
 
-                for (let netAddress in probes) {
-                    var tempValue = probes[netAddress];
-                    let probe_name = id + "_" + netAddress;
-                    var tempComponent = tempProbes[probe_name];
-                    if (!tempComponent) continue;
-                    /*
+                for (let ow_address in probes) {
+                    var tempValue = probes[ow_address];
+                    var tempComponent = ow_info.probes[ow_address];
                     if (!tempComponent) {
+                        let probe_name = id + "_" + ow_address;
                         cascade.log_error(new Error(
-                            "creating probe " +probe_name+ " in loop function."));
-                        create_temp_probe(cascade, probe_name,
-                            OW_DISPLAY_BASE + next_display_order(5));
-                        tempComponent = tempProbes[probe_name];
+                            "No temp probe for " +probe_name+ " in loop function."));
+                        continue;
                     }
-                    */
 
                     tempComponent.raw.value = tempValue;
                     tempValue = tempValue + (tempComponent.calibration.value || 0);
@@ -1120,7 +1114,7 @@ module.exports.loop = function (cascade) {
                 ow.in_use = false;
             });
         }
-    });
+    }
 
     _.each(barometers, function(barometer_info, id) {
         var barometerDevice = devices[id];
