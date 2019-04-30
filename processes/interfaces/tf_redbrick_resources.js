@@ -1,4 +1,3 @@
-var _ = require("underscore");
 var tinkerforge = require("tinkerforge");
 var tinkerforge_connection = require("./../lib/tinkerforge_connection");
 var onewireTempSensors = require("./../lib/onewire_temp_sensors");  // sensor interface for 1wire bricklet
@@ -82,9 +81,10 @@ function set_relays(quadrelay_info) {
 
         var bitmask = 0;
 
-        _.each(quadrelay_info.relays, function (relay, relay_position) {
-            bitmask = bitmask | (relay.value << relay_position);
-        });
+        for (let relay_index in quadrelay_info.relays) {
+            let relay = quadrelay_info.relays[relay_index];
+            bitmask = bitmask | (relay.value << relay_index);
+        }
 
         relay_interface.setValue(bitmask);
     }
