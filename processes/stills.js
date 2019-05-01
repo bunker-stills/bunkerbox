@@ -76,13 +76,17 @@ module.exports.setup = function (cascade) {
             });
         });
 
-    for (let soft_resource_type of soft.resource_types) {
-        if (soft_resource_type === "Barometer") continue;
-        if (soft_resource_type === "OW_probe") continue;
-        if (soft_resource_type === "TC_probe") continue;
-        if (soft_resource_type === "PTC_probe") continue;
-        soft.create_resource_name_list(cascade, soft_resource_type);
-    }
+    // delay creation of soft resources until hard resources are created.
+    setTimeout(function(){
+        cascade.log_info("Stills soft resource creation started");
+        for (let soft_resource_type of soft.resource_types) {
+            if (soft_resource_type === "Barometer") continue;
+            if (soft_resource_type === "OW_probe") continue;
+            if (soft_resource_type === "TC_probe") continue;
+            if (soft_resource_type === "PTC_probe") continue;
+            soft.create_resource_name_list(cascade, soft_resource_type);
+        }
+    }, 10000);
 
     barometer = new soft.Barometer(cascade);
 

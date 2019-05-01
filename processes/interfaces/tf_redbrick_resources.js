@@ -621,7 +621,7 @@ function setup_onewire_net(cascade, id, owNet) {
                         let probe_name = id + "_" + ow_address;
                         let probe = create_temp_probe(cascade, probe_name, display_base);
                         display_base += 5;
-                        ow_info.probes.push[ow_address] = probe;
+                        ow_info.probes[ow_address] = probe;
                         ow_names.push(probe_name);
                         //update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
                         //    ow_names.sort());
@@ -815,7 +815,7 @@ module.exports.setup = function (cascade) {
                     for (var key in allDevices) {
                         var info = allDevices[key];
 
-                        if (info.interface.uid_string === uid) {
+                        if (info.interface && info.interface.uid_string === uid) {
                             info.interface = undefined;
                             return;
                         }
@@ -901,7 +901,7 @@ module.exports.setup = function (cascade) {
 
                             var barometer_id = "barometer_" + barometer.position;
 
-                            setup_barometer(cascade, barometer_id, barometer.position);
+                            setup_barometer(cascade, barometer_id, barometer);
                             break;
                         }
                         case tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER :
@@ -968,11 +968,13 @@ module.exports.setup = function (cascade) {
             });
 
         ipcon.enumerate();
+        cascade.log_info("TF stack enumeration initiated.");
     });
 
     // Provide time for tinkerforge stack enumeration to complete.
     // Then create lists of all hard resources by type.
     setTimeout(function() {
+        cascade.log_info("TF setup completing.");
         // create device selection components from name lists
         update_hard_resource_list_component(cascade, "RELAY_HR_names", relay_names.sort());
         update_hard_resource_list_component(cascade, "DAC_HR_names", dac_names.sort());
@@ -987,7 +989,9 @@ module.exports.setup = function (cascade) {
             ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
         max_temp.value = 0;  // last chance in setup to clear this value.
         setup_complete = true;
+        cascade.log_info("TF setup completed.");
     }, 60000);
+    cascade.log_info("TF setup exits.");
 };
 
 
