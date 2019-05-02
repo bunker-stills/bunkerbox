@@ -34,7 +34,6 @@ function do_request(action, body) {
     }
     return new Promise(function(resolve, reject) {
         const got_promise = got(action, options);
-        console.log("got_promise=" + got_promise);
         got_promise.then(
             function(response) {
                 let result = response.body;
@@ -52,22 +51,22 @@ function do_request(action, body) {
             }
         );
     });
-};
+}
 
-function load_model() {
-    if (current_state == 'unloaded') {
+function load_model(cascade) {
+    if (current_state == "unloaded") {
         // load model
         do_request("load", {"modelnm": model_selector.value})
-        .then(function(result) {
-            model_selector.info.options = [model_selector.value];
-            run_mode.value = "STOP";
+            .then(function(result) {
+                model_selector.info.options = [model_selector.value];
+                run_mode.value = "STOP";
 
-            // get list of controls and probes from current status
-            get_probes_and_controls();
-        })
-        .catch(function(err) {
-            cascade.log_error(new Error("Sim model load error: " + err));
-        });
+                // get list of controls and probes from current status
+                get_probes_and_controls();
+            })
+            .catch(function(err) {
+                cascade.log_error(new Error("Sim model load error: " + err));
+            });
     } else {
         let current_model = current_run.slice(0,-9);
         model_selector.info.options = [current_model];
@@ -81,44 +80,50 @@ function load_model() {
             run_mode.value = "STOP";
         }
     }
-});
+}
 
 function execute_run_mode(cascade) {
-    // On RUN we do run command;
-    // On STOP we do stop command;
-    // On UNLOAD we do stop (if running) and unload.
     switch (run_mode.value.toUpperCase()) {
         case "UNLOAD": {
             if (current_state == "unloaded") break;
 
             if (current_state === "running") {
                 do_request("stop")
-                .catch(function(err) {
-                    cascade.log_error(new Error("Stopping on run_mode UNLOAD: " + error));
-                });
+                    .catch(function(err) {
+                        cascade.log_error(new Error("Stopping on run_mode UNLOAD: " + err));
+                    });
+                run_mode.value = "STOP";
             }
             do_request("unload")
-            .catch(function(err) {
-                cascade.log_error(new Error("On run_mode UNLOAD: " + error));
-            });
+                .catch(function(err) {
+                    cascade.log_error(new Error("On run_mode UNLOAD: " + err));
+                });
             break;
         }
         case "STOP": {
             if (current_state === "loaded") break;
+            if (current_state === "unloaded") {
+                // return state to UNLOAD; use model selector to get to loaded
+                run_mode.value = "UNLOAD";
+            }
 
             do_request("stop")
-            .catch(function(err) {
-                cascade.log_error(new Error("On run_mode STOP: " + error));
-            });
+                .catch(function(err) {
+                    cascade.log_error(new Error("On run_mode STOP: " + err));
+                });
             break;
         }
         case "RUN": {
             if (current_state === "running") break;
+            if (current_state === "unloaded") {
+                // return state to UNLOAD; use model selector to get to loaded
+                run_mode.value = "UNLOAD";
+            }
 
             do_request("run")
-            .catch(function(err) {
-                cascade.log_error(new Error("On run_mode RUN: " + error));
-            });
+                .catch(function(err) {
+                    cascade.log_error(new Error("On run_mode RUN: " + err));
+                });
             break;
         }
         default: {
@@ -128,24 +133,24 @@ function execute_run_mode(cascade) {
     }
 }
 
-function KtoC(K) {if (K) return K-273.15;};
-function CtoK(C) {if (C) return C+273.15;};
-function mbarToPa(mbar) {if (mbar) return mbar*100;};
-function PaToMbar(Pa) {if (Pa) return Pa*0.01;};
-function gphToCmps(gph) {if (gph) return gph*1.0515e-6;};
-function cmpsToGph(cmps) {if (cmps) return cmps*9.5102e5;};
+function KtoC(K) {if (K) return K-273.15;}
+function CtoK(C) {if (C) return C+273.15;}
+function mbarToPa(mbar) {if (mbar) return mbar*100;}
+function PaToMbar(Pa) {if (Pa) return Pa*0.01;}
+function gphToCmps(gph) {if (gph) return gph*1.0515e-6;}
+function cmpsToGph(cmps) {if (cmps) return cmps*9.5102e5;}
 
 function get_probes_and_controls(cascade) {
 
     // simulator values to control and monitor simulation process
     for (let sim_val of latest_status.sim_value) {
-        sim_val['group'] = SIM_GROUP;
-        sim_val['display_order'] = utils.next_display_order();
+        sim_val["group"] = SIM_GROUP;
+        sim_val["display_order"] = utils.next_display_order();
         cascade.create_component(sim_val);
     }
     for (let sim_ctl of latest_status.sim_control) {
-        sim_ctl['group'] = SIM_GROUP;
-        sim_ctl['display_order'] = utils.next_display_order();
+        sim_ctl["group"] = SIM_GROUP;
+        sim_ctl["display_order"] = utils.next_display_order();
         if (sim_ctl.units == "K") {
             sim_ctl.units = "C";
             sim_ctl.value = KtoC(sim_ctl.value);
@@ -155,20 +160,20 @@ function get_probes_and_controls(cascade) {
             sim_ctl.units = "mbar";
             sim_ctl.value = PaToMbar(sim_ctl.value);
         }
-        let conponent = cascade.create_component(sim_ctl);
+        let component = cascade.create_component(sim_ctl);
         component.on("value_updated",
             function() { update_control(component, "sim_control"); });
     }
 
     // sensors and controls on the still model
     for (let probe of latest_status.model_probe) {
-        if (probe.name.startswith('ambient')) continue;
+        if (probe.name.startswith("ambient")) continue;
         if (probe.units != "K") continue;
         probe.units = "C";
         probe.value = KtoC(probe.value);
         probe.group = SENSORS_GROUP;
         probe.display_order = utils.next_display_order();
-        temp_probe = cascade.create_component(probe);
+        let temp_probe = cascade.create_component(probe);
 
         setup_temp_probe(temp_probe);
     }
@@ -181,15 +186,15 @@ function get_probes_and_controls(cascade) {
         if (control.units == "K") {
             control.units = "C";
             control.value = KtoC(control.value);
-        };
-        if (controls.units == "m^3/s") {
+        }
+        if (control.units == "m^3/s") {
             control.units = "gph";
             control.value = cmpsToGph(control.value);
-        };
-        if (controls.units == "0=1") {
+        }
+        if (control.units == "0=1") {
             control.units = "%";
             control.value = control.value*100;
-        };
+        }
 
         control.group = PROCESS_CONTROLS_GROUP;
         control.display_order = utils.next_display_order();
@@ -214,7 +219,7 @@ function get_probes_and_controls(cascade) {
 
 function update_control(control, section_name) {
     let name = control.name;
-    let value = component.value;
+    let value = control.value;
     if (name == "barometer") {
         name = "Ambient_pres";
     }
@@ -223,16 +228,18 @@ function update_control(control, section_name) {
     } else if (control.units == "mbar") {
         value = mbarToPa(value);
     } else if (control.units == "gph") {
-        value = gphToCmps(gph);
+        value = gphToCmps(value);
     } else if (control.units == "%") {
         value = Math.max(0, Math.min(1, value * 0.01));
     }
-    do_request("update", {section_name: {"name": name, "value", value}});
+    var update_object = {};
+    update_object[section_name] = {"name": name, "value": value};
+    do_request("update", update_object);
 }
 
 function setup_temp_probe(temp_probe) {
     //XXX do more stuff here
-    temp_probe_names.push(probe.name);
+    temp_probe_names.push(temp_probe.name);
 }
 
 function setup_dac(dac) {
@@ -240,39 +247,40 @@ function setup_dac(dac) {
     // need a max_scale configuration variable
     // need enable component
     //
-    dac_info = {
+    var dac_info = {
         name: dac.name,
-        dac_output = dac,
-        dac_enable = undefined,
-        dac_full_scale = undefined,
-        dac_updated = false,
-    }
+        dac_output: dac,
+        dac_enable: undefined,
+        dac_full_scale: undefined,
+        dac_updated: false,
+    };
 
-    dac_info.
-    dac_names.push(dac.name);
+    dac_info.dac_enable = undefined;
+    dac_info.dac_full_scale = undefined;
+    dac_names.push(dac_info.name);
     dac.on("value_updated",
-        function() { update_control(component, "model_control"); });
+        function() { update_control(dac, "model_control"); });
 }
 
 module.exports.setup = function (cascade) {
     // Model selector:
     // Model selection triggers loading and initialization of the model
     model_selector = cascade.create_component({
-        id: stillsim_models,
+        id: "stillsim_models",
         name: "Stillsim models",
         group: SIM_GROUP,
         display_order: utils.next_display_order(),
         class: "sim_info",
-        type: cascade.types.OPTIONS
+        type: cascade.types.OPTIONS,
         info: {options: []},
     });
-    model_selector.on("value_updated", function() {load_model();});
+    model_selector.on("value_updated", function() {load_model(cascade);});
 
     // current_run and current_state components are updated
     // by do_request() on each call.
     current_run = cascade.create_component({
         id: "current_run",
-        name "Current simulation run",
+        name: "Current simulation run",
         group: SIM_GROUP,
         display_order: utils.next_display_order(),
         class: "sim_info",
@@ -281,7 +289,7 @@ module.exports.setup = function (cascade) {
     });
     current_state = cascade.create_component({
         id: "current_state",
-        name "Current simulator state",
+        name: "Current simulator state",
         group: SIM_GROUP,
         display_order: utils.next_display_order(),
         class: "sim_info",
@@ -291,20 +299,20 @@ module.exports.setup = function (cascade) {
 
     // Get model list and current state
     do_request("read_status", null)
-    .then(function(result) {
-        model_selector.info.options = result.meta.model_list;
+        .then(function(result) {
+            model_selector.info.options = result.meta.model_list;
 
-        // If a model is already loaded, restrict model options to that model.
-        if (current_state.value != "unloaded") {
-            let model = current_run.slice(0, -9);
-            model_selector.info.options = [model];
-            model_selector.value = model;
-        }
-    })
-    .catch(function(err) {
-        cascade.log_error(new Error("Sim model error: " + err));
-        return;
-    });
+            // If a model is already loaded, restrict model options to that model.
+            if (current_state.value != "unloaded") {
+                let model = current_run.slice(0, -9);
+                model_selector.info.options = [model];
+                model_selector.value = model;
+            }
+        })
+        .catch(function(err) {
+            cascade.log_error(new Error("Sim model error: " + err));
+            return;
+        });
 
     cascade.require_component("run_mode",
         function(component) {
@@ -343,18 +351,18 @@ XXX Do we need another run_mode?  WAIT?
 Can we monkey patch it into the component?
 */
 
-    // set barometer to sim cntl Ambient_pres; convert to mbar
-    // Any probe with at units of 'K' is a temp probe; convert to C
+// set barometer to sim cntl Ambient_pres; convert to mbar
+// Any probe with at units of 'K' is a temp probe; convert to C
 
-    // model/controller notes:
-    // Main control is stripper heater.
-    // pre-heater is implemented by setting feed_wash_T
-    // draws are fractional (true reflux), not set rate.
-    // XXX add set rate draws
-    // change reflux in reverse of how draw rate changes (more draw = less reflux)
+// model/controller notes:
+// Main control is stripper heater.
+// pre-heater is implemented by setting feed_wash_T
+// draws are fractional (true reflux), not set rate.
+// XXX add set rate draws
+// change reflux in reverse of how draw rate changes (more draw = less reflux)
 
 
 
 module.exports.loop = function (cascade) {
     //Update sensor components.
-}
+};

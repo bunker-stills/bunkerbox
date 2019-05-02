@@ -459,7 +459,7 @@ SoftResource_PID.prototype.update_process_value = function() {
     }
 };
 
-SoftResource_PID.prototype.process_pid = function() {
+SoftResource_PID.prototype.process_pid = function(time) {
 
     this.update_process_value();
 
@@ -480,7 +480,7 @@ SoftResource_PID.prototype.process_pid = function() {
 
         this._pid.setDesiredValue(this.set_point.value || 0.0);
 
-        this.control_value.value = this._pid.update(this.process_value.value || 0.0);
+        this.control_value.value = this._pid.update(this.process_value.value || 0.0, time);
 
         if (this.control_component) {
             this.control_component.value = this.control_value.value;

@@ -48,6 +48,8 @@ var barometer;
 var do_PID_options = true;
 var currentOptionsList = [];
 
+var simulated_time_component;
+
 //////////////////////////////////////////////////////////////////////////////
 // cascade process setup and supporting functions
 
@@ -64,6 +66,10 @@ module.exports.setup = function (cascade) {
     // Get max_temp component for failsafe check.
     cascade.components.require_component("max_temp",
         function(component) {max_temp = component;});
+
+    // Integrate simulator time when present.
+    cascade.components.require_component("simulated_time",
+        function(component) {simulated_time_component = component;});
 
     for (let vardef of system_Variables) {
         new soft.Variable(cascade, vardef);
@@ -149,7 +155,13 @@ function during_run(cascade) {
         function(func) {func.process_function(cascade);});
 
     // process PIDs
-    _.each(soft.PID.get_instances(), function(pid) {pid.process_pid();});
+    var time;
+    if (simulated_time_component) {
+        time = simulated_time_component.value * 1000;
+    } else {
+        time = Date.now();
+    }
+    _.each(soft.PID.get_instances(), function(pid) {pid.process_pid(time);});
 }
 
 function set_OptionsList(cascade) {

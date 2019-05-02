@@ -41,9 +41,14 @@ pid.prototype.setDerivativeGain = function(Kd)
     this.Kd = Kd;
 };
 
-pid.prototype.update = function(measuredValue)
+pid.prototype.update = function(measuredValue, time)
 {
-    var now = Date.now();
+    var now;
+    if (time) {
+        now = time;
+    } else {
+        now = Date.now;
+    }
     var dt;
 
     if(!this.lastMeasurementTime)

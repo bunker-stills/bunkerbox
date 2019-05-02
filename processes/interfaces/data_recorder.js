@@ -33,10 +33,18 @@ function escape_field_value(value) {
     return output;
 }
 
+var time_base = Date.now();
+var simulated_time_component;
+
 recorder.prototype.flush = function () {
     if (this.measurements.length > 0) {
         var current_measurements = this.measurements;
         this.measurements = [];
+
+        var record_time;
+        if (simulated_time_component) {
+            record_time = Math.round(time_base / 1000 + simulated_time_component.value);
+        }
 
         var message = "";
 
@@ -62,6 +70,9 @@ recorder.prototype.flush = function () {
 
             message += tags.join(",") + " " + values.join(",");
 
+            if (record_time) {
+                message += " " + record_time;
+            } else
             if (!_.isUndefined(measurement.timestamp)) {
                 message += " " + Math.round(measurement.timestamp / 1000);
             }
@@ -123,7 +134,7 @@ var data_recorder;
 var device_name;
 
 // Data that changes is recorded right away. Data that doesn't change is recorded once a minute.
-module.exports.setup = function (cascade) {
+module.exports.setupf = function (cascade) {
     data_recorder = new recorder("52.39.173.27", 8089);
 
     device_name = cascade.create_component({
@@ -133,6 +144,10 @@ module.exports.setup = function (cascade) {
         name: "Device Name",
         persist: true
     });
+
+    // Integrate simulator time when present.
+    cascade.component.require_component("simulated_time",
+        function(component) {simulated_time_component = component;});
 
     cascade.cascade_server.on("component_value_updated", recordComponent);
     cascade.cascade_server.on("log_error", function(message){ recordLog("error", message); });
