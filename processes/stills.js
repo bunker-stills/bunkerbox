@@ -1,6 +1,7 @@
 var _ = require("underscore");
 var soft = require("./lib/soft_resources");
 
+var TESTING = Boolean(process.env.TESTING) || false;
 var BB_INTERFACE = process.env.BB_INTERFACE || "./interfaces/tf_redbrick_resources";
 
 var RUN_GROUP = "00  Run";
@@ -61,7 +62,9 @@ module.exports.setup = function (cascade) {
 
     // auxiliary application processes
     cascade.require_process("warm_restart");
-    cascade.require_process("interfaces/data_recorder");
+    if (!TESTING) {
+        cascade.require_process("interfaces/data_recorder");
+    }
 
     // Get max_temp component for failsafe check.
     cascade.components.require_component("max_temp",

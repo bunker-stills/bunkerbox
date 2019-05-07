@@ -3,7 +3,8 @@ const utils = require("./utils");
 
 var SIM_URL = process.env.SIM_URL || "http://127.0.0.1:3300/";
 
-var SIMMETA_GROUP = "01 Simulation Metadata";   // meta, sim_value, sim_control
+var RUN_GROUP = "00  Run";
+var SIMMETA_GROUP = "01  Simulation Metadata";   // meta, sim_value, sim_control
 var MODSET_GROUP = "02  Model Settings";
 var SENSORS_GROUP = "97  Model Sensors";
 var PROCESS_CONTROLS_GROUP = "98  Model Controls";
@@ -23,6 +24,7 @@ var temp_probes = {};
 var dac_names = [];
 var temp_probe_names = [];
 
+var max_temp;  // max value of all probes (component)
 
 function do_request(action, body) {
     // 'action' is one of 'read_status', 'load', 'unload', 'run', 'stop
@@ -59,7 +61,7 @@ function do_request(action, body) {
 }
 
 function load_model(cascade) {
-    if (current_state == "unloaded") {
+    if (current_state.value == "unloaded") {
         // load model
         do_request("load", {"modelnm": model_selector.value})
             .then(function() {
@@ -73,13 +75,13 @@ function load_model(cascade) {
                 cascade.log_error(new Error("Sim model load error: " + err));
             });
     } else {
-        let current_model = current_run.slice(0,-9);
+        let current_model = current_run.value.slice(0,-9);
         model_selector.info.options = [current_model];
         if (model_selector.value != current_model) {
             model_selector.value = current_model;
         }
 
-        if (current_state == "running") {
+        if (current_state.value == "running") {
             run_mode.value = "RUN";
         } else {
             run_mode.value = "STOP";
@@ -88,11 +90,12 @@ function load_model(cascade) {
 }
 
 function execute_run_mode(cascade) {
+    let state = current_state.value;
     switch (run_mode.value.toUpperCase()) {
         case "UNLOAD": {
-            if (current_state == "unloaded") break;
+            if (state == "unloaded") break;
 
-            if (current_state === "running") {
+            if (state === "running") {
                 do_request("stop")
                     .catch(function(err) {
                         cascade.log_error(new Error("Stopping on run_mode UNLOAD: " + err));
@@ -103,11 +106,13 @@ function execute_run_mode(cascade) {
                 .catch(function(err) {
                     cascade.log_error(new Error("On run_mode UNLOAD: " + err));
                 });
+            model_selector.info.options = current_status.meta.model_list;
+            model_selector.value = undefined;
             break;
         }
         case "STOP": {
-            if (current_state === "loaded") break;
-            if (current_state === "unloaded") {
+            if (state === "loaded") break;
+            if (state === "unloaded") {
                 // return state to UNLOAD; use model selector to get to loaded
                 run_mode.value = "UNLOAD";
             }
@@ -119,8 +124,8 @@ function execute_run_mode(cascade) {
             break;
         }
         case "RUN": {
-            if (current_state === "running") break;
-            if (current_state === "unloaded") {
+            if (state === "running") break;
+            if (state === "unloaded") {
                 // return state to UNLOAD; use model selector to get to loaded
                 run_mode.value = "UNLOAD";
             }
@@ -256,6 +261,7 @@ function setup_temp_probe(cascade, info_obj) {
 }
 
 function get_probes_and_controls(cascade) {
+    cascade.log_info("get_probes... latest_status:\n" + JSON.stringify(latest_status));
 
     // simulator values to control and monitor simulation process
     for (let sim_val of latest_status.sim_value) {
@@ -386,7 +392,39 @@ function update_dac(cascade, info_obj) {
     write_out_val(cascade, val, info_obj);
 }
 
+function sync_state() {
+    // set run_mode to match current simulator state
+    switch(current_state.value) {
+        case undefined:
+        case "unloaded": {
+            run_mode.value = "UNLOAD";
+            break;
+        }
+        case "loaded": {
+            run_mode.value = "STOP";
+            break;
+        }
+        case "running": {
+            run_mode.value = "RUN";
+            break;
+        }
+    }
+}
+
 module.exports.setup = function (cascade) {
+    cascade.log_info("stillsim_resources.setup entered.");
+
+    // Create max_temp component used by stills overtemp shutdown feature.
+    max_temp = cascade.create_component({
+        id: "max_temp",
+        name: "Max Temperature",
+        description: "Peak measured temperature",
+        group: RUN_GROUP,
+        display_order: 1000,
+        units: "C",
+        value: 0,
+    });
+
     // Model selector:
     // Model selection triggers loading and initialization of the model
     model_selector = cascade.create_component({
@@ -395,7 +433,7 @@ module.exports.setup = function (cascade) {
         group: SIMMETA_GROUP,
         display_order: utils.next_display_order(),
         class: "sim_info",
-        type: cascade.types.OPTIONS,
+        type: cascade.TYPES.OPTIONS,
         info: {options: []},
     });
     model_selector.on("value_updated", function() {load_model(cascade);});
@@ -408,7 +446,7 @@ module.exports.setup = function (cascade) {
         group: SIMMETA_GROUP,
         display_order: utils.next_display_order(),
         class: "sim_info",
-        type: cascade.types.TEXT,
+        type: cascade.TYPES.TEXT,
         read_only: true,
     });
     current_state = cascade.create_component({
@@ -417,51 +455,48 @@ module.exports.setup = function (cascade) {
         group: SIMMETA_GROUP,
         display_order: utils.next_display_order(),
         class: "sim_info",
-        type: cascade.types.TEXT,
+        type: cascade.TYPES.TEXT,
         read_only: true,
     });
 
     // Get model list and current state
     do_request("read_status", null)
         .then(function(result) {
+            cascade.log_info("stillsim_resources.setup model options: " +
+                result.meta.model_list);
+
+            sync_state();  // set run_mode to correspond to simulator.
+
             model_selector.info.options = result.meta.model_list;
 
             // If a model is already loaded, restrict model options to that model.
             if (current_state.value != "unloaded") {
-                let model = current_run.slice(0, -9);
+                let model = current_run.value.slice(0, -9);
                 model_selector.info.options = [model];
                 model_selector.value = model;
             }
+            model_selector.info = model_selector.info;  // trigger update
         })
         .catch(function(err) {
             cascade.log_error(new Error("Sim model error: " + err));
             return;
         });
 
-    cascade.require_component("run_mode",
+    cascade.components.require_component("run_mode",
         function(component) {
+            cascade.log_info("stillsim_resources.setup run_mode component found.");
+
             run_mode = component;
             run_mode.info.options.unshift("UNLOAD");
+            run_mode.info = run_mode.info;  // trigger update
 
-            // set run_mode to match current simulator state
-            switch(current_state.value) {
-                case "unloaded": {
-                    run_mode.value = "UNLOAD";
-                    break;
-                }
-                case "loaded": {
-                    run_mode.value = "STOP";
-                    break;
-                }
-                case "running": {
-                    run_mode.value = "RUN";
-                    break;
-                }
-            }
+            sync_state();  // set run_mode to correspond to simulator.
 
             run_mode.on("value_updated",
                 function() {execute_run_mode(cascade);});
         });
+
+    cascade.log_info("stillsim_resources.setup exited.");
 };
 
 function read_in_value(req_result, info_obj) {
@@ -479,7 +514,13 @@ module.exports.loop = function (cascade) {
         // Update sim values
             for (let id in simmetas) { read_in_value(result, simmetas[id]);}
             // Update sensor components.
-            for (let id in temp_probes) { read_in_value(result, temp_probes[id]);}
+            for (let id in temp_probes) {
+                read_in_value(result, temp_probes[id]);
+                temp = temp_probe[id].component.value;
+                if (temp > max_temp.value) {
+                    max_temp.value = temp;
+                }
+            }
         })
         .catch(function(err) {
             cascade.log_error(new Error("Loop status request error: " + err));
