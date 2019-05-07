@@ -5,7 +5,6 @@ var utils = require("./utils");
 
 var SENSORS_GROUP = "97  HR Sensors";
 var PROCESS_CONTROLS_GROUP = "98  HR Controls";
-var RESOURCE_NAMES_GROUP = "99  Hard Resources";
 var RUN_GROUP = "00  Run";
 
 // Display orders:

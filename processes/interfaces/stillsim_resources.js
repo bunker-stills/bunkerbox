@@ -3,7 +3,8 @@ const utils = require("./utils");
 
 var SIM_URL = process.env.SIM_URL || "http://127.0.0.1:3300/";
 
-var SIM_GROUP = "01 SIM STUFF";   // meta, sim_value, sim_control
+var SIMMETA_GROUP = "01 Simulation Metadata";   // meta, sim_value, sim_control
+var MODSET_GROUP = "02  Model Settings";
 var SENSORS_GROUP = "97  Model Sensors";
 var PROCESS_CONTROLS_GROUP = "98  Model Controls";
 var RESOURCE_NAMES_GROUP = "99  Model Resources";
@@ -14,10 +15,14 @@ var current_run;    // local component
 var current_state;  // local component
 var run_mode;       // component from stills.js
 
-var temp_probe_names = [];
-var temp_probes = {};
-var dac_names = [];
+var simmetas = {};
+var settings = {};
 var dacs = {};
+var temp_probes = {};
+
+var dac_names = [];
+var temp_probe_names = [];
+
 
 function do_request(action, body) {
     // 'action' is one of 'read_status', 'load', 'unload', 'run', 'stop
@@ -57,7 +62,7 @@ function load_model(cascade) {
     if (current_state == "unloaded") {
         // load model
         do_request("load", {"modelnm": model_selector.value})
-            .then(function(result) {
+            .then(function() {
                 model_selector.info.options = [model_selector.value];
                 run_mode.value = "STOP";
 
@@ -133,133 +138,252 @@ function execute_run_mode(cascade) {
     }
 }
 
+function identity(x) {return x;}
 function KtoC(K) {if (K) return K-273.15;}
 function CtoK(C) {if (C) return C+273.15;}
 function mbarToPa(mbar) {if (mbar) return mbar*100;}
 function PaToMbar(Pa) {if (Pa) return Pa*0.01;}
 function gphToCmps(gph) {if (gph) return gph*1.0515e-6;}
 function cmpsToGph(cmps) {if (cmps) return cmps*9.5102e5;}
+function pctToFraction(pct) {if (pct) return pct/100;}
+function fractionToPct(frac) {if (frac) return frac*100;}
+function molvecToAbv(molvec) {
+    if (molvec) return (1 - molvec[0]/molvec.reduce((a, b) => a + b, 0))*100;
+}
+function abvToMolvec(abv, molvec) {
+    if (abv && molvec) {
+        let volatiles = molvec.slice(1);
+        let v_sum = volatiles.reduce((a, b) => a + b, 0);
+        let newvec = [1 - abv].concat(volatiles.map((a) => a * abv/v_sum));
+        return newvec;
+    }
+}
+function pctToScale(pct, max_scale) {pct/100 * max_scale;}
+//function scaleToPct(scaleVal, max_scale) {scaleVal/max_scale * 100;}
+
+function setup_simmeta(cascade, info_obj) {
+    info_obj.component = cascade.create_component({
+        id: info_obj.name,
+        name: info_obj.name,
+        group: info_obj.group,
+        display_order: utils.next_display_order(),
+        read_only: true,
+        type: info_obj.type,
+        units: info_obj.units,
+        value: info_obj.read_function(info_obj.value),
+    });
+
+    simmetas[info_obj.name] = info_obj;
+}
+
+function setup_setting(cascade, info_obj) {
+    info_obj.component = cascade.create_component({
+        id: info_obj.name,
+        name: info_obj.name,
+        group: info_obj.group,
+        display_order: utils.next_display_order(),
+        read_only: info_obj.read_only,
+        type: info_obj.type,
+        units: info_obj.units,
+        value: info_obj.read_function(info_obj.value),
+    });
+    info_obj.component.on("value_updated", function() {
+        update_setting(cascade, info_obj);
+    });
+
+    settings[info_obj.name] = info_obj;
+}
+
+function setup_dac(cascade, info_obj) {
+    info_obj.output = cascade.create_component({
+        id: info_obj.name + "_output",
+        name: info_obj.name + " Output",
+        group: info_obj.group,
+        display_order: utils.next_display_order(),
+        read_only: info_obj.read_only,
+        type: info_obj.type,
+        units: "%",
+        value: 0,
+    });
+    info_obj.output.on("value_updated", function() {
+        update_dac(cascade, info_obj);
+    });
+
+    info_obj.enable = cascade.create_component({
+        id: info_obj.name + "_enable",
+        name: info_obj.name + " Enable",
+        group: info_obj.group,
+        display_order: utils.next_display_order(),
+        read_only: info_obj.read_only,
+        type: "BOOLEAN",
+        value: false,
+    });
+    info_obj.enable.on("value_updated", function() {
+        update_dac(cascade, info_obj);
+    });
+
+    if (! info_obj.units === "%") {  // then we need max_range.
+        info_obj.max_range = cascade.create_component({
+            id: info_obj.name + "_max_range",
+            name: info_obj.name + " Max Range",
+            group: info_obj.group,
+            display_order: utils.next_display_order(),
+            read_only: false,
+            type: "NUMBER",
+            units: info_obj.units,
+            value: info_obj.read_function(info_obj.value),
+        });
+    }
+
+    dacs[info_obj.name] = info_obj;
+    dac_names.push(info_obj.name);
+}
+
+function setup_temp_probe(cascade, info_obj) {
+    info_obj.component = cascade.create_component({
+        id: info_obj.name + "_calibrated",  // to conform with physical still naming
+        name: info_obj.name + " Calibrated",
+        group: info_obj.group,
+        display_order: utils.next_display_order(),
+        read_only: info_obj.read_only,
+        type: info_obj.type,
+        units: info_obj.units,
+        value: info_obj.read_function(info_obj.value),
+    });
+
+    temp_probes[info_obj.name] = info_obj;
+    temp_probe_names.push(info_obj.name);
+}
 
 function get_probes_and_controls(cascade) {
 
     // simulator values to control and monitor simulation process
     for (let sim_val of latest_status.sim_value) {
-        sim_val["group"] = SIM_GROUP;
-        sim_val["display_order"] = utils.next_display_order();
-        cascade.create_component(sim_val);
+        sim_val.remote_name = sim_val.name;
+        sim_val.section_name = "sim_value";
+        sim_val.group = SIMMETA_GROUP;
+        sim_val.read_function = identity;
+        sim_val.write_function = identity;
+        setup_simmeta(cascade, sim_val);
     }
     for (let sim_ctl of latest_status.sim_control) {
-        sim_ctl["group"] = SIM_GROUP;
-        sim_ctl["display_order"] = utils.next_display_order();
+        sim_ctl.group = SIMMETA_GROUP;
+        sim_ctl.remote_name = sim_ctl.name;
+        sim_ctl.section_name = "sim_control";
         if (sim_ctl.units == "K") {
             sim_ctl.units = "C";
-            sim_ctl.value = KtoC(sim_ctl.value);
+            sim_ctl.read_function = KtoC;
+            sim_ctl.write_function = CtoK;
+            if (sim_ctl.name == "Ambient_temp") {
+                sim_ctl.group = MODSET_GROUP;
+            }
+            setup_setting(cascade, sim_ctl);
         }
         if (sim_ctl.name == "Ambient_pres") {
             sim_ctl.name = "barometer";
+            sim_ctl.group = MODSET_GROUP;
             sim_ctl.units = "mbar";
-            sim_ctl.value = PaToMbar(sim_ctl.value);
+            sim_ctl.read_function = PaToMbar;
+            sim_ctl.write_function = mbarToPa;
+            setup_setting(cascade, sim_ctl);
         }
-        let component = cascade.create_component(sim_ctl);
-        component.on("value_updated",
-            function() { update_control(component, "sim_control"); });
     }
 
     // sensors and controls on the still model
     for (let probe of latest_status.model_probe) {
         if (probe.name.startswith("ambient")) continue;
         if (probe.units != "K") continue;
-        probe.units = "C";
-        probe.value = KtoC(probe.value);
-        probe.group = SENSORS_GROUP;
-        probe.display_order = utils.next_display_order();
-        let temp_probe = cascade.create_component(probe);
 
-        setup_temp_probe(temp_probe);
+        probe.remote_name = probe.name;
+        probe.section_name = "model_probe";
+        probe.group = SENSORS_GROUP;
+        probe.units = "C";
+        probe.read_function = KtoC;
+        probe.write_function = CtoK;
+        setup_temp_probe(cascade, probe);
     }
-    utils.update_hard_resource_list_component(cascade,
-        "TEMP_PROBE_HR_names", temp_probe_names.sort());
 
     for (let control of latest_status.model_control) {
-        if (control.type == "VECTOR") continue;
+        control.remote_name = control.name;
+        control.section_name = "model_control";
 
-        if (control.units == "K") {
-            control.units = "C";
-            control.value = KtoC(control.value);
-        }
-        if (control.units == "m^3/s") {
-            control.units = "gph";
-            control.value = cmpsToGph(control.value);
-        }
-        if (control.units == "0=1") {
+        if (control.units.toUpperCase() == "MOL") {
             control.units = "%";
-            control.value = control.value*100;
+            control.group = MODSET_GROUP;
+            control.type = "NUMBER";
+            control.read_function = molvecToAbv;
+            control.write_function = abvToMolvec;
+            setup_setting(cascade, control);
+        }
+        if (control.units == "K") {
+            control.group = MODSET_GROUP;
+            control.units = "C";
+            control.read_function = KtoC;
+            control.write_function = CtoK;
+            setup_setting(cascade, control);
         }
 
-        control.group = PROCESS_CONTROLS_GROUP;
-        control.display_order = utils.next_display_order();
-        let dac = cascade.create_component(control);
-
-        setup_dac(dac);
+        if (control.units == "m^3/s") {
+            control.group = PROCESS_CONTROLS_GROUP;
+            control.units = "gph";
+            control.read_function = cmpsToGph;
+            control.write_function = gphToCmps;
+            setup_dac(cascade, control);
+        }
+        if (control.units == "0-1") {
+            control.group = PROCESS_CONTROLS_GROUP;
+            control.units = "%";
+            control.read_function = fractionToPct;
+            control.write_function = pctToFraction;
+            setup_dac(cascade, control);
+        }
+        if (control.units == "W") {
+            control.group = PROCESS_CONTROLS_GROUP;
+            control.read_function = identity;
+            control.write_function = identity;
+            setup_dac(cascade, control);
+        }
     }
+
+    // names for soft_resource assignments.
     utils.update_hard_resource_list_component(cascade,
-        "DAC_HR_names", dac_names.sort());
-
-
-    // DONE Setup event handlers to transfer sim and model control commands.
-    // event handlers do units conversion
-
-    // Create list components for resource assignment.
-    // TEMP_PROBE_HR_names and DAC_HR_names are all we need.
-    // May need range configuration value for DACs.
-
-    // do loop function for probes and sim values, with units conversion.
-
+        "TEMP_PROBE_HR_names", temp_probe_names.sort(), RESOURCE_NAMES_GROUP);
+    utils.update_hard_resource_list_component(cascade,
+        "DAC_HR_names", dac_names.sort(), RESOURCE_NAMES_GROUP);
 }
 
-function update_control(control, section_name) {
-    let name = control.name;
-    let value = control.value;
-    if (name == "barometer") {
-        name = "Ambient_pres";
+function write_out_val(cascade, val, info_obj) {
+    let req_body = {};
+    req_body[info_obj.section_name] = {};
+    req_body[info_obj.section_name][info_obj.remote_name] = val;
+    do_request("update", req_body)
+        .catch(function(err) {
+            cascade.log_error(new Error("Control value write error: " + err));
+        });
+}
+
+function update_setting(cascade, info_obj) {
+    // convert controller units to simulator units
+    var val = info_obj.write_function(info_obj.component.value);
+    // send update to simulator
+    write_out_val(cascade, val, info_obj);
+}
+
+function update_dac(cascade, info_obj) {
+    var val;
+    if (info_obj.enable.value === true) {
+        val = info_obj.output.value;
+        if (info_obj.max_scale) {
+            // convert from percent to scale value (in controller units)
+            val = pctToScale(val, info_obj.max_scale.value);
+        }
+    } else {
+        val = 0;
     }
-    if (control.units == "C") {
-        value = CtoK(value);
-    } else if (control.units == "mbar") {
-        value = mbarToPa(value);
-    } else if (control.units == "gph") {
-        value = gphToCmps(value);
-    } else if (control.units == "%") {
-        value = Math.max(0, Math.min(1, value * 0.01));
-    }
-    var update_object = {};
-    update_object[section_name] = {"name": name, "value": value};
-    do_request("update", update_object);
-}
-
-function setup_temp_probe(temp_probe) {
-    //XXX do more stuff here
-    temp_probe_names.push(temp_probe.name);
-}
-
-function setup_dac(dac) {
-    //XXX do more stuff here
-    // need a max_scale configuration variable
-    // need enable component
-    //
-    var dac_info = {
-        name: dac.name,
-        dac_output: dac,
-        dac_enable: undefined,
-        dac_full_scale: undefined,
-        dac_updated: false,
-    };
-
-    dac_info.dac_enable = undefined;
-    dac_info.dac_full_scale = undefined;
-    dac_names.push(dac_info.name);
-    dac.on("value_updated",
-        function() { update_control(dac, "model_control"); });
+    // convert from controller units to simulator units
+    val = info_obj.write_function(val);
+    // send update to simulator
+    write_out_val(cascade, val, info_obj);
 }
 
 module.exports.setup = function (cascade) {
@@ -268,7 +392,7 @@ module.exports.setup = function (cascade) {
     model_selector = cascade.create_component({
         id: "stillsim_models",
         name: "Stillsim models",
-        group: SIM_GROUP,
+        group: SIMMETA_GROUP,
         display_order: utils.next_display_order(),
         class: "sim_info",
         type: cascade.types.OPTIONS,
@@ -281,7 +405,7 @@ module.exports.setup = function (cascade) {
     current_run = cascade.create_component({
         id: "current_run",
         name: "Current simulation run",
-        group: SIM_GROUP,
+        group: SIMMETA_GROUP,
         display_order: utils.next_display_order(),
         class: "sim_info",
         type: cascade.types.TEXT,
@@ -290,7 +414,7 @@ module.exports.setup = function (cascade) {
     current_state = cascade.create_component({
         id: "current_state",
         name: "Current simulator state",
-        group: SIM_GROUP,
+        group: SIMMETA_GROUP,
         display_order: utils.next_display_order(),
         class: "sim_info",
         type: cascade.types.TEXT,
@@ -340,29 +464,24 @@ module.exports.setup = function (cascade) {
         });
 };
 
-
-
-
-/*
-What do we do about run_duration running out and being extended?
-The state can be "waiting" or maybe "stopped" and run_mode is still "RUN".
-sim_state.on() {...}
-XXX Do we need another run_mode?  WAIT?
-Can we monkey patch it into the component?
-*/
-
-// set barometer to sim cntl Ambient_pres; convert to mbar
-// Any probe with at units of 'K' is a temp probe; convert to C
-
-// model/controller notes:
-// Main control is stripper heater.
-// pre-heater is implemented by setting feed_wash_T
-// draws are fractional (true reflux), not set rate.
-// XXX add set rate draws
-// change reflux in reverse of how draw rate changes (more draw = less reflux)
-
-
+function read_in_value(req_result, info_obj) {
+    let val = req_result[info_obj.section_name][info_obj.remote_name];
+    // convert to controller units
+    val = info_obj.read_function(val);
+    // set local value
+    info_obj.component.value = val;
+}
 
 module.exports.loop = function (cascade) {
-    //Update sensor components.
+    // get latest values
+    do_request("read_status", null)
+        .then(function(result) {
+        // Update sim values
+            for (let id in simmetas) { read_in_value(result, simmetas[id]);}
+            // Update sensor components.
+            for (let id in temp_probes) { read_in_value(result, temp_probes[id]);}
+        })
+        .catch(function(err) {
+            cascade.log_error(new Error("Loop status request error: " + err));
+        });
 };
