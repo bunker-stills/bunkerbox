@@ -669,7 +669,7 @@ SoftResource_Function.prototype.process_function = function (cascade) {
 function SoftResource_HR(cascade, name) {
     var self = this;
 
-    this.cascade = cascade;  // This is probably bad idea, but need it for attach_HR()
+    this.cascade = cascade;  // This is needed for attach_HR()
     this.name = name;
     this.description = name_to_description(this.name);
     this.HR_assignment = undefined;
@@ -689,17 +689,29 @@ function SoftResource_HR(cascade, name) {
     this.HR_selector.on("value_updated",
         function() {self.on_HR_selector_update();} );
 
-    if (!this.HR_names_component) {
-        cascade.components.require_component(this.HR_names_component_name,
-            function(names_component) {
+    // If HR_names posted late, every instance does this and executes function.
+    // If HR_names are waiting, then first instance does this.
+    cascade.components.require_component(this.HR_names_component_name,
+        function(names_component) {
+            if (!self.HR_names_component) {
+                // this is executed  by the first instance of an SR type
                 self.HR_names_component = names_component;
                 self.on_HR_names_update();
                 self.HR_names_component.on("update_value",
                     function() {self.on_HR_names_update();});
-                // eslint-disable-next-line no-self-assign
-                self.HR_selector.value = self.HR_selector.value;
-            });
-    }
+            }
+            // this is executed by every instance of an SR type
+            if (self.HR_selector.value) {
+                if (self.HR_options.includes(self.selector.value)) {
+                    // eslint-disable-next-line no-self-assign
+                    self.HR_selector.value = self.HR_selector.value;
+                } else {
+                    // here we clear the selected value before it is assigned.
+                    self.HR_selector.value = undefined;
+                }
+            }
+        });
+
     this.instances_of_type[this.name] = this;
 }
 
@@ -803,8 +815,12 @@ SoftResource_HR.prototype.on_HR_selector_update = function() {
     if (new_HR) {
         this.assign_HR(new_HR);
     }
-    _.each(this.instances_of_type,
-        function(sr) {sr.update_selector_options();});
+    // update instance HR_selector options to reflect this assignment
+    for(let soft_resource of this.instances_of_type) {
+        soft_resource.update_selector_options();
+    }
+    //_.each(this.instances_of_type,
+    //    function(sr) {sr.update_selector_options();});
 };
 
 SoftResource_HR.prototype.on_HR_names_update = function() {
@@ -834,7 +850,11 @@ SoftResource_HR.prototype.on_HR_names_update = function() {
             }
         }
     }
-    this.HR_selector.info = {options: this.HR_options};
+
+    // update instance HR_selector options
+    for(let soft_resource of this.instances_of_type) {
+        soft_resource.update_selector_options();
+    }
 };
 
 //////////////////////

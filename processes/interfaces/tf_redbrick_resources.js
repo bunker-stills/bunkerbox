@@ -990,7 +990,7 @@ module.exports.setup = function (cascade) {
         max_temp.value = 0;  // last chance in setup to clear this value.
         setup_complete = true;
         cascade.log_info("TF setup completed.");
-    }, 60000);
+    }, 10000);
     cascade.log_info("TF setup exits.");
 };
 
