@@ -39,9 +39,11 @@ module.exports.resource_types = [
 ];
 
 module.exports.create_resource_name_list = create_resource_name_list;
+
 //////////////////
 // GLOBALS      //
 //////////////////
+
 // group oredering using text at start of group name
 var FUNCTION_GROUP = "01  Functions";
 var PROCESS_CONTROL_GROUP = "02  Process Controls";
@@ -199,6 +201,7 @@ var deactivate_component = function(cascade, component) {
 // Barometer resource -- a special case
 // Assume there is one barometer and it is named "barometer".
 //////////////////////////////////////////////////////////////////////////////
+
 function SoftResource_Barometer(cascade) {
     var self = this;
 
@@ -218,6 +221,7 @@ function SoftResource_Barometer(cascade) {
 // Pure soft resources -- no hard resource required
 // Base class
 //////////////////////////////////////////////////////////////////////////////
+
 function SoftResource_SR(cascade, name) {
     this.name = name;
     this.description = name_to_description(this.name);
@@ -666,6 +670,7 @@ SoftResource_Function.prototype.process_function = function (cascade) {
 // Soft-Hard resources -- SoftResource wrappers for hard resources
 // Base class
 //////////////////////////////////////////////////////////////////////////////
+
 function SoftResource_HR(cascade, name) {
     var self = this;
 
@@ -702,9 +707,12 @@ function SoftResource_HR(cascade, name) {
             }
             // this is executed by every instance of an SR type
             if (self.HR_selector.value) {
-                if (self.HR_options.includes(self.selector.value)) {
+                if (self.HR_options.includes(self.HR_selector.value)) {
+                    // force the presisted selected value to be assigned.
                     // eslint-disable-next-line no-self-assign
                     self.HR_selector.value = self.HR_selector.value;
+                    // because we may not be in instances_of_type yet:
+                    self.update_seletor_options();
                 } else {
                     // here we clear the selected value before it is assigned.
                     self.HR_selector.value = undefined;
@@ -816,11 +824,8 @@ SoftResource_HR.prototype.on_HR_selector_update = function() {
         this.assign_HR(new_HR);
     }
     // update instance HR_selector options to reflect this assignment
-    for(let soft_resource of this.instances_of_type) {
-        soft_resource.update_selector_options();
-    }
-    //_.each(this.instances_of_type,
-    //    function(sr) {sr.update_selector_options();});
+    _.each(this.instances_of_type,
+        function(sr) {sr.update_selector_options();});
 };
 
 SoftResource_HR.prototype.on_HR_names_update = function() {
@@ -852,9 +857,8 @@ SoftResource_HR.prototype.on_HR_names_update = function() {
     }
 
     // update instance HR_selector options
-    for(let soft_resource of this.instances_of_type) {
-        soft_resource.update_selector_options();
-    }
+    _.each(this.instances_of_type,
+        function(sr) {sr.update_selector_options();});
 };
 
 //////////////////////
@@ -862,12 +866,13 @@ SoftResource_HR.prototype.on_HR_names_update = function() {
 //////////////////////
 
 function SoftResource_BIT_OUT(cascade, name) {
-    this.init_subclass_properties(SoftResource_BIT_OUT);
-    SoftResource_HR.call(this, cascade, name);
 
     // components for this SR
     this.HR_port_value = undefined;
     this.bit_value = undefined;
+
+    this.init_subclass_properties(SoftResource_BIT_OUT);
+    SoftResource_HR.call(this, cascade, name);
 }
 
 // Link prototype to base class
@@ -925,12 +930,13 @@ SoftResource_BIT_OUT.prototype.reset_bit_out = function() {
 //////////////////////
 
 function SoftResource_RELAY(cascade, name) {
-    this.init_subclass_properties(SoftResource_RELAY);
-    SoftResource_HR.call(this, cascade, name);
 
     // components for this SR
     this.HR_enable = undefined;
     this.RELAY_enable = undefined;
+
+    this.init_subclass_properties(SoftResource_RELAY);
+    SoftResource_HR.call(this, cascade, name);
 }
 
 // Link prototype to base class
@@ -998,13 +1004,14 @@ SoftResource_RELAY.prototype.reset_relay = function() {
 var DEFAULT_DCR_CYCLE_LENGTH = 20;
 
 function SoftResource_DUTYCYCLE_RELAY(cascade, name) {
-    // install properties before constructing base class
-    this.init_subclass_properties(SoftResource_DUTYCYCLE_RELAY, SoftResource_RELAY);
-    SoftResource_RELAY.call(this, cascade, name);
 
     this.DCR_cycle_enable = undefined;
     this.DCR_cycle_length = undefined;
     this.DCR_on_percent = undefined;
+
+    // install properties before constructing base class
+    this.init_subclass_properties(SoftResource_DUTYCYCLE_RELAY, SoftResource_RELAY);
+    SoftResource_RELAY.call(this, cascade, name);
 
     this.timer = undefined;
 
@@ -1161,15 +1168,16 @@ SoftResource_DUTYCYCLE_RELAY.prototype.stop_timer = function() {
 //////////////////////
 // DAC              //
 //////////////////////
-function SoftResource_DAC(cascade, name) {
 
-    this.init_subclass_properties(SoftResource_DAC);
-    SoftResource_HR.call(this, cascade, name);
+function SoftResource_DAC(cascade, name) {
 
     this.HR_enable = undefined;
     this.DAC_enable = undefined;
     this.HR_output = undefined;
     this.DAC_output = undefined;
+
+    this.init_subclass_properties(SoftResource_DAC);
+    SoftResource_HR.call(this, cascade, name);
 }
 
 // Link prototype to base class
@@ -1252,15 +1260,16 @@ SoftResource_DAC.prototype.reset_dac = function() {
 //////////////////////
 // STEPPER          //
 //////////////////////
-function SoftResource_STEPPER(cascade, name) {
 
-    this.init_subclass_properties(SoftResource_STEPPER);
-    SoftResource_HR.call(this, cascade, name);
+function SoftResource_STEPPER(cascade, name) {
 
     this.HR_enable = undefined;
     this.STEPPER_enable = undefined;
     this.HR_velocity = undefined;
     this.STEPPER_velocity = undefined;
+
+    this.init_subclass_properties(SoftResource_STEPPER);
+    SoftResource_HR.call(this, cascade, name);
 }
 
 // Link prototype to base class
@@ -1342,11 +1351,14 @@ SoftResource_STEPPER.prototype.reset_stepper = function() {
 //////////////////////
 // BIT_IN           //
 //////////////////////
+
 function SoftResource_BIT_IN(cascade, name) {
-    this.init_subclass_properties(SoftResource_BIT_IN);
-    SoftResource_HR.call(this, cascade, name);
+
     this.HR_port_value = undefined;
     this.bit_value = undefined;
+
+    this.init_subclass_properties(SoftResource_BIT_IN);
+    SoftResource_HR.call(this, cascade, name);
 }
 
 // add psuedo class methods (not inherited by subclasses).
@@ -1404,11 +1416,14 @@ SoftResource_BIT_IN.prototype.get_bit_value = function() {
 //////////////////////
 // DISTANCE            //
 //////////////////////
+
 function SoftResource_DISTANCE(cascade, name) {
-    this.init_subclass_properties(SoftResource_DISTANCE);
-    SoftResource_HR.call(this, cascade, name);
+
     this.HR_distance = undefined;
     this.distance = undefined;
+
+    this.init_subclass_properties(SoftResource_DISTANCE);
+    SoftResource_HR.call(this, cascade, name);
 }
 
 // add psuedo class methods (not inherited by subclasses).
@@ -1470,9 +1485,11 @@ SoftResource_DISTANCE.prototype.get_distance = function() {
 
 // Temperature probe classes
 function SoftResource_OW_PROBE(cascade, name) {
+
+    probe_constructor(this);
+
     this.init_subclass_properties(SoftResource_OW_PROBE);
     SoftResource_HR.call(this, cascade, name);
-    probe_constructor(this);
 }
 
 // add psuedo class methods (not inherited by subclasses).
@@ -1494,9 +1511,11 @@ SoftResource_OW_PROBE.prototype.get_temperature = function() { return probe_get_
 //////////////////////
 
 function SoftResource_TC_PROBE(cascade, name) {
+
+    probe_constructor(this, cascade, name);
+
     this.init_subclass_properties(SoftResource_TC_PROBE);
     SoftResource_HR.call(this, cascade, name);
-    probe_constructor(this, cascade, name);
 }
 
 // add psuedo class methods (not inherited by subclasses).
@@ -1517,9 +1536,11 @@ SoftResource_TC_PROBE.prototype.get_temperature = function() { return probe_get_
 //////////////////////
 
 function SoftResource_PTC_PROBE(cascade, name) {
+
+    probe_constructor(this, cascade, name);
+
     this.init_subclass_properties(SoftResource_PTC_PROBE);
     SoftResource_HR.call(this, cascade, name);
-    probe_constructor(this, cascade, name);
 }
 
 // add psuedo class methods (not inherited by subclasses).
@@ -1541,9 +1562,11 @@ SoftResource_PTC_PROBE.prototype.get_temperature = function() { return probe_get
 
 // The TEMP_PROBE combines all hard resource temperature probe types.
 function SoftResource_TEMP_PROBE(cascade, name) {
+
+    probe_constructor(this, cascade, name);
+
     this.init_subclass_properties(SoftResource_TEMP_PROBE);
     SoftResource_HR.call(this, cascade, name);
-    probe_constructor(this, cascade, name);
 }
 
 // add psuedo class methods (not inherited by subclasses).
