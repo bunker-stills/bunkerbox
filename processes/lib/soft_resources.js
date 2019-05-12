@@ -107,7 +107,7 @@ function create_resource_name_list(cascade, soft_resource_type) {
 }
 
 var process_names_list = function(cascade, names_string, soft_resource_type) {
-    if (!names_string) return;
+
     let names = get_name_list(names_string);
     // FOR NOW WE DO NOT REMOVE DELETED NAMES
     //for (let resource of soft[soft_resource_type].get_instances()) {
@@ -142,7 +142,9 @@ var name_regex = /[^\s,;]+/g;
 
 var get_name_list = function(s) {
     var names = [];
-    s.replace(name_regex, function(name) {names.push(name);});
+    if (s) {
+        s.replace(name_regex, function(name) {names.push(name);});
+    }
     return names;
 };
 
@@ -702,7 +704,7 @@ function SoftResource_HR(cascade, name) {
                 // this is executed  by the first instance of an SR type
                 self.HR_names_component = names_component;
                 self.on_HR_names_update();
-                self.HR_names_component.on("update_value",
+                self.HR_names_component.on("value_updated",
                     function() {self.on_HR_names_update();});
             }
             // this is executed by every instance of an SR type
