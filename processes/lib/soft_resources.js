@@ -711,13 +711,13 @@ function SoftResource_HR(cascade, name) {
                     // force the presisted selected value to be assigned.
                     // eslint-disable-next-line no-self-assign
                     self.HR_selector.value = self.HR_selector.value;
-                    // because we may not be in instances_of_type yet:
-                    self.update_seletor_options();
                 } else {
                     // here we clear the selected value before it is assigned.
                     self.HR_selector.value = undefined;
                 }
             }
+            // because we may not be in instances_of_type yet:
+            self.update_selector_options();
         });
 
     this.instances_of_type[this.name] = this;
