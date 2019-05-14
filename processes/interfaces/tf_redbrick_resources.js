@@ -602,6 +602,9 @@ function getAllProbes(cascade, ow_info, display_base, error_count) {
         function(error, probes) {
             if (error) {
                 if (error_count < ONEWIRE_ERROR_LIMIT) {
+                    cascade.log_error(new Error(
+                        "Onewire get-all-probes attempt " + error_count +
+                        " failed with error: " + error));
                     getAllProbes(cascade, ow_info, display_base, error_count+1);
                     return;
                 } else {

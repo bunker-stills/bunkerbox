@@ -715,9 +715,9 @@ function SoftResource_HR(cascade, name) {
                     self.HR_selector.value = self.HR_selector.value;
                 } else {
                     // Here we clear the selected value before it is assigned.
-                    // If there are no HR resources of this type, assume a
+                    // If the assigned resource is a 1-wire probe, assume a
                     // startup error and do not clear assignments.
-                    if (HR_options.length > 0 || HR_assigned.length > 0) {
+                    if (!self.HR_selector.value.startsWith("OW")) {
                         self.HR_selector.value = undefined;
                     }
                 }
