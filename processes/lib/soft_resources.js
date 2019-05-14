@@ -714,8 +714,12 @@ function SoftResource_HR(cascade, name) {
                     // eslint-disable-next-line no-self-assign
                     self.HR_selector.value = self.HR_selector.value;
                 } else {
-                    // here we clear the selected value before it is assigned.
-                    self.HR_selector.value = undefined;
+                    // Here we clear the selected value before it is assigned.
+                    // If there are no HR resources of this type, assume a
+                    // startup error and do not clear assignments.
+                    if (HR_options.length > 0 || HR_assigned.length > 0) {
+                        self.HR_selector.value = undefined;
+                    }
                 }
             }
             // because we may not be in instances_of_type yet:

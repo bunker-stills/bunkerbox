@@ -2,6 +2,8 @@ var tinkerforge = require("tinkerforge");
 var tinkerforge_connection = require("./../lib/tinkerforge_connection");
 var onewireTempSensors = require("./../lib/onewire_temp_sensors");  // sensor interface for 1wire bricklet
 
+var ONEWIRE_ERROR_LIMIT = 3;
+
 var SENSORS_GROUP = "97  HR Sensors";
 var PROCESS_CONTROLS_GROUP = "98  HR Controls";
 var RESOURCE_NAMES_GROUP = "99  Hard Resources";
@@ -595,6 +597,32 @@ function setup_distIR(cascade, id, distIR) {
     allDevices[id] = dist_info;
 }
 
+function getAllProbes(cascade, ow_info, display_base, error_count) {
+    ow_info.interface.getAllTempSensors(
+        function(error, probes) {
+            if (error) {
+                if (error_count < ONEWIRE_ERROR_LIMIT) {
+                    getAllProbes(cascade, ow_info, display_base, error_count+1);
+                    return;
+                } else {
+                    cascade.log_error(new Error("Onewire get-all-probes error: " + error));
+                    return;
+                }
+            }
+            for (let ow_address of probes) {
+                let probe_name = ow_info.id + "_" + ow_address;
+                let probe = create_temp_probe(cascade, probe_name, display_base);
+                display_base += 5;
+                ow_info.probes[ow_address] = probe;
+                ow_names.push(probe_name);
+                //update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
+                //    ow_names.sort());
+                //update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
+                //    ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
+            }
+        });
+}
+
 function setup_onewire_net(cascade, id, owNet) {
     let display_base = OW_DISPLAY_BASE + next_display_order(100);
     var ow_info = {
@@ -611,25 +639,7 @@ function setup_onewire_net(cascade, id, owNet) {
             function(error) {
                 cascade.log_error(new Error("Onewire set-resolution error: " + error));
             });
-        owNet.getAllTempSensors(
-            function(error, probes) {
-                if (error) {
-                    cascade.log_error(new Error("Onewire get-all-probes error: " + error));
-                }
-                else {
-                    for (let ow_address of probes) {
-                        let probe_name = id + "_" + ow_address;
-                        let probe = create_temp_probe(cascade, probe_name, display_base);
-                        display_base += 5;
-                        ow_info.probes[ow_address] = probe;
-                        ow_names.push(probe_name);
-                        //update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
-                        //    ow_names.sort());
-                        //update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
-                        //    ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
-                    }
-                }
-            });
+        getAllProbes(cascade, ow_info, display_base, 0);
     }
 
     onewireNets[id] = ow_info;
