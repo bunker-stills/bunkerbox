@@ -417,58 +417,80 @@ var IO4_CONFIGURATION = [
     "INPUT_FLOATING",
     "OUTPUT_INITIALIZED_LOW",
     "OUTPUT_INITIALIZED_HIGH",
+    "INPUT_WITH_PULLUP, INVERTED",
+    "INPUT_FLOATING, INVERTED",
+    "OUTPUT_INITIALIZED_LOW, INVERTED",
+    "OUTPUT_INITIALIZED_HIGH, INVERTED",
 ];
 
 function configure_io4(cascade, io4_info, io_index) {
     let io = io4_info.interface;
-    if (io && io4_info.configuration[io_index]) {
+    if (io) {
+        let port_name = io4_info.port_value[io_index].id;
+        let configuration = io4_info.configuration[io_index].value || "INPUT_WITH_PULLUP";
         let direction;
         let value;
-        let configuration = io4_info.configuration[io_index].value;
-        if (configuration) {
-            let port_name = io4_info.port_value[io_index].id;
-            if (configuration.startsWith("INPUT")) {
-                direction = "i";
-                value = configuration.endsWith("PULLUP");
-                add_name_to_list(input_names, port_name, true);
-                remove_name_from_list(output_names, port_name);
-            } else {
-                direction = "o";
-                value = configuration.endsWith("HIGH");
-                add_name_to_list(output_names, port_name, true);
-                remove_name_from_list(input_names, port_name);
-            }
+        if (configuration.startsWith("INPUT")) {
+            direction = "i";
+            value = configuration.includes("PULLUP");
+            add_name_to_list(input_names, port_name, true);
+            remove_name_from_list(output_names, port_name);
+        } else {
+            direction = "o";
+            value = configuration.includes("HIGH");
+            add_name_to_list(output_names, port_name, true);
+            remove_name_from_list(input_names, port_name);
+        }
 
-            io.setConfiguration(io_index, direction, value);
+        io.setConfiguration(io_index, direction, value);
+        io4_info.direction[io_index] = direction;
+        io4_info.invert[io_index] = configuration.endsWith("INVERTED");
 
-            if (direction == "i") {
-                io.on(tinkerforge.BrickletIO4V2.CALLBACK_INPUT_VALUE,
-                    function(channel, changed, value) {
+        if (direction == "i") {
+            // For inputs register a callback to maintain value
+            io.on(tinkerforge.BrickletIO4V2.CALLBACK_INPUT_VALUE,
+                function(channel, changed, value) {
+                    if (io4_info.invert[io_index]) {
+                        io4_info.port_value[channel].value = !value;
+                    } else {
                         io4_info.port_value[channel].value = value;
-                    });
-                io.setInputValueCallbackConfiguration(io_index, 30, true);
-                io.getValue(function(value) {
-                    io4_info.port_value[io_index].value = value[io_index];
+                    }
                 });
-            } else {
-                io.setInputValueCallbackConfiguration(io_index, 0, false);
-            }
+            io.setInputValueCallbackConfiguration(io_index, 30, true);
+            // initialize the value
+            io.getValue(function(value) {
+                if (io4_info.invert[io_index]) {
+                    io4_info.port_value[io_index].value = !value[io_index];
+                } else {
+                    io4_info.port_value[io_index].value = value[io_index];
+                }
+            });
+        } else {
+            // For outputs deregister callback.
+            io.setInputValueCallbackConfiguration(io_index, 0, false);
+        }
 
-            // If HR_names components are already created, then update them.
-            if (cascade.components.all_current["BIT_IN_HR_names"]) {
-                update_hard_resource_list_component(cascade,
-                    "BIT_IN_HR_names", input_names.sort());
-                update_hard_resource_list_component(cascade,
-                    "BIT_OUT_HR_names", output_names.sort());
-            }
+        // If HR_names components are already created, then update them.
+        if (cascade.components.all_current["BIT_IN_HR_names"]) {
+            update_hard_resource_list_component(cascade,
+                "BIT_IN_HR_names", input_names.sort());
+            update_hard_resource_list_component(cascade,
+                "BIT_OUT_HR_names", output_names.sort());
         }
     }
 }
 
 function set_io4(io4_info, io_index) {
+    // This function sets the outbound value.  If not configured as output, return.
+    if (io4_info.direction[io_index] != "o") return;
     let io = io4_info.interface;
     if (io && io4_info.port_value[io_index]) {
-        io.setSelectedValue(io_index, io4_info.port_value[io_index].value);
+        // outbound setting, ignored when configured as input.
+        if (io4_info.invert[io_index]) {
+            io.setSelectedValue(io_index, !io4_info.port_value[io_index].value);
+        } else {
+            io.setSelectedValue(io_index, io4_info.port_value[io_index].value);
+        }
     }
 }
 
@@ -480,6 +502,8 @@ function setup_io4(cascade, id, io4) {
         interface: io4,
         port_value: [undefined, undefined, undefined, undefined],
         configuration: [undefined, undefined, undefined, undefined],
+        direction: [undefined, undefined, undefined, undefined],
+        invert: [false, false, false, false],
     };
 
     for(let io_index in [0,1,2,3]) {
