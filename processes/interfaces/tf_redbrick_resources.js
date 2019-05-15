@@ -3,6 +3,8 @@ var tinkerforge_connection = require("./../lib/tinkerforge_connection");
 var onewireTempSensors = require("./../lib/onewire_temp_sensors");  // sensor interface for 1wire bricklet
 var utils = require("./utils");
 
+var ONEWIRE_ERROR_LIMIT = 3;
+
 var SENSORS_GROUP = "97  HR Sensors";
 var PROCESS_CONTROLS_GROUP = "98  HR Controls";
 var RUN_GROUP = "00  Run";
@@ -409,58 +411,80 @@ var IO4_CONFIGURATION = [
     "INPUT_FLOATING",
     "OUTPUT_INITIALIZED_LOW",
     "OUTPUT_INITIALIZED_HIGH",
+    "INPUT_WITH_PULLUP, INVERTED",
+    "INPUT_FLOATING, INVERTED",
+    "OUTPUT_INITIALIZED_LOW, INVERTED",
+    "OUTPUT_INITIALIZED_HIGH, INVERTED",
 ];
 
 function configure_io4(cascade, io4_info, io_index) {
     let io = io4_info.interface;
-    if (io && io4_info.configuration[io_index]) {
+    if (io) {
+        let port_name = io4_info.port_value[io_index].id;
+        let configuration = io4_info.configuration[io_index].value || "INPUT_WITH_PULLUP";
         let direction;
         let value;
-        let configuration = io4_info.configuration[io_index].value;
-        if (configuration) {
-            let port_name = io4_info.port_value[io_index].id;
-            if (configuration.startsWith("INPUT")) {
-                direction = "i";
-                value = configuration.endsWith("PULLUP");
-                add_name_to_list(input_names, port_name, true);
-                remove_name_from_list(output_names, port_name);
-            } else {
-                direction = "o";
-                value = configuration.endsWith("HIGH");
-                add_name_to_list(output_names, port_name, true);
-                remove_name_from_list(input_names, port_name);
-            }
+        if (configuration.startsWith("INPUT")) {
+            direction = "i";
+            value = configuration.includes("PULLUP");
+            add_name_to_list(input_names, port_name, true);
+            remove_name_from_list(output_names, port_name);
+        } else {
+            direction = "o";
+            value = configuration.includes("HIGH");
+            add_name_to_list(output_names, port_name, true);
+            remove_name_from_list(input_names, port_name);
+        }
 
-            io.setConfiguration(io_index, direction, value);
+        io.setConfiguration(io_index, direction, value);
+        io4_info.direction[io_index] = direction;
+        io4_info.invert[io_index] = configuration.endsWith("INVERTED");
 
-            if (direction == "i") {
-                io.on(tinkerforge.BrickletIO4V2.CALLBACK_INPUT_VALUE,
-                    function(channel, changed, value) {
+        if (direction == "i") {
+            // For inputs register a callback to maintain value
+            io.on(tinkerforge.BrickletIO4V2.CALLBACK_INPUT_VALUE,
+                function(channel, changed, value) {
+                    if (io4_info.invert[io_index]) {
+                        io4_info.port_value[channel].value = !value;
+                    } else {
                         io4_info.port_value[channel].value = value;
-                    });
-                io.setInputValueCallbackConfiguration(io_index, 30, true);
-                io.getValue(function(value) {
-                    io4_info.port_value[io_index].value = value[io_index];
+                    }
                 });
-            } else {
-                io.setInputValueCallbackConfiguration(io_index, 0, false);
-            }
+            io.setInputValueCallbackConfiguration(io_index, 30, true);
+            // initialize the value
+            io.getValue(function(value) {
+                if (io4_info.invert[io_index]) {
+                    io4_info.port_value[io_index].value = !value[io_index];
+                } else {
+                    io4_info.port_value[io_index].value = value[io_index];
+                }
+            });
+        } else {
+            // For outputs deregister callback.
+            io.setInputValueCallbackConfiguration(io_index, 0, false);
+        }
 
-            // If HR_names components are already created, then update them.
-            if (cascade.components.all_current["BIT_IN_HR_names"]) {
-                utils.update_hard_resource_list_component(cascade,
-                    "BIT_IN_HR_names", input_names.sort());
-                utils.update_hard_resource_list_component(cascade,
-                    "BIT_OUT_HR_names", output_names.sort());
-            }
+        // If HR_names components are already created, then update them.
+        if (cascade.components.all_current["BIT_IN_HR_names"]) {
+            update_hard_resource_list_component(cascade,
+                "BIT_IN_HR_names", input_names.sort());
+            update_hard_resource_list_component(cascade,
+                "BIT_OUT_HR_names", output_names.sort());
         }
     }
 }
 
 function set_io4(io4_info, io_index) {
+    // This function sets the outbound value.  If not configured as output, return.
+    if (io4_info.direction[io_index] != "o") return;
     let io = io4_info.interface;
     if (io && io4_info.port_value[io_index]) {
-        io.setSelectedValue(io_index, io4_info.port_value[io_index].value);
+        // outbound setting, ignored when configured as input.
+        if (io4_info.invert[io_index]) {
+            io.setSelectedValue(io_index, !io4_info.port_value[io_index].value);
+        } else {
+            io.setSelectedValue(io_index, io4_info.port_value[io_index].value);
+        }
     }
 }
 
@@ -472,6 +496,8 @@ function setup_io4(cascade, id, io4) {
         interface: io4,
         port_value: [undefined, undefined, undefined, undefined],
         configuration: [undefined, undefined, undefined, undefined],
+        direction: [undefined, undefined, undefined, undefined],
+        invert: [false, false, false, false],
     };
 
     for(let io_index in [0,1,2,3]) {
@@ -590,6 +616,35 @@ function setup_distIR(cascade, id, distIR) {
     allDevices[id] = dist_info;
 }
 
+function getAllProbes(cascade, ow_info, display_base, error_count) {
+    ow_info.interface.getAllTempSensors(
+        function(error, probes) {
+            if (error) {
+                if (error_count < ONEWIRE_ERROR_LIMIT) {
+                    cascade.log_error(new Error(
+                        "Onewire get-all-probes attempt " + error_count +
+                        " failed with error: " + error));
+                    getAllProbes(cascade, ow_info, display_base, error_count+1);
+                    return;
+                } else {
+                    cascade.log_error(new Error("Onewire get-all-probes error: " + error));
+                    return;
+                }
+            }
+            for (let ow_address of probes) {
+                let probe_name = ow_info.id + "_" + ow_address;
+                let probe = create_temp_probe(cascade, probe_name, display_base);
+                display_base += 5;
+                ow_info.probes[ow_address] = probe;
+                ow_names.push(probe_name);
+                //update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
+                //    ow_names.sort());
+                //update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
+                //    ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
+            }
+        });
+}
+
 function setup_onewire_net(cascade, id, owNet) {
     let display_base = OW_DISPLAY_BASE + utils.next_display_order(100);
 
@@ -607,25 +662,8 @@ function setup_onewire_net(cascade, id, owNet) {
             function(error) {
                 cascade.log_error(new Error("Onewire set-resolution error: " + error));
             });
-        owNet.getAllTempSensors(
-            function(error, probes) {
-                if (error) {
-                    cascade.log_error(new Error("Onewire get-all-probes error: " + error));
-                }
-                else {
-                    for (let ow_address of probes) {
-                        let probe_name = id + "_" + ow_address;
-                        let probe = create_temp_probe(cascade, probe_name, display_base);
-                        display_base += 5;
-                        ow_info.probes[ow_address] = probe;
-                        ow_names.push(probe_name);
-                        //update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
-                        //    ow_names.sort());
-                        //utils.update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
-                        //    ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
-                    }
-                }
-            });
+
+        getAllProbes(cascade, ow_info, display_base, 0);
     }
 
     onewireNets[id] = ow_info;
@@ -957,7 +995,7 @@ module.exports.setup = function (cascade) {
         max_temp.value = 0;  // last chance in setup to clear this value.
         setup_complete = true;
         cascade.log_info("TF setup completed.");
-    }, 60000);
+    }, 10000);
     cascade.log_info("TF setup exits.");
 };
 

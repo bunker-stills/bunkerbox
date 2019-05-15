@@ -95,7 +95,7 @@ module.exports.setup = function (cascade) {
             if (soft_resource_type === "PTC_probe") continue;
             soft.create_resource_name_list(cascade, soft_resource_type);
         }
-    }, 10000);
+    }, 20000);
 
     barometer = new soft.Barometer(cascade);
 
