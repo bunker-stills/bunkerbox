@@ -69,7 +69,7 @@ function load_model(cascade) {
                 run_mode.value = "STOP";
 
                 // get list of controls and probes from current status
-                get_probes_and_controls();
+                get_probes_and_controls(cascade);
             })
             .catch(function(err) {
                 cascade.log_error(new Error("Sim model load error: " + err));
@@ -106,7 +106,7 @@ function execute_run_mode(cascade) {
                 .catch(function(err) {
                     cascade.log_error(new Error("On run_mode UNLOAD: " + err));
                 });
-            model_selector.info.options = current_status.meta.model_list;
+            model_selector.info.options = latest_status.meta.model_list;
             model_selector.value = undefined;
             break;
         }
@@ -200,6 +200,19 @@ function setup_setting(cascade, info_obj) {
 }
 
 function setup_dac(cascade, info_obj) {
+    info_obj.enable = cascade.create_component({
+        id: info_obj.name + "_enable",
+        name: info_obj.name + " Enable",
+        group: info_obj.group,
+        display_order: utils.next_display_order(),
+        read_only: info_obj.read_only,
+        type: "BOOLEAN",
+        value: false,
+    });
+    info_obj.enable.on("value_updated", function() {
+        update_dac(cascade, info_obj);
+    });
+
     info_obj.output = cascade.create_component({
         id: info_obj.name + "_output",
         name: info_obj.name + " Output",
@@ -214,20 +227,7 @@ function setup_dac(cascade, info_obj) {
         update_dac(cascade, info_obj);
     });
 
-    info_obj.enable = cascade.create_component({
-        id: info_obj.name + "_enable",
-        name: info_obj.name + " Enable",
-        group: info_obj.group,
-        display_order: utils.next_display_order(),
-        read_only: info_obj.read_only,
-        type: "BOOLEAN",
-        value: false,
-    });
-    info_obj.enable.on("value_updated", function() {
-        update_dac(cascade, info_obj);
-    });
-
-    if (! info_obj.units === "%") {  // then we need max_range.
+    if (info_obj.units !== "%") {  // then we need max_range.
         info_obj.max_range = cascade.create_component({
             id: info_obj.name + "_max_range",
             name: info_obj.name + " Max Range",
@@ -264,15 +264,20 @@ function get_probes_and_controls(cascade) {
     cascade.log_info("get_probes... latest_status:\n" + JSON.stringify(latest_status));
 
     // simulator values to control and monitor simulation process
-    for (let sim_val of latest_status.sim_value) {
+    var obj;
+    obj = latest_status.sim_value;
+    for (let name in obj) { if (obj.hasOwnProperty(name)) {
+        let sim_val = obj[name];
         sim_val.remote_name = sim_val.name;
         sim_val.section_name = "sim_value";
         sim_val.group = SIMMETA_GROUP;
         sim_val.read_function = identity;
         sim_val.write_function = identity;
         setup_simmeta(cascade, sim_val);
-    }
-    for (let sim_ctl of latest_status.sim_control) {
+    }}
+    obj = latest_status.sim_control;
+    for (let name in obj) { if (obj.hasOwnProperty(name)) {
+        let sim_ctl = obj[name];
         sim_ctl.group = SIMMETA_GROUP;
         sim_ctl.remote_name = sim_ctl.name;
         sim_ctl.section_name = "sim_control";
@@ -293,11 +298,13 @@ function get_probes_and_controls(cascade) {
             sim_ctl.write_function = mbarToPa;
             setup_setting(cascade, sim_ctl);
         }
-    }
+    }}
 
     // sensors and controls on the still model
-    for (let probe of latest_status.model_probe) {
-        if (probe.name.startswith("ambient")) continue;
+    obj = latest_status.model_probe;
+    for (let name in obj) { if (obj.hasOwnProperty(name)) {
+        let probe = obj[name];
+        if (probe.name.startsWith("ambient")) continue;
         if (probe.units != "K") continue;
 
         probe.remote_name = probe.name;
@@ -307,9 +314,11 @@ function get_probes_and_controls(cascade) {
         probe.read_function = KtoC;
         probe.write_function = CtoK;
         setup_temp_probe(cascade, probe);
-    }
+    }}
 
-    for (let control of latest_status.model_control) {
+    obj = latest_status.model_control;
+    for (let name in obj) { if (obj.hasOwnProperty(name)) {
+        let control = obj[name];
         control.remote_name = control.name;
         control.section_name = "model_control";
 
@@ -349,7 +358,7 @@ function get_probes_and_controls(cascade) {
             control.write_function = identity;
             setup_dac(cascade, control);
         }
-    }
+    }}
 
     // names for soft_resource assignments.
     utils.update_hard_resource_list_component(cascade,
@@ -475,6 +484,7 @@ module.exports.setup = function (cascade) {
                 model_selector.info.options = [model];
                 model_selector.value = model;
             }
+            // eslint-disable-next-line no-self-assign
             model_selector.info = model_selector.info;  // trigger update
         })
         .catch(function(err) {
@@ -488,6 +498,7 @@ module.exports.setup = function (cascade) {
 
             run_mode = component;
             run_mode.info.options.unshift("UNLOAD");
+            // eslint-disable-next-line no-self-assign
             run_mode.info = run_mode.info;  // trigger update
 
             sync_state();  // set run_mode to correspond to simulator.
@@ -512,15 +523,17 @@ module.exports.loop = function (cascade) {
     do_request("read_status", null)
         .then(function(result) {
         // Update sim values
-            for (let id in simmetas) { read_in_value(result, simmetas[id]);}
+            for (let id in simmetas) { if (simmetas.hasOwnProperty(id)) {
+                read_in_value(result, simmetas[id]);
+            }}
             // Update sensor components.
-            for (let id in temp_probes) {
+            for (let id in temp_probes) { if (temp_probes.hasOwnProperty(id)) {
                 read_in_value(result, temp_probes[id]);
-                temp = temp_probe[id].component.value;
+                let temp = temp_probes[id].component.value;
                 if (temp > max_temp.value) {
                     max_temp.value = temp;
                 }
-            }
+            }}
         })
         .catch(function(err) {
             cascade.log_error(new Error("Loop status request error: " + err));

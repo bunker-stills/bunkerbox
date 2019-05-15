@@ -19,7 +19,6 @@ var DISTIR_DISPLAY_BASE = 11000;
 var PTC_DISPLAY_BASE = 12000;
 var TC_DISPLAY_BASE = 13000;
 var OW_DISPLAY_BASE = 14000;
-var HR_LISTS_DISPLAY_BASE = 20000;
 
 
 // hard resource names at individual relay or probe level, eg "OW_2A_28af3098c5b7041d", "DAc_3a", "RELAY_2B_2"
@@ -466,9 +465,9 @@ function configure_io4(cascade, io4_info, io_index) {
 
         // If HR_names components are already created, then update them.
         if (cascade.components.all_current["BIT_IN_HR_names"]) {
-            update_hard_resource_list_component(cascade,
+            utils.update_hard_resource_list_component(cascade,
                 "BIT_IN_HR_names", input_names.sort());
-            update_hard_resource_list_component(cascade,
+            utils.update_hard_resource_list_component(cascade,
                 "BIT_OUT_HR_names", output_names.sort());
         }
     }
@@ -637,9 +636,9 @@ function getAllProbes(cascade, ow_info, display_base, error_count) {
                 display_base += 5;
                 ow_info.probes[ow_address] = probe;
                 ow_names.push(probe_name);
-                //update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
+                //utils.update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
                 //    ow_names.sort());
-                //update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
+                //utils.update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
                 //    ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
             }
         });
@@ -732,7 +731,7 @@ function setup_ptc_probe(cascade, id, ptc) {
 }
 
 function setup_thermocouple_probe(cascade, id, tc) {
-    var display_base = TC_DISPLAY_BASE + next_display_order(5);
+    var display_base = TC_DISPLAY_BASE + utils.next_display_order(5);
     var tc_info = {
         id: id,
         interface: tc,

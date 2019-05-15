@@ -134,7 +134,7 @@ var data_recorder;
 var device_name;
 
 // Data that changes is recorded right away. Data that doesn't change is recorded once a minute.
-module.exports.setupf = function (cascade) {
+module.exports.setup = function (cascade) {
     data_recorder = new recorder("52.39.173.27", 8089);
 
     device_name = cascade.create_component({
@@ -146,7 +146,7 @@ module.exports.setupf = function (cascade) {
     });
 
     // Integrate simulator time when present.
-    cascade.component.require_component("simulated_time",
+    cascade.components.require_component("simulated_time",
         function(component) {simulated_time_component = component;});
 
     cascade.cascade_server.on("component_value_updated", recordComponent);

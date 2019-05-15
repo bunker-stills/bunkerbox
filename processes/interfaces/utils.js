@@ -1,5 +1,6 @@
 
 var RESOURCE_NAMES_GROUP = "99  Hard Resources";
+var HR_LISTS_DISPLAY_BASE = 20000;
 
 // Display orders:
 var global_display_order = 100;
@@ -27,7 +28,7 @@ module.exports.update_hard_resource_list_component = function(cascade, id, list,
         cascade.create_component({
             id: id,
             group: group || RESOURCE_NAMES_GROUP,
-            display_order: HR_LISTS_DISPLAY_BASE + next_display_order(),
+            display_order: HR_LISTS_DISPLAY_BASE + module.exports.next_display_order(),
             read_only: true,
             type: type,
             value: value
@@ -36,4 +37,4 @@ module.exports.update_hard_resource_list_component = function(cascade, id, list,
     else {
         component.value = value;
     }
-}
+};
