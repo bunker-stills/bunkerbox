@@ -80,9 +80,16 @@ function set_relays(quadrelay_info) {
     var relay_interface = quadrelay_info.interface;
 
     if (relay_interface) {
+        if (relay_interface.getChannelLEDConfig) {
+            // this is V2 of hardware
+            var values = quadrelay_info.relays.map(
+                function(relay) {return relay.value;}
+            );
+            relay_interface.setValue(values);
+            return;
+        }
 
         var bitmask = 0;
-
         for (let relay_index in quadrelay_info.relays) {
             let relay = quadrelay_info.relays[relay_index];
             bitmask = bitmask | (relay.value << relay_index);
@@ -919,8 +926,14 @@ module.exports.setup = function (cascade) {
                             setup_dac(cascade, dac_id, dac);
                             break;
                         }
+                        case tinkerforge.BrickletIndustrialQuadRelayV2.DEVICE_IDENTIFIER :
                         case tinkerforge.BrickletIndustrialQuadRelay.DEVICE_IDENTIFIER : {
-                            var quadrelay = new tinkerforge.BrickletIndustrialQuadRelay(uid, ipcon);
+                            var quadrelay;
+                            if (deviceIdentifier == tinkerforge.BrickletIndustrialQuadRelay.DEVICE_IDENTIFIER) {
+                                quadrelay = new tinkerforge.BrickletIndustrialQuadRelay(uid, ipcon);
+                            } else {
+                                quadrelay = new tinkerforge.BrickletIndustrialQuadRelayV2(uid, ipcon);
+                            }
 
                             quadrelay.uid_string = uid;
                             quadrelay.position = masterbrick_position[connectedUid] + position;
@@ -1000,6 +1013,15 @@ module.exports.setup = function (cascade) {
 
                             break;
                         }
+                        default:
+                            // report any unhandled device
+                            if (deviceId == 17) break;
+                            cascade.log_info("Unrecognized TF device: uid=" + uid
+                                + " connected=" + connectedUid
+                                + " (" + masterbrick_position[connectedUid] + ")"
+                                + " position=" + position
+                                + " deviceId=" + deviceIdentifier);
+                            break;
                     }
                 }
             });
