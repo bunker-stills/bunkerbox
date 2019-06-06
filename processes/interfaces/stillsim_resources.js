@@ -61,7 +61,7 @@ function do_request(action, body) {
 }
 
 function load_model(cascade) {
-    if (current_state.value == "unloaded") {
+    if (model_selector.value && current_state.value == "unloaded") {
         // load model
         do_request("load", {"modelnm": model_selector.value})
             .then(function() {
@@ -75,7 +75,7 @@ function load_model(cascade) {
                 cascade.log_error(new Error("Sim model load error: " + err));
             });
     } else {
-        let current_model = current_run.value.slice(0,-9);
+        let current_model = current_run.value.slice(9,-9);
         model_selector.info.options = [current_model];
         if (model_selector.value != current_model) {
             model_selector.value = current_model;
@@ -98,7 +98,8 @@ function execute_run_mode(cascade) {
             if (state === "running") {
                 do_request("stop")
                     .catch(function(err) {
-                        cascade.log_error(new Error("Stopping on run_mode UNLOAD: " + err));
+                        cascade.log_error(
+                            new Error("Stopping on run_mode UNLOAD: " + err));
                     });
                 run_mode.value = "STOP";
             }
@@ -108,6 +109,7 @@ function execute_run_mode(cascade) {
                 });
             model_selector.info.options = latest_status.meta.model_list;
             model_selector.value = undefined;
+            setTimeout(function(){process.exit();}, 3000);
             break;
         }
         case "STOP": {
@@ -157,8 +159,9 @@ function molvecToAbv(molvec) {
 }
 function abvToMolvec(abv, molvec) {
     if (abv && molvec) {
-        let volatiles = molvec.slice(1);
+        let volatiles = molvec.slice(1);  // index 1 to end
         let v_sum = volatiles.reduce((a, b) => a + b, 0);
+        abv /= 100;
         let newvec = [1 - abv].concat(volatiles.map((a) => a * abv/v_sum));
         return newvec;
     }
@@ -172,11 +175,16 @@ function setup_simmeta(cascade, info_obj) {
         name: info_obj.name,
         group: info_obj.group,
         display_order: utils.next_display_order(),
-        read_only: true,
+        read_only: info_obj.read_only,
         type: info_obj.type,
         units: info_obj.units,
         value: info_obj.read_function(info_obj.value),
     });
+    if (!info_obj.read_only) {
+        info_obj.component.on("value_updated", function() {
+            update_setting(cascade, info_obj);
+        });
+    }
 
     simmetas[info_obj.name] = info_obj;
 }
@@ -232,6 +240,7 @@ function setup_dac(cascade, info_obj) {
             id: info_obj.name + "_max_range",
             name: info_obj.name + " Max Range",
             group: info_obj.group,
+            persist: true,
             display_order: utils.next_display_order(),
             read_only: false,
             type: "NUMBER",
@@ -261,14 +270,12 @@ function setup_temp_probe(cascade, info_obj) {
 }
 
 function get_probes_and_controls(cascade) {
-    cascade.log_info("get_probes... latest_status:\n" + JSON.stringify(latest_status));
-
     // simulator values to control and monitor simulation process
     var obj;
     obj = latest_status.sim_value;
     for (let name in obj) { if (obj.hasOwnProperty(name)) {
-        let sim_val = obj[name];
-        sim_val.remote_name = sim_val.name;
+        let sim_val = {};
+        sim_val.remote_name = name;
         sim_val.section_name = "sim_value";
         sim_val.group = SIMMETA_GROUP;
         sim_val.read_function = identity;
@@ -278,25 +285,28 @@ function get_probes_and_controls(cascade) {
     obj = latest_status.sim_control;
     for (let name in obj) { if (obj.hasOwnProperty(name)) {
         let sim_ctl = obj[name];
-        sim_ctl.group = SIMMETA_GROUP;
-        sim_ctl.remote_name = sim_ctl.name;
         sim_ctl.section_name = "sim_control";
-        if (sim_ctl.units == "K") {
+        sim_ctl.remote_name = sim_ctl.name;
+        if (sim_ctl.name == "Ambient_temp") {
+            sim_ctl.group = MODSET_GROUP;
             sim_ctl.units = "C";
             sim_ctl.read_function = KtoC;
             sim_ctl.write_function = CtoK;
-            if (sim_ctl.name == "Ambient_temp") {
-                sim_ctl.group = MODSET_GROUP;
-            }
             setup_setting(cascade, sim_ctl);
         }
-        if (sim_ctl.name == "Ambient_pres") {
+        else if (sim_ctl.name == "Ambient_pres") {
             sim_ctl.name = "barometer";
             sim_ctl.group = MODSET_GROUP;
             sim_ctl.units = "mbar";
             sim_ctl.read_function = PaToMbar;
             sim_ctl.write_function = mbarToPa;
             setup_setting(cascade, sim_ctl);
+        }
+        else {
+            sim_ctl.group = SIMMETA_GROUP;
+            sim_ctl.read_function = identity;
+            sim_ctl.write_function = identity;
+            setup_simmeta(cascade, sim_ctl);
         }
     }}
 
@@ -379,9 +389,11 @@ function write_out_val(cascade, val, info_obj) {
 
 function update_setting(cascade, info_obj) {
     // convert controller units to simulator units
-    var val = info_obj.write_function(info_obj.component.value);
+    var current_val = (latest_status
+        [info_obj.section_name][info_obj.remote_name].value);
+    var new_val = info_obj.write_function(info_obj.component.value, current_val);
     // send update to simulator
-    write_out_val(cascade, val, info_obj);
+    write_out_val(cascade, new_val, info_obj);
 }
 
 function update_dac(cascade, info_obj) {
@@ -480,7 +492,7 @@ module.exports.setup = function (cascade) {
 
             // If a model is already loaded, restrict model options to that model.
             if (current_state.value != "unloaded") {
-                let model = current_run.value.slice(0, -9);
+                let model = current_run.value.slice(9, -9);
                 model_selector.info.options = [model];
                 model_selector.value = model;
             }
@@ -511,7 +523,11 @@ module.exports.setup = function (cascade) {
 };
 
 function read_in_value(req_result, info_obj) {
-    let val = req_result[info_obj.section_name][info_obj.remote_name];
+    let response = req_result[info_obj.section_name][info_obj.remote_name]
+    let val = "";
+    if (response) {
+        val = response.value;
+    }
     // convert to controller units
     val = info_obj.read_function(val);
     // set local value
@@ -522,9 +538,12 @@ module.exports.loop = function (cascade) {
     // get latest values
     do_request("read_status", null)
         .then(function(result) {
-        // Update sim values
+            // Update sim values
             for (let id in simmetas) { if (simmetas.hasOwnProperty(id)) {
-                read_in_value(result, simmetas[id]);
+                info_obj = simmetas[id];
+                if (info_obj.read_only) {
+                    read_in_value(result, simmetas[id]);
+                }
             }}
             // Update sensor components.
             for (let id in temp_probes) { if (temp_probes.hasOwnProperty(id)) {
