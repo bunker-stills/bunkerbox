@@ -1015,7 +1015,7 @@ module.exports.setup = function (cascade) {
                         }
                         default:
                             // report any unhandled device
-                            if (deviceId == 17) break;
+                            if (deviceIdentifier == 17) break;
                             cascade.log_info("Unrecognized TF device: uid=" + uid
                                 + " connected=" + connectedUid
                                 + " (" + masterbrick_position[connectedUid] + ")"
