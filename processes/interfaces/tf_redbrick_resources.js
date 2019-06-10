@@ -636,6 +636,7 @@ function getAllProbes(cascade, ow_info, display_base, error_count) {
                     cascade.log_error(new Error(
                         "Onewire get-all-probes attempt " + error_count +
                         " failed with error: " + error));
+                    ow_info.interface.resetBus();
                     getAllProbes(cascade, ow_info, display_base, error_count+1);
                     return;
                 } else {
@@ -1127,6 +1128,7 @@ module.exports.loop = function (cascade) {
             ow.in_use = true;
             ow.getAllTemperatures(function (error, ow_probes) {
                 if (error) {
+                    ow.resetBus();
                     cascade.log_warning(new Error(
                         "Unable to retrieve temperatures from onewire " + id +
                         ": " + error));
