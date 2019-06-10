@@ -40,5 +40,6 @@ var cascade_server = new cascade({
     enable_mqtt: true,
     data_storage_location : process.env.DATA_PATH,
     processes : process_list,
+    run_loop_time_in_seconds : Number(process.env.LOOP_SECONDS) || 1,
     users : users
 });
