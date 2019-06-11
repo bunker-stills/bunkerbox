@@ -122,14 +122,13 @@ var process_names_list = function(cascade, names_string, soft_resource_type) {
         if (!module.exports[soft_resource_type].get_instance(name)) {
             // Check that name is not listed as any other soft resource type.
             for (let type_nm of module.exports.resource_types) {
-                if (type_nm != soft_resource_type) {
-                    if (!module.exports[type_nm].get_instance(name)) {
-                        cascade.log_error(new Error(
-                            "Soft resource name '" + name +
-                            " is used by multiple types: " +
-                             type_nm + " & " + soft_resource_type));
-                        continue;
-                    }
+                if (type_nm == "Barometer") continue;
+                if (type_nm === soft_resource_type) continue;
+                if (module.exports[type_nm].get_instance(name)) {
+                    cascade.log_error(new Error(
+                        "Soft resource name '" + name +
+                        " is used by multiple types: " +
+                         type_nm + " & " + soft_resource_type));
                 }
             }
             // Create the soft resource.

@@ -62,6 +62,9 @@ function onewireTempSensors(uid, ipcon) {
         return "";
     };
 
+    this.resetBus = function() {
+        this.onewire.resetBus();
+    };
 
     this.tempSetResolution = function (resolution, returnCallback, errorCallback) {
         var data = 0x7F;  // default 12-bit resolution
