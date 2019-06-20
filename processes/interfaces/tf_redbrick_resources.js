@@ -75,6 +75,10 @@ var remove_name_from_list = function(list, name) {
     return name;
 };
 
+function reset_interface(cascade, info, interface) {
+    cascade.log_info("TF interface reset on " + info.name);
+    info.interface = interface;
+}
 
 function set_relays(quadrelay_info) {
     var relay_interface = quadrelay_info.interface;
@@ -193,6 +197,9 @@ function setup_dac(cascade, id, dac) {
         interface: dac,
         setFunction: DAC_OUTPUT_TYPES.NO_OUTPUT
     };
+
+    dac.setVoltage(0);
+    dac.setCurrent(0);
 
     dac_info.enable = cascade.create_component({
         id: id + "_enable",
@@ -313,6 +320,9 @@ function setup_stepper(cascade, id, stepper) {
         max_motor_speed: null,
         motor_current: null
     };
+
+    stepper.stop();
+    stepper.disable();
 
     if (stepper) {
         if (stepper.getBasicConfiguration) {
@@ -880,9 +890,14 @@ module.exports.setup = function (cascade) {
                             owNet.uid_string = uid;
                             owNet.position = masterbrick_position[connectedUid] + position;
 
-                            let ow_id = "OW_" + owNet.position;
+                            let id = "OW_" + owNet.position;
 
-                            setup_onewire_net(cascade, ow_id, owNet);
+                            info = allDevices[id];
+                            if (info) {
+                                reset_interface(cascade, info, owNet);
+                            } else {
+                                setup_onewire_net(cascade, id, owNet);
+                            }
                             break;
                         }
                         case tinkerforge.BrickletThermocouple.DEVICE_IDENTIFIER : {
@@ -891,9 +906,14 @@ module.exports.setup = function (cascade) {
                             tc.uid_string = uid;
                             tc.position = masterbrick_position[connectedUid] + position;
 
-                            var tc_id = "TC_" + tc.position;
+                            let id = "TC_" + tc.position;
 
-                            setup_thermocouple_probe(cascade, tc_id, tc);
+                            info = allDevices[id];
+                            if (info) {
+                                reset_interface(cascade, info, tc);
+                            } else {
+                                setup_thermocouple_probe(cascade, id, tc);
+                            }
                             break;
                         }
                         case tinkerforge.BrickletPTCV2.DEVICE_IDENTIFIER : {
@@ -901,9 +921,15 @@ module.exports.setup = function (cascade) {
 
                             ptc.uid_string = uid;
                             ptc.position = masterbrick_position[connectedUid] + position;
-                            let ptc_id = "PTC_" + ptc.position;
 
-                            setup_ptc_probe(cascade, ptc_id, ptc);
+                            let id = "PTC_" + ptc.position;
+
+                            info = allDevices[id];
+                            if (info) {
+                                reset_interface(cascade, info, ptc);
+                            } else {
+                                setup_ptc_probe(cascade, id, ptc);
+                            }
                             break;
                         }
                         case tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER :
@@ -916,15 +942,18 @@ module.exports.setup = function (cascade) {
                                 dac = new tinkerforge.BrickletIndustrialAnalogOutV2(uid, ipcon);
                                 dac.setEnabled(false);
                             }
-                            dac.setVoltage(0);
-                            dac.setCurrent(0);
 
                             dac.uid_string = uid;
                             dac.position = masterbrick_position[connectedUid] + position;
 
-                            var dac_id = "DAC_" + dac.position;
+                            let id = "DAC_" + dac.position;
 
-                            setup_dac(cascade, dac_id, dac);
+                            info = allDevices[id];
+                            if (info) {
+                                reset_interface(cascade, info, dac);
+                            } else {
+                                setup_dac(cascade, id, dac);
+                            }
                             break;
                         }
                         case tinkerforge.BrickletIndustrialQuadRelayV2.DEVICE_IDENTIFIER :
@@ -939,9 +968,14 @@ module.exports.setup = function (cascade) {
                             quadrelay.uid_string = uid;
                             quadrelay.position = masterbrick_position[connectedUid] + position;
 
-                            var quadrelay_id = "QUADRELAY_" + quadrelay.position;
+                            let id = "QUADRELAY_" + quadrelay.position;
 
-                            setup_quadrelay(cascade, quadrelay_id, quadrelay);
+                            info = allDevices[id];
+                            if (info) {
+                                reset_interface(cascade, info, quadrelay);
+                            } else {
+                                setup_quadrelay(cascade, id, quadrelay);
+                            }
                             break;
                         }
                         case tinkerforge.BrickletBarometer.DEVICE_IDENTIFIER : {
@@ -950,9 +984,14 @@ module.exports.setup = function (cascade) {
                             barometer.uid_string = uid;
                             barometer.position = masterbrick_position[connectedUid] + position.toUpperCase;
 
-                            var barometer_id = "barometer_" + barometer.position;
+                            let id = "barometer_" + barometer.position;
 
-                            setup_barometer(cascade, barometer_id, barometer);
+                            info = allDevices[id];
+                            if (info) {
+                                reset_interface(cascade, info, barometer);
+                            } else {
+                                setup_barometer(cascade, id, barometer);
+                            }
                             break;
                         }
                         case tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER :
@@ -961,22 +1000,26 @@ module.exports.setup = function (cascade) {
                             masterbrick_position[uid] = position;
 
                             let stepper;
-                            let stepper_id;
+                            let id;
                             if (deviceIdentifier == tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER) {
                                 stepper = new tinkerforge.BrickSilentStepper(uid, ipcon);
-                                stepper_id = "SSTEPPER_";
+                                id = "SSTEPPER_";
                             } else {
                                 stepper = new tinkerforge.BrickStepper(uid, ipcon);
-                                stepper_id = "STEPPER_";
+                                id = "STEPPER_";
                             }
-                            stepper.stop();
-                            stepper.disable();
 
                             stepper.uid_string = uid;
                             stepper.position = position;
-                            stepper_id = stepper_id + stepper.position;
 
-                            setup_stepper(cascade, stepper_id, stepper);
+                            id = id + stepper.position;
+
+                            info = allDevices[id];
+                            if (info) {
+                                reset_interface(cascade, info, stepper);
+                            } else {
+                                setup_stepper(cascade, id, stepper);
+                            }
 
                             break;
                         }
@@ -996,9 +1039,15 @@ module.exports.setup = function (cascade) {
 
                             IO4.uid_string = uid;
                             IO4.position = masterbrick_position[connectedUid] + position;
-                            let IO4_id = "IO4_" + IO4.position;
 
-                            setup_io4(cascade, IO4_id, IO4);
+                            let id = "IO4_" + IO4.position;
+
+                            info = allDevices[id];
+                            if (info) {
+                                reset_interface(cascade, info, IO4);
+                            } else {
+                                setup_io4(cascade, id, IO4);
+                            }
 
                             break;
                         }
@@ -1008,9 +1057,15 @@ module.exports.setup = function (cascade) {
 
                             distIR.uid_string = uid;
                             distIR.position = masterbrick_position[connectedUid] + position;
-                            let distIR_id = "DISTIR_" + distIR.position;
 
-                            setup_distIR(cascade, distIR_id, distIR);
+                            let id = "DISTIR_" + distIR.position;
+
+                            info = allDevices[id];
+                            if (info) {
+                                reset_interface(cascade, info, distIR);
+                            } else {
+                                setup_distIR(cascade, id, distIR);
+                            }
 
                             break;
                         }
