@@ -3,6 +3,7 @@ var tinkerforge_connection = require("./../lib/tinkerforge_connection");
 var onewireTempSensors = require("./../lib/onewire_temp_sensors");  // sensor interface for 1wire bricklet
 
 var ONEWIRE_ERROR_LIMIT = 3;
+var HIGH_TEMP_LIMIT = 1000;  // over this temp is ignored as a data error
 
 var SENSORS_GROUP = "97  HR Sensors";
 var PROCESS_CONTROLS_GROUP = "98  HR Controls";
@@ -76,8 +77,9 @@ var remove_name_from_list = function(list, name) {
 };
 
 function reset_interface(cascade, info, interface) {
-    cascade.log_info("TF interface reset on " + info.name);
+    cascade.log_info("TF interface reset on " + info.id);
     info.interface = interface;
+    // also needs some work on resettiing configuration on DAC, Stepper etc.
 }
 
 function set_relays(quadrelay_info) {
@@ -1145,7 +1147,7 @@ module.exports.loop = function (cascade) {
                 tempProbe.raw.value = tempValue;
                 tempValue = tempValue + (tempProbe.calibration.value || 0);
                 tempProbe.calibrated.value = tempValue;
-                if (tempValue > max_temp.value && tempValue < 4000) {
+                if (tempValue > max_temp.value && tempValue < HIGH_TEMP_LIMIT) {
                     max_temp.value = tempValue;
                 }
             });
@@ -1168,7 +1170,7 @@ module.exports.loop = function (cascade) {
                 tempProbe.raw.value = tempValue;
                 tempValue = tempValue + (tempProbe.calibration.value || 0);
                 tempProbe.calibrated.value = tempValue;
-                if (tempValue > max_temp.value && tempValue < 4000) {
+                if (tempValue > max_temp.value && tempValue < HIGH_TEMP_LIMIT) {
                     max_temp.value = tempValue;
                 }
             });
@@ -1204,7 +1206,7 @@ module.exports.loop = function (cascade) {
                     tempProbe.raw.value = tempValue;
                     tempValue = tempValue + (tempProbe.calibration.value || 0);
                     tempProbe.calibrated.value = tempValue;
-                    if (tempValue > max_temp.value && tempValue < 4000) {
+                    if (tempValue > max_temp.value && tempValue < HIGH_TEMP_LIMIT) {
                         max_temp.value = tempValue;
                     }
                 }
