@@ -105,6 +105,11 @@ function set_relays(quadrelay_info) {
     }
 }
 
+function renew_quadrelay(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+    set_relays(info);
+}
+
 function setup_quadrelay(cascade, id, quadrelay) {
     let display_base = RELAY_DISPLAY_BASE + next_display_order(5);
 
@@ -191,6 +196,11 @@ function set_dac(dac_info) {
     }
 }
 
+function renew_dac(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+    set_dac(info);
+}
+
 function setup_dac(cascade, id, dac) {
     let display_base = DAC_DISPLAY_BASE + next_display_order(5);
 
@@ -267,6 +277,20 @@ var STEPPER_RESOLUTION = Number(process.env.STEPPER_RESOLUTION) ||
 var SSTEPPER_RESOLUTION = Number(process.env.STEPPER_RESOLUTION) ||
     tinkerforge.BrickSilentStepper.STEP_RESOLUTION_16;
 
+function configure_stepper(stepper) {
+    if (stepper) {
+        if (stepper.getBasicConfiguration) {
+            // this is a silent stepper, set configurations
+            stepper.setMotorCurrent(MAX_SSTEPPER_CURRENT);
+            stepper.setBasicConfiguration(null, DEFAULT_STEPPER_CURRENT);
+            stepper.setStepConfiguration(SSTEPPER_RESOLUTION, true);
+        } else {
+            stepper.setMotorCurrent(DEFAULT_STEPPER_CURRENT);
+            stepper.setStepMode(STEPPER_RESOLUTION);
+        }
+    }
+}
+
 function set_stepper_current(stepper_info) {
     var stepper = stepper_info.interface;
     if (stepper) {
@@ -311,6 +335,13 @@ function set_stepper(stepper_info) {
     }
 }
 
+function renew_stepper(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+    configure_stepper(interface);
+    set_stepper_current(info);
+    set_stepper(info);
+}
+
 function setup_stepper(cascade, id, stepper) {
     let display_base = STEPPER_DISPLAY_BASE + next_display_order(10);
 
@@ -326,17 +357,7 @@ function setup_stepper(cascade, id, stepper) {
     stepper.stop();
     stepper.disable();
 
-    if (stepper) {
-        if (stepper.getBasicConfiguration) {
-            // this is a silent stepper, set configurations
-            stepper.setMotorCurrent(MAX_SSTEPPER_CURRENT);
-            stepper.setBasicConfiguration(null, DEFAULT_STEPPER_CURRENT);
-            stepper.setStepConfiguration(SSTEPPER_RESOLUTION, true);
-        } else {
-            stepper.setMotorCurrent(DEFAULT_STEPPER_CURRENT);
-            stepper.setStepMode(STEPPER_RESOLUTION);
-        }
-    }
+    configure_stepper(stepper);
 
     stepper_info.enable = cascade.create_component({
         id: id + "_enable",
@@ -513,6 +534,14 @@ function set_io4(io4_info, io_index) {
     }
 }
 
+function renew_io4(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+    for(let io_index in [0,1,2,3]) {
+        configure_io4(cascade, info, io_index);
+        set_io4(info, io_index);
+    }
+}
+
 function setup_io4(cascade, id, io4) {
     let display_base = IO4_DISPLAY_BASE + next_display_order(20);
 
@@ -563,6 +592,10 @@ function setup_io4(cascade, id, io4) {
     allDevices[id] = io4_info;
 }
 
+function renew_barometer(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+}
+
 function setup_barometer(cascade, id, barometer) {
     var barometer_info = {
         id: id,
@@ -584,11 +617,28 @@ function setup_barometer(cascade, id, barometer) {
     allDevices[id] = barometer_info;
 }
 
+function configure_distIR(info) {
+    let distIR = info.interface;
+    if (distIR) {
+        distIR.setDistanceCallbackConfiguration(1000, false, "x", 0, 0);
+
+        distIR.on(tinkerforge.BrickletDistanceIRV2.CALLBACK_DISTANCE, function(distance) {
+            info.dist.value = distance;
+        });
+    }
+}
+
 function configure_dist_ma(dist_info) {
     let dist = dist_info.interface;
     if (dist) {
         dist.setMovingAverageConfiguration(dist_info.dist_ma.value);
     }
+}
+
+function renew_distIR(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+    configure_distIR(info);
+    configure_dist_ma(info);
 }
 
 function setup_distIR(cascade, id, distIR) {
@@ -609,14 +659,6 @@ function setup_distIR(cascade, id, distIR) {
         units: "mm",
         type: cascade.TYPES.NUMBER
     });
-
-    if (distIR) {
-        distIR.setDistanceCallbackConfiguration(1000, false, "x", 0, 0);
-
-        distIR.on(tinkerforge.BrickletDistanceIRV2.CALLBACK_DISTANCE, function(distance) {
-            dist_info.dist.value = distance;
-        });
-    }
 
     dist_info.dist_ma = cascade.create_component({
         id: id + "_ma",
@@ -670,6 +712,10 @@ function getAllProbes(cascade, ow_info, display_base, error_count) {
         });
 }
 
+function renew_onewire_net(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+}
+
 function setup_onewire_net(cascade, id, owNet) {
     let display_base = OW_DISPLAY_BASE + next_display_order(100);
     var ow_info = {
@@ -699,6 +745,21 @@ var PTC_WIRE_MODES = {
     FOUR_WIRE: tinkerforge.BrickletPTCV2.WIRE_MODE_4
 };
 
+function configure_ptc(cascade, ptc_info) {
+    var ptc = ptc_info.interface;
+    if (ptc && ptc_info.wire_mode.value) {
+        ptc.setWireMode(PTC_WIRE_MODES[ptc_info.wire_mode.value], null,
+            function(error) {
+                cascade.log_error(new Error("Error on PTCV2.setWireMode: " + error));
+            });
+    }
+}
+
+function renew_ptc_probe(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+    configure_ptc(cascade, info);
+}
+
 function setup_ptc_probe(cascade, id, ptc) {
     let display_base = PTC_DISPLAY_BASE + next_display_order(10);
     var ptc_info = {
@@ -719,13 +780,7 @@ function setup_ptc_probe(cascade, id, ptc) {
     });
 
     ptc_info.wire_mode.on("value_updated", function () {
-        var ptc = ptc_info.interface;
-        if (ptc && ptc_info.wire_mode.value) {
-            ptc.setWireMode(PTC_WIRE_MODES[ptc_info.wire_mode.value], null,
-                function(error) {
-                    cascade.log_error(new Error("Error on PTCV2.setWireMode: " + error));
-                });
-        }
+        configure_ptc(cascade, ptc_info);
     });
 
     // eslint-disable-next-line no-self-assign
@@ -754,6 +809,20 @@ function setup_ptc_probe(cascade, id, ptc) {
     //    ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
 }
 
+function configure_tc(tc_info) {
+    let tc = tc_info.interface;
+    if (tc) {
+        tc.setConfiguration(tinkerforge.BrickletThermocouple.AVERAGING_16,
+            tinkerforge.BrickletThermocouple.TYPE_K,
+            tinkerforge.BrickletThermocouple.FILTER_OPTION_60HZ);
+    }
+}
+
+function renew_thermocouple_probe(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+    configure_tc(info);
+}
+
 function setup_thermocouple_probe(cascade, id, tc) {
     var display_base = TC_DISPLAY_BASE + next_display_order(5);
     var tc_info = {
@@ -762,12 +831,7 @@ function setup_thermocouple_probe(cascade, id, tc) {
         probe: create_temp_probe(cascade, id, display_base),
     };
 
-
-    if (tc) {
-        tc.setConfiguration(tinkerforge.BrickletThermocouple.AVERAGING_16,
-            tinkerforge.BrickletThermocouple.TYPE_K,
-            tinkerforge.BrickletThermocouple.FILTER_OPTION_60HZ);
-    }
+    configure_tc(tc_info);
 
     thermocoupleProbes[id] = tc_info;
     allDevices[id] = tc_info;
@@ -896,7 +960,7 @@ module.exports.setup = function (cascade) {
 
                             info = allDevices[id];
                             if (info) {
-                                reset_interface(cascade, info, owNet);
+                                renew_onewire_net(cascade, info, owNet);
                             } else {
                                 setup_onewire_net(cascade, id, owNet);
                             }
@@ -912,7 +976,7 @@ module.exports.setup = function (cascade) {
 
                             info = allDevices[id];
                             if (info) {
-                                reset_interface(cascade, info, tc);
+                                renew_thermocouple_probe(cascade, info, tc);
                             } else {
                                 setup_thermocouple_probe(cascade, id, tc);
                             }
@@ -928,7 +992,7 @@ module.exports.setup = function (cascade) {
 
                             info = allDevices[id];
                             if (info) {
-                                reset_interface(cascade, info, ptc);
+                                renew_ptc_probe(cascade, info, ptc);
                             } else {
                                 setup_ptc_probe(cascade, id, ptc);
                             }
@@ -952,7 +1016,7 @@ module.exports.setup = function (cascade) {
 
                             info = allDevices[id];
                             if (info) {
-                                reset_interface(cascade, info, dac);
+                                renew_dac(cascade, info, dac);
                             } else {
                                 setup_dac(cascade, id, dac);
                             }
@@ -974,7 +1038,7 @@ module.exports.setup = function (cascade) {
 
                             info = allDevices[id];
                             if (info) {
-                                reset_interface(cascade, info, quadrelay);
+                                renew_quadrelay(cascade, info, quadrelay);
                             } else {
                                 setup_quadrelay(cascade, id, quadrelay);
                             }
@@ -990,7 +1054,7 @@ module.exports.setup = function (cascade) {
 
                             info = allDevices[id];
                             if (info) {
-                                reset_interface(cascade, info, barometer);
+                                renew_barometer(cascade, info, barometer);
                             } else {
                                 setup_barometer(cascade, id, barometer);
                             }
@@ -1018,7 +1082,7 @@ module.exports.setup = function (cascade) {
 
                             info = allDevices[id];
                             if (info) {
-                                reset_interface(cascade, info, stepper);
+                                renew_stepper(cascade, info, stepper);
                             } else {
                                 setup_stepper(cascade, id, stepper);
                             }
@@ -1046,7 +1110,7 @@ module.exports.setup = function (cascade) {
 
                             info = allDevices[id];
                             if (info) {
-                                reset_interface(cascade, info, IO4);
+                                renew_io4(cascade, info, IO4);
                             } else {
                                 setup_io4(cascade, id, IO4);
                             }
@@ -1064,7 +1128,7 @@ module.exports.setup = function (cascade) {
 
                             info = allDevices[id];
                             if (info) {
-                                reset_interface(cascade, info, distIR);
+                                renew_distIR(cascade, info, distIR);
                             } else {
                                 setup_distIR(cascade, id, distIR);
                             }
