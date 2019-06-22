@@ -3,7 +3,7 @@ var tinkerforge_connection = require("./../lib/tinkerforge_connection");
 var onewireTempSensors = require("./../lib/onewire_temp_sensors");  // sensor interface for 1wire bricklet
 
 var ONEWIRE_ERROR_LIMIT = 3;
-var HIGH_TEMP_LIMIT = 1000;  // over this temp is ignored as a data error
+//var HIGH_TEMP_LIMIT = 1000;  // over this temp is ignored as a data error
 
 var SENSORS_GROUP = "97  HR Sensors";
 var PROCESS_CONTROLS_GROUP = "98  HR Controls";
@@ -75,6 +75,22 @@ var remove_name_from_list = function(list, name) {
     list.splice(i_name, 1);
     return name;
 };
+
+function check_max_temp(cascade, new_temp, probe_name) {
+    let Tmax = max_temp.value;
+    if (new_temp > Tmax) {
+        /* To filter out data errors, we reject values greater than twice
+        ** the current max_temp value.  This does not apply to temp values
+        ** less than 100C.
+        */
+        if (new_temp < 100 || new_temp < 2*Tmax) {
+            max_temp.value = new_temp;
+        } else {
+            cascade.log_info("Rejected max_temp candidate of "
+                + new_temp + "C from " + probe_name + ".");
+        }
+    }
+}
 
 function reset_interface(cascade, info, interface) {
     cascade.log_info("TF interface reset on " + info.id);
@@ -1211,8 +1227,8 @@ module.exports.loop = function (cascade) {
                 tempProbe.raw.value = tempValue;
                 tempValue = tempValue + (tempProbe.calibration.value || 0);
                 tempProbe.calibrated.value = tempValue;
-                if (tempValue > max_temp.value && tempValue < HIGH_TEMP_LIMIT) {
-                    max_temp.value = tempValue;
+                if (tempValue > max_temp.value) {
+                    check_max_temp(cascade, tempValue, tempProbe.calibrated.name);
                 }
             });
         }
@@ -1234,8 +1250,8 @@ module.exports.loop = function (cascade) {
                 tempProbe.raw.value = tempValue;
                 tempValue = tempValue + (tempProbe.calibration.value || 0);
                 tempProbe.calibrated.value = tempValue;
-                if (tempValue > max_temp.value && tempValue < HIGH_TEMP_LIMIT) {
-                    max_temp.value = tempValue;
+                if (tempValue > max_temp.value) {
+                    check_max_temp(cascade, tempValue, tempProbe.calibrated.name);
                 }
             });
 
@@ -1270,8 +1286,8 @@ module.exports.loop = function (cascade) {
                     tempProbe.raw.value = tempValue;
                     tempValue = tempValue + (tempProbe.calibration.value || 0);
                     tempProbe.calibrated.value = tempValue;
-                    if (tempValue > max_temp.value && tempValue < HIGH_TEMP_LIMIT) {
-                        max_temp.value = tempValue;
+                    if (tempValue > max_temp.value) {
+                        check_max_temp(cascade, tempValue, tempProbe.calibrated.name);
                     }
                 }
                 ow.in_use = false;
