@@ -27,12 +27,14 @@ var result;
 }*/
 
 // Get latest version
+/*
 if (!TESTING) {
     console.log("Pulling latest version...");
     result = child_process.spawnSync("git", ["pull"], {
         cwd: bunkerboxDir
     });
 }
+*/
 
 // Load dependencies
 var needsUpdate = false;
