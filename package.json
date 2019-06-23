@@ -11,6 +11,7 @@
   "dependencies": {
     "@bunkerstills/cascade": "git+https://github.com/bunker-stills/cascade.git",
     "commander": "2.9.0",
+    "got": "^9.6.0",
     "request": "^2.81.0",
     "tinkerforge": "^2.1.20",
     "underscore": "1.8.3"

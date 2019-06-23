@@ -166,8 +166,8 @@ function abvToMolvec(abv, molvec) {
         return newvec;
     }
 }
-function pctToScale(pct, max_scale) {pct/100 * max_scale;}
-//function scaleToPct(scaleVal, max_scale) {scaleVal/max_scale * 100;}
+function pctToScale(pct, max_range) {return pct/100 * max_range;}
+//function scaleToPct(scaleVal, max_range) {scaleVal/max_range * 100;}
 
 function setup_simmeta(cascade, info_obj) {
     info_obj.component = cascade.create_component({
@@ -190,6 +190,9 @@ function setup_simmeta(cascade, info_obj) {
 }
 
 function setup_setting(cascade, info_obj) {
+    info_obj.prior_val = info_obj.value;
+    delete info_obj.value
+
     info_obj.component = cascade.create_component({
         id: info_obj.name,
         name: info_obj.name,
@@ -198,16 +201,20 @@ function setup_setting(cascade, info_obj) {
         read_only: info_obj.read_only,
         type: info_obj.type,
         units: info_obj.units,
-        value: info_obj.read_function(info_obj.value),
-    });
-    info_obj.component.on("value_updated", function() {
-        update_setting(cascade, info_obj);
+        value: info_obj.read_function(info_obj.prior_val),
     });
 
     settings[info_obj.name] = info_obj;
+
+    info_obj.component.on("value_updated", function() {
+        update_setting(cascade, info_obj);
+    });
 }
 
 function setup_dac(cascade, info_obj) {
+    info_obj.prior_val = info_obj.value;
+    delete info_obj.value
+
     info_obj.enable = cascade.create_component({
         id: info_obj.name + "_enable",
         name: info_obj.name + " Enable",
@@ -216,9 +223,6 @@ function setup_dac(cascade, info_obj) {
         read_only: info_obj.read_only,
         type: "BOOLEAN",
         value: false,
-    });
-    info_obj.enable.on("value_updated", function() {
-        update_dac(cascade, info_obj);
     });
 
     info_obj.output = cascade.create_component({
@@ -230,9 +234,6 @@ function setup_dac(cascade, info_obj) {
         type: info_obj.type,
         units: "%",
         value: 0,
-    });
-    info_obj.output.on("value_updated", function() {
-        update_dac(cascade, info_obj);
     });
 
     if (info_obj.units !== "%") {  // then we need max_range.
@@ -251,6 +252,13 @@ function setup_dac(cascade, info_obj) {
 
     dacs[info_obj.name] = info_obj;
     dac_names.push(info_obj.name);
+
+    info_obj.enable.on("value_updated", function() {
+        update_dac(cascade, info_obj);
+    });
+    info_obj.output.on("value_updated", function() {
+        update_dac(cascade, info_obj);
+    });
 }
 
 function setup_temp_probe(cascade, info_obj) {
@@ -274,9 +282,10 @@ function get_probes_and_controls(cascade) {
     var obj;
     obj = latest_status.sim_value;
     for (let name in obj) { if (obj.hasOwnProperty(name)) {
-        let sim_val = {};
-        sim_val.remote_name = name;
+        //let sim_val = {};
+        let sim_val = obj[name]
         sim_val.section_name = "sim_value";
+        sim_val.remote_name = name;
         sim_val.group = SIMMETA_GROUP;
         sim_val.read_function = identity;
         sim_val.write_function = identity;
@@ -388,21 +397,25 @@ function write_out_val(cascade, val, info_obj) {
 }
 
 function update_setting(cascade, info_obj) {
+    cascade.log_info("update_setting: "
+        + info_obj.section_name + "." + info_obj.remote_name
+        + "  to value " + info_obj.component.value);
     // convert controller units to simulator units
-    var current_val = (latest_status
-        [info_obj.section_name][info_obj.remote_name].value);
-    var new_val = info_obj.write_function(info_obj.component.value, current_val);
+    var new_val = info_obj.write_function(info_obj.component.value, info_obj.prior_val);
     // send update to simulator
-    write_out_val(cascade, new_val, info_obj);
+    if (new_val != info_obj.prior_val) {
+        info_obj.prior_val = new_val;
+        write_out_val(cascade, new_val, info_obj);
+    }
 }
 
 function update_dac(cascade, info_obj) {
     var val;
     if (info_obj.enable.value === true) {
         val = info_obj.output.value;
-        if (info_obj.max_scale) {
+        if (info_obj.max_range) {
             // convert from percent to scale value (in controller units)
-            val = pctToScale(val, info_obj.max_scale.value);
+            val = pctToScale(val, info_obj.max_range.value);
         }
     } else {
         val = 0;
@@ -410,7 +423,14 @@ function update_dac(cascade, info_obj) {
     // convert from controller units to simulator units
     val = info_obj.write_function(val);
     // send update to simulator
-    write_out_val(cascade, val, info_obj);
+    if (val != info_obj.prior_val) {
+        cascade.log_info("update_dac: "
+            + info_obj.section_name + "." + info_obj.remote_name
+            + "  to value " + info_obj.output.value
+            + " from value " + info_obj.prior_val);
+        info_obj.prior_val = val;
+        write_out_val(cascade, val, info_obj);
+    }
 }
 
 function sync_state() {
