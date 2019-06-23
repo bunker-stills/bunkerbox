@@ -8,7 +8,7 @@ module.exports.Variable = SoftResource_Variable;
 module.exports.Function = SoftResource_Function;
 module.exports.BitOut = SoftResource_BIT_OUT;
 module.exports.Relay = SoftResource_RELAY;
-module.exports.DutyCycle_Relay = SoftResource_DUTYCYCLE_RELAY;
+module.exports.DutyCycleRelay = SoftResource_DUTYCYCLE_RELAY;
 module.exports.DAC = SoftResource_DAC;
 module.exports.Stepper = SoftResource_STEPPER;
 module.exports.BitIn = SoftResource_BIT_IN;
@@ -120,6 +120,18 @@ var process_names_list = function(cascade, names_string, soft_resource_type) {
     // Add any new names
     for (let name of names) {
         if (!module.exports[soft_resource_type].get_instance(name)) {
+            // Check that name is not listed as any other soft resource type.
+            for (let type_nm of module.exports.resource_types) {
+                if (type_nm == "Barometer") continue;
+                if (type_nm === soft_resource_type) continue;
+                if (module.exports[type_nm].get_instance(name)) {
+                    cascade.log_error(new Error(
+                        "Soft resource name '" + name +
+                        " is used by multiple types: " +
+                         type_nm + " & " + soft_resource_type));
+                }
+            }
+            // Create the soft resource.
             new module.exports[soft_resource_type](cascade, name);
         }
     }
