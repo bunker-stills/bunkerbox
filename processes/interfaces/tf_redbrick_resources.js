@@ -1001,7 +1001,7 @@ module.exports.setup = function (cascade) {
                         case tinkerforge.BrickMaster.DEVICE_IDENTIFIER : {
                             masterbrick_position[uid] = position;
 
-                            var mb = tinkerforge.BrickMaster(uid, ipcon);
+                            var mb = new tinkerforge.BrickMaster(uid, ipcon);
 
                             mb.uid_string = uid;
                             mb.position = position;

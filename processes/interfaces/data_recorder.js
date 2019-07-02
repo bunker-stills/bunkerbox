@@ -26,8 +26,10 @@ function escape_field_value(value) {
     else if (_.isBoolean(value)) {
         output += value ? "true" : "false";
     }
-    else {
+    else if (_.isString(value)) {
         output += '"' + value.replace(/"/g, '\\"') + '"';
+    } else {
+        output += '"' + value + '"';
     }
 
     return output;
