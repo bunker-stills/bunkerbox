@@ -95,7 +95,42 @@ function check_max_temp(cascade, new_temp, probe_name) {
 function reset_interface(cascade, info, interface) {
     cascade.log_info("TF interface reset on " + info.id);
     info.interface = interface;
-    // also needs some work on resettiing configuration on DAC, Stepper etc.
+}
+
+function report_masterbrick(cascade, mb_info) {
+    let mb = mb_info.interface;
+    if (mb) {
+        mb.getStackVoltage(function(v) {
+            mb.getStackCurrent(function(i) {
+                cascade.log_info("Masterbrick " + mb_info.id
+                                 + " voltage = " + v + "mV, "
+                                 + " current = " + i + "mA.");
+            }, function(err) {
+                cascade.log_error("Masterbrick current error: " + err);
+            });
+        }, function(err) {
+            cascade.log_error("Masterbrick voltage error: " + err);
+        });
+    }
+}
+
+function renew_mastebrick(cascade, info, mb) {
+    reset_interface(cascade, info, mb);
+}
+
+function setup_masterbrick(cascade, id, mb) {
+    var mb_info = {
+        id: id,
+        interface: mb,
+    };
+
+    // Periodically report MB status
+    setTimeout(function do_report() {
+        report_masterbrick(cascade, mb_info);
+        setTimeout(do_report, 60000);
+    }, 60000);
+
+    allDevices[id] = mb_info;
 }
 
 function set_relays(quadrelay_info) {
@@ -153,6 +188,8 @@ function setup_quadrelay(cascade, id, quadrelay) {
         relay_names.push(relay_id);
         //update_hard_resource_list_component(cascade, "RELAY_HR_names", relay_names.sort());
     }
+
+    set_relays(quadrelay_info);
 
     quadrelays[id] = quadrelay_info;
     allDevices[id] = quadrelay_info;
@@ -963,6 +1000,20 @@ module.exports.setup = function (cascade) {
                     switch (deviceIdentifier) {
                         case tinkerforge.BrickMaster.DEVICE_IDENTIFIER : {
                             masterbrick_position[uid] = position;
+
+                            var mb = tinkerforge.BrickMaster(uid, ipcon);
+
+                            mb.uid_string = uid;
+                            mb.position = position;
+
+                            let id = "MB_" + position;
+
+                            info = allDevices[id];
+                            if (info) {
+                                renew_mastebrick(cascade, info, mb);
+                            } else {
+                                setup_masterbrick(cascade, id, mb);
+                            }
                             break;
                         }
                         case tinkerforge.BrickletOneWire.DEVICE_IDENTIFIER : {

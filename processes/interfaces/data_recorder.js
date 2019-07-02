@@ -33,7 +33,7 @@ function escape_field_value(value) {
     return output;
 }
 
-recorder.prototype.flush = function () {
+recorder.prototype.flush = function (cascade) {
     if (this.measurements.length > 0) {
         var current_measurements = this.measurements;
         this.measurements = [];
@@ -76,6 +76,7 @@ recorder.prototype.flush = function () {
         }
         catch (e) {
             //console.log("Unable to record data: ")
+            cascade.log_error("Data send error: " + e);
         }
     }
 };
@@ -147,7 +148,7 @@ module.exports.loop = function (cascade) {
 
     if(lastUpdate && now - lastUpdate <= 60000)
     {
-        data_recorder.flush();
+        data_recorder.flush(cascade);
         return;
     }
 
@@ -160,5 +161,5 @@ module.exports.loop = function (cascade) {
     });
 
     lastUpdate = now;
-    data_recorder.flush();
+    data_recorder.flush(cascade);
 };
