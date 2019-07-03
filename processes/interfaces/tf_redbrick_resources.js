@@ -127,7 +127,7 @@ function setup_masterbrick(cascade, id, mb) {
     // Periodically report MB status
     setTimeout(function do_report() {
         report_masterbrick(cascade, mb_info);
-        setTimeout(do_report, 60000);
+        setTimeout(do_report, 600000);
     }, 60000);
 
     allDevices[id] = mb_info;
@@ -1128,7 +1128,7 @@ module.exports.setup = function (cascade) {
                             var barometer = new tinkerforge.BrickletBarometer(uid, ipcon);
 
                             barometer.uid_string = uid;
-                            barometer.position = masterbrick_position[connectedUid] + position.toUpperCase;
+                            barometer.position = masterbrick_position[connectedUid] + position;
 
                             let id = "barometer_" + barometer.position;
 

@@ -17,7 +17,7 @@ module.exports.setup = function (cascade) {
         cascade.log_error("Warm-restart values load error on " + restartFilePath + ": " + e);
     }
 
-    // Ignore if the restart hasn't happened within 2 minutes of shutting down
+    // Ignore if the restart hasn't happened within a few minutes of shutting down
     if(restartConfig && restartConfig.date && Date.now() - restartConfig.date <= 180000)
     {
         function setComponents()
@@ -32,12 +32,14 @@ module.exports.setup = function (cascade) {
             });
         }
 
-        // Wait 15 seconds for everything to come online before we commit our values
+        // Wait for everything to come online before we commit our values
         setTimeout(function(){
             // Do it twice to make sure nothing resets something else
             setComponents();
             setComponents();
-        }, 15000);
+        }, 60000);
+    } else {
+        cascade.log_info("Warm-restart data has gone stale (" + restartFilePath + ").");
     }
 
     warmRestartComponent = cascade.create_component({
