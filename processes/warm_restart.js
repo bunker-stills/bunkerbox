@@ -1,5 +1,5 @@
 var path = require("path");
-var fs = require('fs');
+var fs = require("fs");
 var _ = require("underscore");
 
 var warmRestartComponent;
@@ -13,8 +13,8 @@ module.exports.setup = function (cascade) {
         restartConfig = require(restartFilePath);
         fs.unlinkSync(restartFilePath);
     }
-    catch(e)
-    {
+    catch(e) {
+        cascade.log_error("Warm-restart values load error on " + restartFilePath + ": " + e);
     }
 
     // Ignore if the restart hasn't happened within 2 minutes of shutting down
@@ -62,11 +62,21 @@ module.exports.setup = function (cascade) {
                 }
             });
 
-            fs.writeFile(restartFilePath, JSON.stringify(newRestartConfig), function(error){});
+            fs.writeFile(restartFilePath, JSON.stringify(newRestartConfig),
+                function(error) {
+                    cascade.log_error("Warm-restart write error to "
+                        + restartFilePath + ": " + error);
+                });
         }
         else
         {
-            fs.unlinkSync(restartFilePath);
+            try {
+                fs.unlinkSync(restartFilePath);
+            }
+            catch(e) {
+                cascade.log_error(
+                    "Warm-restart unlink error on " + restartFilePath + ": " + e);
+            }
         }
 
     });

@@ -961,6 +961,12 @@ function update_hard_resource_list_component(cascade, id, list) {
     }
 }
 
+var IPCON_DISCONNECT_TEXT = [
+    "Disconnect was requested by user.",
+    "Disconnect because of an unresolvable error.",
+    "Disconnect initiated by Brick Daemon or WIFI/Ethernet Extension.",
+];
+
 module.exports.setup = function (cascade) {
     // Create max_temp component used by stills overtemp shutdown feature.
     max_temp = cascade.create_component({
@@ -979,6 +985,13 @@ module.exports.setup = function (cascade) {
             throw error;
         }
 
+        // Print a message on disconnect.
+        ipcon.on(tinkerforge.IPConnection.CALLBACK_DISCONNECTED,
+            function (disconnectReason) {
+                cascade.log_info("TF IPConnection disconnected -- reason: ("
+                    + disconnectReason + ") " + IPCON_DISCONNECT_TEXT[disconnectReason]);
+            });
+
         var masterbrick_position = {};
         ipcon.on(tinkerforge.IPConnection.CALLBACK_ENUMERATE,
             function (uid, connectedUid, position, hardwareVersion, firmwareVersion, deviceIdentifier, enumerationType) {
@@ -988,8 +1001,8 @@ module.exports.setup = function (cascade) {
                 if (enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_DISCONNECTED) {
                     for (var key in allDevices) {
                         var info = allDevices[key];
-
                         if (info.interface && info.interface.uid_string === uid) {
+                            cascade.log_info("Stack device goes unavailable: " + key);
                             info.interface = undefined;
                             return;
                         }
