@@ -105,6 +105,9 @@ module.exports.setup = function (cascade) {
         },
         value: "STOP"
     });
+    run_mode.on("value_updated", function() {
+        cascade.log_info("Run mode set to " + run_mode.value);
+    });
 };
 
 

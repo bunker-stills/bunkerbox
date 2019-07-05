@@ -97,11 +97,12 @@ function reset_interface(cascade, info, interface) {
     info.interface = interface;
 }
 
-function report_masterbrick(cascade, mb_info) {
+function report_masterbrick(cascade, mb_info, non_zero) {
     let mb = mb_info.interface;
     if (mb) {
         mb.getStackVoltage(function(v) {
             mb.getStackCurrent(function(i) {
+                if (non_zero && v===0 && i===0) return;
                 cascade.log_info("Masterbrick " + mb_info.id
                                  + " voltage = " + v + "mV, "
                                  + " current = " + i + "mA.");
@@ -124,10 +125,15 @@ function setup_masterbrick(cascade, id, mb) {
         interface: mb,
     };
 
-    // Periodically report MB status
+    // Periodically report MB voltage/current status.
     setTimeout(function do_report() {
         report_masterbrick(cascade, mb_info);
         setTimeout(do_report, 600000);
+    }, 60000);
+    // Check more frequently and report non-zero readings.
+    setTimeout(function do_report() {
+        report_masterbrick(cascade, mb_info, true);
+        setTimeout(do_report, 1000);
     }, 60000);
 
     allDevices[id] = mb_info;
