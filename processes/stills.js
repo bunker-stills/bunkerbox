@@ -23,7 +23,7 @@ var system_Variables = [
         description: "Failsafe Temp.",
         group: RUN_GROUP,
         units: "C",
-        persist: true,
+        persist: false,
         value: 120
     },
     // system set variable
@@ -32,6 +32,7 @@ var system_Variables = [
         read_only:true,
         units: "C"
     },
+// max_temp is created at the hardware level and scans all hardware temps.
 //    {   name: "max_temp",
 //        description: "Peak measured temperature",
 //        units: "C",
