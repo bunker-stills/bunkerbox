@@ -681,9 +681,9 @@ function setup_io4(cascade, id, io4) {
 function configure_barometer(cascade, info) {
     if (info.interface) {
         if (info.interface.getTemperature) {
-            info.temp_function = info.interface.getTemperature;
+            info.V2 = true;
         } else {
-            info.temp_function = info.interface.getChipTemperature;
+            info.V2 = false;
         }
     }
 }
@@ -697,12 +697,12 @@ function setup_barometer(cascade, id, barometer) {
     var barometer_info = {
         id: id,
         interface: barometer,
-        component: undefined,
-        temp_probe: undefined,
-        temp_function: undefined,
+        air_pressure: undefined,
+        chip_temp: undefined,
+        V2: undefined,
     };
 
-    barometer_info.component = cascade.create_component({
+    barometer_info.air_pressure = cascade.create_component({
         id: "barometer",  // assumes only one barometer per system
         name: "Barometer",
         group: SENSORS_GROUP,
@@ -713,7 +713,7 @@ function setup_barometer(cascade, id, barometer) {
         type: cascade.TYPES.NUMBER
     });
 
-    barometer_info.temp_probe = cascade.create_component({
+    barometer_info.chip_temp = cascade.create_component({
         id: "controller_temp",  // assumes only one barometer per system
         name: "Controller temperature",
         group: RUN_GROUP,
@@ -1450,18 +1450,28 @@ module.exports.loop = function (cascade) {
 
             barometer.getAirPressure(
                 function(airPressure) {
-                    barometer_info.component.value = airPressure / 1000;
+                    barometer_info.air_pressure.value = airPressure / 1000;
                 }, function(err) {
                     cascade.log_info("Error getting barometer reading: " + err);
                 });
 
-            barometer_info.temp_function(
-                function(rawtemp) {
-                    barometer_info.controller_temp.value = rawtemp/100;
-                },
-                function(err) {
-                    cascade.log_info("Error getting barometer temperature: " + err);
-                });
+            if (barometer_info.V2) {
+                barometer.getTemperature(
+                    function(rawtemp) {
+                        barometer_info.chip_temp.value = rawtemp/100;
+                    },
+                    function(err) {
+                        cascade.log_info("Error getting barometer temperature: " + err);
+                    });
+            } else {
+                barometer.getChipTemperature(
+                    function(rawtemp) {
+                        barometer_info.chip_temp.value = rawtemp/100;
+                    },
+                    function(err) {
+                        cascade.log_info("Error getting barometer temperature: " + err);
+                    });
+            }
         }
     }
 };
