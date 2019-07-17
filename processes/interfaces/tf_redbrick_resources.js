@@ -678,16 +678,30 @@ function setup_io4(cascade, id, io4) {
     allDevices[id] = io4_info;
 }
 
+function configure_barometer(cascade, info) {
+    if (info.interface) {
+        if (info.interface.getTemperature) {
+            info.temp_function = info.interface.getTemperature;
+        } else {
+            info.temp_function = info.interface.getChipTemperature;
+        }
+    }
+}
+
 function renew_barometer(cascade, info, interface) {
     reset_interface(cascade, info, interface);
+    configure_barometer(cascade, info);
 }
 
 function setup_barometer(cascade, id, barometer) {
     var barometer_info = {
         id: id,
         interface: barometer,
-        component: undefined
+        component: undefined,
+        temp_probe: undefined,
+        temp_function: undefined,
     };
+
     barometer_info.component = cascade.create_component({
         id: "barometer",  // assumes only one barometer per system
         name: "Barometer",
@@ -698,6 +712,19 @@ function setup_barometer(cascade, id, barometer) {
         units: "mbar",
         type: cascade.TYPES.NUMBER
     });
+
+    barometer_info.temp_probe = cascade.create_component({
+        id: "controller_temp",  // assumes only one barometer per system
+        name: "Controller temperature",
+        group: RUN_GROUP,
+        display_order: BAROMETER_DISPLAY_BASE + next_display_order(),
+        class: "barometer",
+        read_only: true,
+        units: "C",
+        type: cascade.TYPES.NUMBER
+    });
+
+    configure_barometer(cascade, barometer_info);
 
     barometers[id] = barometer_info;
     allDevices[id] = barometer_info;
@@ -1167,8 +1194,14 @@ module.exports.setup = function (cascade) {
                             }
                             break;
                         }
+                        case tinkerforge.BrickletBarometerV2.DEVICE_IDENTIFIER :
                         case tinkerforge.BrickletBarometer.DEVICE_IDENTIFIER : {
-                            var barometer = new tinkerforge.BrickletBarometer(uid, ipcon);
+                            var barometer;
+                            if (deviceIdentifier == tinkerforge.BrickletBarometer.DEVICE_IDENTIFIER) {
+                                barometer = new tinkerforge.BrickletBarometer(uid, ipcon);
+                            } else {
+                                barometer = new tinkerforge.BrickletBarometerV2(uid, ipcon);
+                            }
 
                             barometer.uid_string = uid;
                             barometer.position = masterbrick_position[connectedUid] + position;
@@ -1412,12 +1445,22 @@ module.exports.loop = function (cascade) {
     for (let id in barometers) {
         let barometer_info = barometers[id];
         var barometer = barometer_info.interface;
+
         if (barometer) {
+
             barometer.getAirPressure(
                 function(airPressure) {
                     barometer_info.component.value = airPressure / 1000;
                 }, function(err) {
                     cascade.log_info("Error getting barometer reading: " + err);
+                });
+
+            barometer_info.temp_function(
+                function(rawtemp) {
+                    barometer_info.controller_temp.value = rawtemp/100;
+                },
+                function(err) {
+                    cascade.log_info("Error getting barometer temperature: " + err);
                 });
         }
     }
