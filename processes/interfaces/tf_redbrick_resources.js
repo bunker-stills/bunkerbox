@@ -166,49 +166,65 @@ function mapRange(value, in_min, in_max, out_min, out_max) {
 
 var DAC_OUTPUT_TYPES = {
     VOLTAGE_RANGE_0_TO_5V: function (tfInterface, outputPercent) {
-        //tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOutV2.VOLTAGE_RANGE_0_TO_5V, 0);
         var output = Math.round(mapRange(outputPercent, 0, 100, 0, 5000));
         tfInterface.setVoltage(output);
     },
     VOLTAGE_RANGE_0_TO_10V: function (tfInterface, outputPercent) {
-        //tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOutV2.VOLTAGE_RANGE_0_TO_10V, 0);
         var output = Math.round(mapRange(outputPercent, 0, 100, 0, 10000));
         tfInterface.setVoltage(output);
     },
     CURRENT_RANGE_4_TO_20MA: function (tfInterface, outputPercent) {
-        //tfInterface.setConfiguration(0, tinkerforge.BrickletIndustrialAnalogOutV2.CURRENT_RANGE_4_TO_20MA);
         var output = Math.round(mapRange(outputPercent, 0, 100, 4000, 20000));
         tfInterface.setCurrent(output);
     },
     CURRENT_RANGE_0_TO_20MA: function (tfInterface, outputPercent) {
-        //tfInterface.setConfiguration(0, tinkerforge.BrickletIndustrialAnalogOutV2.CURRENT_RANGE_0_TO_20MA);
         var output = Math.round(mapRange(outputPercent, 0, 100, 0, 20000));
         tfInterface.setCurrent(output);
     },
     CURRENT_RANGE_0_TO_24MA: function (tfInterface, outputPercent) {
-        //tfInterface.setConfiguration(0, tinkerforge.BrickletIndustrialAnalogOutV2.CURRENT_RANGE_0_TO_24MA);
         var output = Math.round(mapRange(outputPercent, 0, 100, 0, 24000));
         tfInterface.setCurrent(output);
     },
 };
 
-function set_dac(dac_info) {
+function configure_dac(dac_info) {
+    let config = dac_info.output_type.value;
     let dac = dac_info.interface;
     if (dac) {
-
-        if (dac_info.set_configuration) {
-            let config = dac_info.output_type.value;
-            if (config) {
-                dac_info.set_configuration = false;
-                dac_info.setFunction = DAC_OUTPUT_TYPES[config];
+        if (config) {
+            dac_info.setFunction = DAC_OUTPUT_TYPES[config];
+            if (config.startswith("VOLTAGE_RANGE")) {
+                dac.setConfiguration(tinkerforge.BrickletIndustrialAnalogOutV2[config], 0);
+            } else {
                 dac.setConfiguration(0, tinkerforge.BrickletIndustrialAnalogOutV2[config]);
             }
         }
+    }
+}
+
+function set_dac_enable(dac_info) {
+    let dac = dac_info.interface;
+    if (dac) {
+        if (dac_info.enable.value === true) {
+            if (dac.setEnabled) dac.setEnabled(true);  // V2
+            else dac.enable();                         // V1
+        }
+        else {
+            if (dac.setEnabled) dac.setEnabled(false);  // V2
+            else dac.disable();                         // V1
+        }
+    }
+}
+
+function set_dac(dac_info) {
+    let dac = dac_info.interface;
+    if (dac) {
 
         if (dac_info.setFunction) {
 
             dac_info.setFunction(dac, dac_info.output.value);
 
+            /*
             if (dac_info.enable.value === true) {
                 if (dac.setEnabled) dac.setEnabled(true);  // V2
                 else dac.enable();                         // V1
@@ -216,7 +232,9 @@ function set_dac(dac_info) {
             else {
                 if (dac.setEnabled) dac.setEnabled(false);  // V2
                 else dac.disable();                         // V1
+
             }
+            */
         }
         else {
             if (dac.setEnabled) dac.setEnabled(false);  // V2
@@ -227,6 +245,8 @@ function set_dac(dac_info) {
 
 function renew_dac(cascade, info, interface) {
     reset_interface(cascade, info, interface);
+    configure_dac(info);
+    set_dac_enable(info);
     set_dac(info);
 }
 
@@ -236,7 +256,7 @@ function setup_dac(cascade, id, dac) {
     var dac_info = {
         id: id,
         interface: dac,
-        setFunction: DAC_OUTPUT_TYPES.NO_OUTPUT
+        setFunction: undefined,
     };
 
     dac.setVoltage(0);
@@ -253,8 +273,9 @@ function setup_dac(cascade, id, dac) {
     });
 
     dac_info.enable.on("value_updated", function () {
-        set_dac(dac_info);
+        set_dac_enable(dac_info);
     });
+    set_dac_enable(dac_info);
 
     dac_info.output = cascade.create_component({
         id: id + "_output",
@@ -283,8 +304,7 @@ function setup_dac(cascade, id, dac) {
     });
 
     dac_info.output_type.on("value_updated", function () {
-        dac_info.set_configuration = true;
-        //set_dac(dac_info);
+        configure_dac(dac_info);
     });
 
     // eslint-disable-next-line no-self-assign
@@ -622,8 +642,22 @@ function setup_io4(cascade, id, io4) {
     allDevices[id] = io4_info;
 }
 
+function schedule_barometer_callback(info) {
+    var barometer = info.interface;
+    if (barometer) {
+        // configure callback once per second if value changes
+        barometer.setAirPressureCallbackConfiguration(1000, true, "x", 0, 0);
+        // request callback
+        barometer.on(barometer.CALLBACK_AIR_PRESSURE,
+            function(airPressure) {
+                info.component.value = airPressure / 1000;
+            });
+    }
+}
+
 function renew_barometer(cascade, info, interface) {
     reset_interface(cascade, info, interface);
+    schedule_barometer_callback(info);
 }
 
 function setup_barometer(cascade, id, barometer) {
@@ -643,6 +677,7 @@ function setup_barometer(cascade, id, barometer) {
         type: cascade.TYPES.NUMBER
     });
 
+    schedule_barometer_callback(barometer_info);
     barometers[id] = barometer_info;
     allDevices[id] = barometer_info;
 }
@@ -785,9 +820,34 @@ function configure_ptc(cascade, ptc_info) {
     }
 }
 
+function schedule_ptc_callback(cascade, ptc_info) {
+    var ptc = ptc_info.interface;
+    var tempProbe = ptc_info.probe;
+
+    if (ptc) {
+
+        // configure temperature callbacks
+        ptc.setTemperatureCallbackConfiguration(1000, true, "x", 0, 0);
+
+        // Register temperature callback
+        ptc.on(tinkerforge.BrickletPTCV2.CALLBACK_TEMPERATURE,
+            function (temperature) {
+                var tempValue = temperature / 100;
+                tempProbe.raw.value = tempValue;
+                tempValue = tempValue + (tempProbe.calibration.value || 0);
+                tempProbe.calibrated.value = tempValue;
+                if (tempValue > max_temp.value) {
+                    check_max_temp(cascade, tempValue, tempProbe.calibrated.name);
+                }
+            });
+
+    }
+}
+
 function renew_ptc_probe(cascade, info, interface) {
     reset_interface(cascade, info, interface);
     configure_ptc(cascade, info);
+    schedule_ptc_callback(cascade, info);
 }
 
 function setup_ptc_probe(cascade, id, ptc) {
@@ -831,6 +891,8 @@ function setup_ptc_probe(cascade, id, ptc) {
             });
     }
 
+    schedule_ptc_callback(cascade, ptc_info);
+
     ptcProbes[id] = ptc_info;
     allDevices[id] = ptc_info;
     ptc_names.push(id);
@@ -848,8 +910,33 @@ function configure_tc(tc_info) {
     }
 }
 
+function schedule_tc_callback(cascade, tc_info) {
+    var tc = tc_info.interface;
+    var tempProbe = tc_info.probe;
+
+    if (tc) {
+
+        // configure temperature callbacks
+        tc.setTemperatureCallbackConfiguration(1000, true, "x", 0, 0);
+
+        // Register temperature callback
+        tc.on(tinkerforge.BrickletThermocoupleV2.CALLBACK_TEMPERATURE,
+            function (temperature) {
+                var tempValue = temperature / 100;
+                tempProbe.raw.value = tempValue;
+                tempValue = tempValue + (tempProbe.calibration.value || 0);
+                tempProbe.calibrated.value = tempValue;
+                if (tempValue > max_temp.value) {
+                    check_max_temp(cascade, tempValue, tempProbe.calibrated.name);
+                }
+            });
+
+    }
+}
+
 function renew_thermocouple_probe(cascade, info, interface) {
     reset_interface(cascade, info, interface);
+    schedule_tc_callback(cascade, info);
     configure_tc(info);
 }
 
@@ -862,6 +949,7 @@ function setup_thermocouple_probe(cascade, id, tc) {
     };
 
     configure_tc(tc_info);
+    schedule_tc_callback(cascade, tc_info);
 
     thermocoupleProbes[id] = tc_info;
     allDevices[id] = tc_info;
@@ -1225,6 +1313,7 @@ module.exports.loop = function (cascade) {
     });
     */
 
+    /*
     for (let id in thermocoupleProbes) {
         let tc_info = thermocoupleProbes[id];
         let tc = tc_info.interface;
@@ -1247,7 +1336,9 @@ module.exports.loop = function (cascade) {
             });
         }
     }
+    */
 
+    /*
     for (let id in ptcProbes) {
         let ptc_info = ptcProbes[id];
         let ptc = ptc_info.interface;
@@ -1271,6 +1362,7 @@ module.exports.loop = function (cascade) {
 
         }
     }
+    */
 
     for (let id in onewireNets) {
         let ow_info = onewireNets[id];
@@ -1309,6 +1401,7 @@ module.exports.loop = function (cascade) {
         }
     }
 
+    /*
     for (let id in barometers) {
         let barometer_info = barometers[id];
         var barometer = barometer_info.interface;
@@ -1319,4 +1412,5 @@ module.exports.loop = function (cascade) {
                 });
         }
     }
+    */
 };
