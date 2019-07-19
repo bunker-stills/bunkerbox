@@ -10,11 +10,11 @@ var SENSORS_GROUP = "97  Model Sensors";
 var PROCESS_CONTROLS_GROUP = "98  Model Controls";
 var RESOURCE_NAMES_GROUP = "99  Model Resources";
 
-var latest_status;  // returned json object
-var model_selector; // local component
-var current_run;    // local component
-var current_state;  // local component
-var run_mode;       // component from stills.js
+var latest_status;    // returned json object
+var model_selector;   // local component
+var run_name;         // local component
+var simulator_state;  // local component
+var run_mode;         // component from stills.js
 
 var simmetas = {};
 var settings = {};
@@ -48,8 +48,8 @@ function do_request(action, body) {
                 if (result.meta.response_code != 200) {
                     reject(result.meta.msg);
                 } else {
-                    current_state.value = result.meta.state;
-                    current_run.value = result.meta.current_run;
+                    simulator_state.value = result.meta.state;
+                    run_name.value = result.meta.current_run;
                     resolve(result);
                 }
             },
@@ -61,7 +61,7 @@ function do_request(action, body) {
 }
 
 function load_model(cascade) {
-    if (model_selector.value && current_state.value == "unloaded") {
+    if (model_selector.value && simulator_state.value == "unloaded") {
         // load model
         do_request("load", {"modelnm": model_selector.value})
             .then(function() {
@@ -75,13 +75,13 @@ function load_model(cascade) {
                 cascade.log_error(new Error("Sim model load error: " + err));
             });
     } else {
-        let current_model = current_run.value.slice(9,-9);
+        let current_model = run_name.value.slice(9,-9);
         model_selector.info.options = [current_model];
         if (model_selector.value != current_model) {
             model_selector.value = current_model;
         }
 
-        if (current_state.value == "running") {
+        if (simulator_state.value == "running") {
             run_mode.value = "RUN";
         } else {
             run_mode.value = "STOP";
@@ -90,7 +90,7 @@ function load_model(cascade) {
 }
 
 function execute_run_mode(cascade) {
-    let state = current_state.value;
+    let state = simulator_state.value;
     switch (run_mode.value.toUpperCase()) {
         case "UNLOAD": {
             if (state == "unloaded") break;
@@ -135,6 +135,19 @@ function execute_run_mode(cascade) {
             do_request("run")
                 .catch(function(err) {
                     cascade.log_error(new Error("On run_mode RUN: " + err));
+                });
+            break;
+        }
+        case "PAUSE": {
+            if (state === "pause") break;
+            if (state === "unloaded") {
+                // return state to UNLOAD; use model selector to get to loaded
+                run_mode.value = "UNLOAD";
+            }
+
+            do_request("stop")
+                .catch(function(err) {
+                    cascade.log_error(new Error("On run_mode PAUSE: " + err));
                 });
             break;
         }
@@ -435,12 +448,13 @@ function update_dac(cascade, info_obj) {
 
 function sync_state() {
     // set run_mode to match current simulator state
-    switch(current_state.value) {
+    switch(simulator_state.value) {
         case undefined:
         case "unloaded": {
             run_mode.value = "UNLOAD";
             break;
         }
+        case "stopped":
         case "loaded": {
             run_mode.value = "STOP";
             break;
@@ -479,10 +493,10 @@ module.exports.setup = function (cascade) {
     });
     model_selector.on("value_updated", function() {load_model(cascade);});
 
-    // current_run and current_state components are updated
+    // run_name and simulator_state components are updated
     // by do_request() on each call.
-    current_run = cascade.create_component({
-        id: "current_run",
+    run_name = cascade.create_component({
+        id: "run_name",
         name: "Current simulation run",
         group: SIMMETA_GROUP,
         display_order: utils.next_display_order(),
@@ -490,8 +504,8 @@ module.exports.setup = function (cascade) {
         type: cascade.TYPES.TEXT,
         read_only: true,
     });
-    current_state = cascade.create_component({
-        id: "current_state",
+    simulator_state = cascade.create_component({
+        id: "simulator_state",
         name: "Current simulator state",
         group: SIMMETA_GROUP,
         display_order: utils.next_display_order(),
@@ -511,8 +525,8 @@ module.exports.setup = function (cascade) {
             model_selector.info.options = result.meta.model_list;
 
             // If a model is already loaded, restrict model options to that model.
-            if (current_state.value != "unloaded") {
-                let model = current_run.value.slice(9, -9);
+            if (simulator_state.value != "unloaded") {
+                let model = run_name.value.slice(9, -9);
                 model_selector.info.options = [model];
                 model_selector.value = model;
             }
@@ -530,6 +544,7 @@ module.exports.setup = function (cascade) {
 
             run_mode = component;
             run_mode.info.options.unshift("UNLOAD");
+            run_mode.info.options.push("PAUSE");
             // eslint-disable-next-line no-self-assign
             run_mode.info = run_mode.info;  // trigger update
 

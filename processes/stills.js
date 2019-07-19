@@ -216,6 +216,9 @@ module.exports.loop = function (cascade) {
             during_run(cascade);
             break;
         }
+        case "PAUSE": {
+            break;
+        }
         default: {
             during_stop(cascade);
             break;
