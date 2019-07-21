@@ -252,7 +252,7 @@ function configure_dac(dac_info) {
     if (dac) {
         if (config) {
             dac_info.setFunction = DAC_OUTPUT_TYPES[config];
-            if (config.startswith("VOLTAGE_RANGE")) {
+            if (config.startsWith("VOLTAGE_RANGE")) {
                 dac.setConfiguration(tinkerforge.BrickletIndustrialAnalogOutV2[config], 0);
             } else {
                 dac.setConfiguration(0, tinkerforge.BrickletIndustrialAnalogOutV2[config]);
@@ -731,18 +731,23 @@ function schedule_barometer_callback(info) {
     var barometer = info.interface;
     if (barometer) {
         // configure callbacks once per second if value changes
-        barometer.setAirPressureCallbackConfiguration(1000, true, "x", 0, 0);
-        // request callback
-        barometer.on(barometer.CALLBACK_AIR_PRESSURE,
-            function(airPressure) {
-                info.air_pressure.value = airPressure / 1000;
-            });
-
         if (info.V2) {
+            barometer.setAirPressureCallbackConfiguration(1000, true, "x", 0, 0);
+            barometer.on(tinkerforge.BrickletBarometerV2.CALLBACK_AIR_PRESSURE,
+                function(airPressure) {
+                    info.air_pressure.value = airPressure / 1000;
+                });
+            // barometerV2 supports callbacks on temperature (not so V1).
             barometer.setTemperatureCallbackConfiguration(1000, true, "x", 0, 0);
-            barometer.on(barometer.CALLBACK_TEMPERATURE,
+            barometer.on(tinkerforge.BrickletBarometerV2.CALLBACK_TEMPERATURE,
                 function(temperature) {
                     info.chip_temp.value = temperature/100;
+                });
+        } else {
+            barometer.setAirPressureCallbackPeriod(1000);
+            barometer.on(tinkerforge.BrickletBarometer.CALLBACK_AIR_PRESSURE,
+                function(airPressure) {
+                    info.air_pressure.value = airPressure / 1000;
                 });
         }
     }
@@ -774,7 +779,6 @@ function setup_barometer(cascade, id, barometer) {
         type: cascade.TYPES.NUMBER
     });
 
-    schedule_barometer_callback(barometer_info);
     barometer_info.chip_temp = cascade.create_component({
         id: "controller_temp",  // assumes only one barometer per system
         name: "Controller temperature",
@@ -793,7 +797,7 @@ function setup_barometer(cascade, id, barometer) {
     allDevices[id] = barometer_info;
 }
 
-function configure_distIR(info) {
+function schedule_distIR_callback(info) {
     let distIR = info.interface;
     if (distIR) {
         distIR.setDistanceCallbackConfiguration(1000, false, "x", 0, 0);
@@ -804,7 +808,7 @@ function configure_distIR(info) {
     }
 }
 
-function configure_dist_ma(dist_info) {
+function configure_distIR_ma(dist_info) {
     let dist = dist_info.interface;
     if (dist) {
         dist.setMovingAverageConfiguration(dist_info.dist_ma.value);
@@ -813,7 +817,7 @@ function configure_dist_ma(dist_info) {
 
 function renew_distIR(cascade, info, interface) {
     reset_interface(cascade, info, interface);
-    configure_distIR(info);
+    schedule_distIR_callback(info);
     configure_dist_ma(info);
 }
 
@@ -848,10 +852,11 @@ function setup_distIR(cascade, id, distIR) {
     });
 
     dist_info.dist_ma.on("value_updated", function () {
-        configure_dist_ma(dist_info);
+        configure_distIR_ma(dist_info);
     });
-    // eslint-disable-next-line no-self-assign
-    dist_info.dist_ma.value = dist_info.dist_ma.value;
+
+    configure_distIR_ma(dist_info);
+    schedule_distIR_callback(dist_info);
 
     dist_names.push(id);
     distIRs[id] = dist_info;
