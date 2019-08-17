@@ -1031,10 +1031,12 @@ function schedule_tc_callback(cascade, tc_info) {
     if (tc) {
 
         // configure temperature callbacks
-        tc.setTemperatureCallbackConfiguration(1000, true, "x", 0, 0);
+        //tc.setTemperatureCallbackConfiguration(1000, true, "x", 0, 0);
+        tc.setTemperatureCallbackPeriod(1000);
 
         // Register temperature callback
-        tc.on(tinkerforge.BrickletThermocoupleV2.CALLBACK_TEMPERATURE,
+        //tc.on(tinkerforge.BrickletThermocoupleV2.CALLBACK_TEMPERATURE,
+        tc.on(tinkerforge.BrickletThermocouple.CALLBACK_TEMPERATURE,
             function (temperature) {
                 var tempValue = temperature / 100;
                 tempProbe.raw.value = tempValue;
