@@ -23,7 +23,7 @@ var system_Variables = [
         description: "Failsafe Temp.",
         group: RUN_GROUP,
         units: "C",
-        persist: true,
+        persist: false,
         value: 120
     },
     // system set variable
@@ -32,6 +32,7 @@ var system_Variables = [
         read_only:true,
         units: "C"
     },
+// max_temp is created at the hardware level and scans all hardware temps.
 //    {   name: "max_temp",
 //        description: "Peak measured temperature",
 //        units: "C",
@@ -105,6 +106,9 @@ module.exports.setup = function (cascade) {
         },
         value: "STOP"
     });
+    run_mode.on("value_updated", function() {
+        cascade.log_info("Run mode set to " + run_mode.value);
+    });
 };
 
 
@@ -129,7 +133,7 @@ function during_stop() {
     // Turn off all of our control values
     _.each(soft.DAC.get_instances(), function(dac) {dac.reset_dac();});
     _.each(soft.Relay.get_instances(), function(relay) {relay.reset_relay();});
-    _.each(soft.DutyCycle_Relay.get_instances(), function(dcr) {dcr.reset_dcr();});
+    _.each(soft.DutyCycleRelay.get_instances(), function(dcr) {dcr.reset_dcr();});
 }
 
 function during_run(cascade) {

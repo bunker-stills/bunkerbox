@@ -14,6 +14,8 @@ var DS18x20_READSCRATCH = 0xBE;
 var DS18x20_WRITESCRATCH = 0x4E;
 var DS18x20_CONVERT_TEMP = 0x44;
 
+var USE_OW_CHECKSUM = process.env.USE_OW_CHECKSUM || false;
+
 var CRC_TABLE = [
     0, 94, 188, 226, 97, 63, 221, 131, 194, 156, 126, 32, 163, 253, 31, 65,
     157, 195, 33, 127, 252, 162, 64, 30, 95, 1, 227, 189, 62, 96, 130, 220,
@@ -62,6 +64,9 @@ function onewireTempSensors(uid, ipcon) {
         return "";
     };
 
+    this.resetBus = function() {
+        this.onewire.resetBus();
+    };
 
     this.tempSetResolution = function (resolution, returnCallback, errorCallback) {
         var data = 0x7F;  // default 12-bit resolution
@@ -137,6 +142,7 @@ function onewireTempSensors(uid, ipcon) {
     this.getTemperature = function (deviceAddress, callback) {
         var num_bytes = 2;
         if (self.deviceFamily(deviceAddress) == DS1820_FAMILY) num_bytes = 7;
+        if (USE_OW_CHECKSUM) num_bytes = 9;
 
         self.tempReadScratchPad(deviceAddress, num_bytes,
             function (scratchPad) {
