@@ -406,6 +406,7 @@ function write_out_val(cascade, val, info_obj) {
     do_request("update", req_body)
         .catch(function(err) {
             cascade.log_error(new Error("Control value write error: " + err));
+            cascade.log_error("Offending object:\n" + JSON.stringify(info_obj, null, 4));
         });
 }
 
