@@ -8,7 +8,7 @@ module.exports.Variable = SoftResource_Variable;
 module.exports.Function = SoftResource_Function;
 module.exports.BitOut = SoftResource_BIT_OUT;
 module.exports.Relay = SoftResource_RELAY;
-module.exports.DutyCycle_Relay = SoftResource_DUTYCYCLE_RELAY;
+module.exports.DutyCycleRelay = SoftResource_DUTYCYCLE_RELAY;
 module.exports.DAC = SoftResource_DAC;
 module.exports.Stepper = SoftResource_STEPPER;
 module.exports.BitIn = SoftResource_BIT_IN;
@@ -120,6 +120,18 @@ var process_names_list = function(cascade, names_string, soft_resource_type) {
     // Add any new names
     for (let name of names) {
         if (!module.exports[soft_resource_type].get_instance(name)) {
+            // Check that name is not listed as any other soft resource type.
+            for (let type_nm of module.exports.resource_types) {
+                if (type_nm == "Barometer") continue;
+                if (type_nm === soft_resource_type) continue;
+                if (module.exports[type_nm].get_instance(name)) {
+                    cascade.log_error(new Error(
+                        "Soft resource name '" + name +
+                        " is used by multiple types: " +
+                         type_nm + " & " + soft_resource_type));
+                }
+            }
+            // Create the soft resource.
             new module.exports[soft_resource_type](cascade, name);
         }
     }
@@ -266,6 +278,7 @@ function SoftResource_PID(cascade, name) {
     pid_group_number += 1;
 
     this._pid = new pid_controller();
+    this.update_pid_parameters = true;
 
     this.enable = cascade.create_component({
         id: name + "_enable",
@@ -374,6 +387,7 @@ function SoftResource_PID(cascade, name) {
         persist: true,
         type: cascade.TYPES.NUMBER
     });
+    this.p_gain.on("value_updated", function() {self.update_pid_parameters = true;});
 
     this.i_gain = cascade.create_component({
         id: name + "_i_gain",
@@ -384,6 +398,7 @@ function SoftResource_PID(cascade, name) {
         persist: true,
         type: cascade.TYPES.NUMBER
     });
+    this.i_gain.on("value_updated", function() {self.update_pid_parameters = true;});
 
     this.d_gain = cascade.create_component({
         id: name + "_d_gain",
@@ -394,6 +409,7 @@ function SoftResource_PID(cascade, name) {
         persist: true,
         type: cascade.TYPES.NUMBER
     });
+    this.d_gain.on("value_updated", function() {self.update_pid_parameters = true;});
 
     this.min_cv = cascade.create_component({
         id: name + "_min_cv",
@@ -404,6 +420,7 @@ function SoftResource_PID(cascade, name) {
         type: cascade.TYPES.NUMBER,
         units: cascade.UNITS.PERCENTAGE
     });
+    this.min_cv.on("value_updated", function() {self.update_pid_parameters = true;});
 
     this.max_cv = cascade.create_component({
         id: name + "_max_cv",
@@ -414,6 +431,7 @@ function SoftResource_PID(cascade, name) {
         type: cascade.TYPES.NUMBER,
         units: cascade.UNITS.PERCENTAGE
     });
+    this.max_cv.on("value_updated", function() {self.update_pid_parameters = true;});
 
     this.derivative_beta = cascade.create_component({
         id: name + "_d_beta",
@@ -423,6 +441,7 @@ function SoftResource_PID(cascade, name) {
         persist: true,
         type: cascade.TYPES.NUMBER,
     });
+    this.derivative_beta.on("value_updated", function() {self.update_pid_parameters = true;});
 }
 
 // Link prototype to base class
@@ -470,19 +489,24 @@ SoftResource_PID.prototype.process_pid = function(time) {
     this.update_process_value();
 
     if (this.enable.value == true) {
-        this._pid.setControlValueLimits(
-            this.min_cv.value || 0.0,
-            this.max_cv.value || 0.0,
-            0
-        );
 
-        this._pid.setProportionalGain(this.p_gain.value || 0.0);
-        this._pid.setIntegralGain(this.i_gain.value || 0.0);
-        this._pid.setDerivativeGain(this.d_gain.value || 0.0);
+        if (this.update_pid_parameters) {
+            this.update_pid_parameters = false;
 
-        this.derivative_beta.value = Math.max(0,
-            Math.min(1, this.derivative_beta.value));
-        this._pid.setDerivativeBeta(this.derivative_beta.value || 0.5);
+            this._pid.setControlValueLimits(
+                this.min_cv.value || 0.0,
+                this.max_cv.value || 0.0,
+                0
+            );
+
+            this._pid.setProportionalGain(this.p_gain.value || 0.0);
+            this._pid.setIntegralGain(this.i_gain.value || 0.0);
+            this._pid.setDerivativeGain(this.d_gain.value || 0.0);
+
+            let d_beta = Math.max(0, Math.min(1, this.derivative_beta.value));
+            this._pid.setDerivativeBeta(d_beta || 0.5);
+
+        }
 
         this._pid.setDesiredValue(this.set_point.value || 0.0);
 

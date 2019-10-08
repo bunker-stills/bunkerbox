@@ -4,6 +4,7 @@ var onewireTempSensors = require("./../lib/onewire_temp_sensors");  // sensor in
 var utils = require("./utils");
 
 var ONEWIRE_ERROR_LIMIT = 3;
+//var HIGH_TEMP_LIMIT = 1000;  // over this temp is ignored as a data error
 
 var SENSORS_GROUP = "97  HR Sensors";
 var PROCESS_CONTROLS_GROUP = "98  HR Controls";
@@ -49,6 +50,16 @@ var max_temp;  // max value of all probes (component)
 // flag to signal loop function when setup is complete and it can proceed.
 var setup_complete = false;
 
+var name_regex = /[^\s,;]+/g;
+
+var get_name_list = function(s) {
+    var names = [];
+    if (s) {
+        s.replace(name_regex, function(name) {names.push(name);});
+    }
+    return names;
+};
+
 var add_name_to_list = function(list, name, sorted) {
     if (!name) return;
     let i_name = list.indexOf(name);
@@ -68,21 +79,99 @@ var remove_name_from_list = function(list, name) {
     return name;
 };
 
+function check_max_temp(cascade, new_temp, probe_name) {
+    let Tmax = max_temp.value;
+    if (new_temp > Tmax) {
+        /* To filter out data errors, we reject values greater than twice
+        ** the current max_temp value.  This does not apply to temp values
+        ** less than 100C.
+        */
+        if (new_temp < 100 || new_temp < 2*Tmax) {
+            max_temp.value = new_temp;
+        } else {
+            cascade.log_info("Rejected max_temp candidate of "
+                + new_temp + "C from " + probe_name + ".");
+        }
+    }
+}
 
-function set_relays(quadrelay_info) {
+function reset_interface(cascade, info, interface) {
+    cascade.log_info("TF interface reset on " + info.id);
+    info.interface = interface;
+}
+
+function report_masterbrick(cascade, mb_info, non_zero) {
+    let mb = mb_info.interface;
+    if (mb) {
+        mb.getStackVoltage(function(v) {
+            mb.getStackCurrent(function(i) {
+                if (non_zero && v===0 && i===0) return;
+                cascade.log_info("Masterbrick " + mb_info.id
+                                 + " voltage = " + v + "mV, "
+                                 + " current = " + i + "mA.");
+            }, function(err) {
+                cascade.log_error("Masterbrick " + mb_info.id +
+                    " current error: " + err);
+            });
+        }, function(err) {
+            cascade.log_error("Masterbrick " + mb_info.id +
+                " voltage error: " + err);
+        });
+    }
+}
+
+function renew_mastebrick(cascade, info, mb) {
+    reset_interface(cascade, info, mb);
+}
+
+function setup_masterbrick(cascade, id, mb) {
+    var mb_info = {
+        id: id,
+        interface: mb,
+    };
+
+    // Periodically report MB voltage/current status.
+    setTimeout(function do_report() {
+        report_masterbrick(cascade, mb_info);
+        setTimeout(do_report, 600000);
+    }, 60000);
+
+    allDevices[id] = mb_info;
+}
+
+function set_relays(cascade, quadrelay_info) {
     var relay_interface = quadrelay_info.interface;
 
     if (relay_interface) {
+        if (relay_interface.getChannelLEDConfig) {
+            // this is V2 of hardware
+            var values = quadrelay_info.relays.map(
+                function(relay) {return relay.value;}
+            );
+            relay_interface.setValue(values, null, function(err) {
+                cascade.log_info("Error setting relay " + quadrelay_info.id
+                    + ": " + err);
+            });
+            return;
+        }
 
+        // this is V1 of hardware
         var bitmask = 0;
-
         for (let relay_index in quadrelay_info.relays) {
             let relay = quadrelay_info.relays[relay_index];
             bitmask = bitmask | (relay.value << relay_index);
         }
 
-        relay_interface.setValue(bitmask);
+        relay_interface.setValue(bitmask, null, function(err) {
+            cascade.log_info("Error setting relay " + quadrelay_info.id
+                + ": " + err);
+        });
     }
+}
+
+function renew_quadrelay(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+    set_relays(cascade, info);
 }
 
 function setup_quadrelay(cascade, id, quadrelay) {
@@ -107,11 +196,15 @@ function setup_quadrelay(cascade, id, quadrelay) {
             value: false
         });
         quadrelay_info.relays[relay_index] = relay_component;
-        relay_component.on("value_updated", function() { set_relays(quadrelay_info); });
+        relay_component.on("value_updated", function() {
+            set_relays(cascade, quadrelay_info);
+        });
 
         relay_names.push(relay_id);
         //utils.update_hard_resource_list_component(cascade, "RELAY_HR_names", relay_names.sort());
     }
+
+    set_relays(cascade, quadrelay_info);
 
     quadrelays[id] = quadrelay_info;
     allDevices[id] = quadrelay_info;
@@ -125,50 +218,95 @@ function mapRange(value, in_min, in_max, out_min, out_max) {
 
 var DAC_OUTPUT_TYPES = {
     VOLTAGE_RANGE_0_TO_5V: function (tfInterface, outputPercent) {
-        tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOutV2.VOLTAGE_RANGE_0_TO_5V, 0);
         var output = Math.round(mapRange(outputPercent, 0, 100, 0, 5000));
         tfInterface.setVoltage(output);
     },
     VOLTAGE_RANGE_0_TO_10V: function (tfInterface, outputPercent) {
-        tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOutV2.VOLTAGE_RANGE_0_TO_10V, 0);
         var output = Math.round(mapRange(outputPercent, 0, 100, 0, 10000));
         tfInterface.setVoltage(output);
     },
-    VOLTAGE_RANGE_2_TO_10V: function (tfInterface, outputPercent) {
-        tfInterface.setConfiguration(tinkerforge.BrickletIndustrialAnalogOutV2.VOLTAGE_RANGE_2_TO_10V, 0);
-        var output = Math.round(mapRange(outputPercent, 0, 100, 2000, 10000));
-        tfInterface.setVoltage(output);
-    },
     CURRENT_RANGE_4_TO_20MA: function (tfInterface, outputPercent) {
-        tfInterface.setConfiguration(0, tinkerforge.BrickletIndustrialAnalogOutV2.CURRENT_RANGE_4_TO_20MA);
         var output = Math.round(mapRange(outputPercent, 0, 100, 4000, 20000));
         tfInterface.setCurrent(output);
-    }
+    },
+    CURRENT_RANGE_0_TO_20MA: function (tfInterface, outputPercent) {
+        var output = Math.round(mapRange(outputPercent, 0, 100, 0, 20000));
+        tfInterface.setCurrent(output);
+    },
+    CURRENT_RANGE_0_TO_24MA: function (tfInterface, outputPercent) {
+        var output = Math.round(mapRange(outputPercent, 0, 100, 0, 24000));
+        tfInterface.setCurrent(output);
+    },
 };
 
-function set_dac(dac_info) {
+function configure_dac(dac_info) {
+    let config = dac_info.output_type.value;
+    let dac = dac_info.interface;
+    if (dac) {
+        if (config) {
+            dac_info.setFunction = DAC_OUTPUT_TYPES[config];
+            if (config.startsWith("VOLTAGE_RANGE")) {
+                dac.setConfiguration(tinkerforge.BrickletIndustrialAnalogOutV2[config], 0);
+            } else {
+                dac.setConfiguration(0, tinkerforge.BrickletIndustrialAnalogOutV2[config]);
+            }
+        }
+    }
+}
+
+function set_dac_enable(cascade, dac_info) {
+    function log_err(err) {
+        cascade.log_info("Error on " + dac_info.id + ": " + err);
+    }
+
+    let dac = dac_info.interface;
+    if (dac) {
+        if (dac_info.enable.value === true) {
+            if (dac.setEnabled) dac.setEnabled(true, null, log_err);  // V2
+            else dac.enable(null, log_err);                         // V1
+        }
+        else {
+            if (dac.setEnabled) dac.setEnabled(false, null, log_err);  // V2
+            else dac.disable(null, log_err);                         // V1
+        }
+    }
+}
+
+function set_dac(cascade, dac_info) {
+    function log_err(err) {
+        cascade.log_info("Error on " + dac_info.id + ": " + err);
+    }
+
     let dac = dac_info.interface;
     if (dac) {
 
-        dac_info.setFunction = DAC_OUTPUT_TYPES[dac_info.output_type.value];
         if (dac_info.setFunction) {
 
             dac_info.setFunction(dac, dac_info.output.value);
 
+            /*
             if (dac_info.enable.value === true) {
-                if (dac.setEnabled) dac.setEnabled(true);  // V2
-                else dac.enable();                         // V1
+                if (dac.setEnabled) dac.setEnabled(true, null, log_err);  // V2
+                else dac.enable(null, log_err);                           // V1
             }
             else {
-                if (dac.setEnabled) dac.setEnabled(false);  // V2
-                else dac.disable();                         // V1
+                if (dac.setEnabled) dac.setEnabled(false, null, log_err);  // V2
+                else dac.disable(null, log_err);                           // V1
             }
+            */
         }
         else {
-            if (dac.setEnabled) dac.setEnabled(false);  // V2
-            else dac.disable();                         // V1
+            if (dac.setEnabled) dac.setEnabled(false, null, log_err);  // V2
+            else dac.disable(null, log_err);                           // V1
         }
     }
+}
+
+function renew_dac(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+    configure_dac(info);
+    set_dac_enable(cascade, info);
+    set_dac(cascade, info);
 }
 
 function setup_dac(cascade, id, dac) {
@@ -177,8 +315,11 @@ function setup_dac(cascade, id, dac) {
     var dac_info = {
         id: id,
         interface: dac,
-        setFunction: DAC_OUTPUT_TYPES.NO_OUTPUT
+        setFunction: undefined,
     };
+
+    dac.setVoltage(0);
+    dac.setCurrent(0);
 
     dac_info.enable = cascade.create_component({
         id: id + "_enable",
@@ -191,8 +332,9 @@ function setup_dac(cascade, id, dac) {
     });
 
     dac_info.enable.on("value_updated", function () {
-        set_dac(dac_info);
+        set_dac_enable(cascade, dac_info);
     });
+    set_dac_enable(cascade, dac_info);
 
     dac_info.output = cascade.create_component({
         id: id + "_output",
@@ -206,7 +348,7 @@ function setup_dac(cascade, id, dac) {
     });
 
     dac_info.output.on("value_updated", function () {
-        set_dac(dac_info);
+        set_dac(cascade, dac_info);
     });
 
     dac_info.output_type = cascade.create_component({
@@ -221,7 +363,8 @@ function setup_dac(cascade, id, dac) {
     });
 
     dac_info.output_type.on("value_updated", function () {
-        set_dac(dac_info);
+        configure_dac(dac_info);
+        set_dac(cascade, dac_info);
     });
 
     // eslint-disable-next-line no-self-assign
@@ -244,6 +387,20 @@ var STEPPER_RESOLUTION = Number(process.env.STEPPER_RESOLUTION) ||
 var SSTEPPER_RESOLUTION = Number(process.env.STEPPER_RESOLUTION) ||
     tinkerforge.BrickSilentStepper.STEP_RESOLUTION_16;
 
+function configure_stepper(stepper) {
+    if (stepper) {
+        if (stepper.getBasicConfiguration) {
+            // this is a silent stepper, set configurations
+            stepper.setMotorCurrent(MAX_SSTEPPER_CURRENT);
+            stepper.setBasicConfiguration(null, DEFAULT_STEPPER_CURRENT);
+            stepper.setStepConfiguration(SSTEPPER_RESOLUTION, true);
+        } else {
+            stepper.setMotorCurrent(DEFAULT_STEPPER_CURRENT);
+            stepper.setStepMode(STEPPER_RESOLUTION);
+        }
+    }
+}
+
 function set_stepper_current(stepper_info) {
     var stepper = stepper_info.interface;
     if (stepper) {
@@ -259,33 +416,43 @@ function set_stepper_current(stepper_info) {
     }
 }
 
-function set_stepper(stepper_info) {
+function set_stepper(cascade, stepper_info) {
+    function log_err(err) {
+        cascade.log_info("Error in Stepper " + stepper_info.id + ": " + err);
+    }
     var stepper = stepper_info.interface;
     if (stepper) {
         if (stepper_info.enable.value === true) {
-            stepper.enable();
+            stepper.enable(null, log_err);
         }
 
         let velocity = Math.round(mapRange(stepper_info.velocity.value,
             0, 100, 0, stepper_info.max_motor_speed.value));
         if (velocity) {
-            stepper.setMaxVelocity(Math.min(65535, Math.abs(velocity)));
+            stepper.setMaxVelocity(Math.min(65535, Math.abs(velocity)), null, log_err);
             if ((velocity<0) != (stepper_info.reverse.value==true)) {  // XOR operation
-                stepper.driveBackward();
+                stepper.driveBackward(null, log_err);
             }
             else {
-                stepper.driveForward();
+                stepper.driveForward(null, log_err);
             }
         }
         else {
-            stepper.stop();
+            stepper.stop(null, log_err);
         }
 
         if (stepper_info.enable.value === false) {
-            stepper.stop();
-            stepper.disable();
+            stepper.stop(null, log_err);
+            stepper.disable(null, log_err);
         }
     }
+}
+
+function renew_stepper(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+    configure_stepper(interface);
+    set_stepper_current(info);
+    set_stepper(cascade, info);
 }
 
 function setup_stepper(cascade, id, stepper) {
@@ -300,17 +467,10 @@ function setup_stepper(cascade, id, stepper) {
         motor_current: null
     };
 
-    if (stepper) {
-        if (stepper.getBasicConfiguration) {
-            // this is a silent stepper, set configurations
-            stepper.setMotorCurrent(MAX_SSTEPPER_CURRENT);
-            stepper.setBasicConfiguration(null, DEFAULT_STEPPER_CURRENT);
-            stepper.setStepConfiguration(SSTEPPER_RESOLUTION, true);
-        } else {
-            stepper.setMotorCurrent(DEFAULT_STEPPER_CURRENT);
-            stepper.setStepMode(STEPPER_RESOLUTION);
-        }
-    }
+    stepper.stop();
+    stepper.disable();
+
+    configure_stepper(stepper);
 
     stepper_info.enable = cascade.create_component({
         id: id + "_enable",
@@ -323,7 +483,7 @@ function setup_stepper(cascade, id, stepper) {
     });
 
     stepper_info.enable.on("value_updated", function () {
-        set_stepper(stepper_info);
+        set_stepper(cascade, stepper_info);
     });
 
     stepper_info.velocity = cascade.create_component({
@@ -338,7 +498,7 @@ function setup_stepper(cascade, id, stepper) {
     });
 
     stepper_info.velocity.on("value_updated", function () {
-        set_stepper(stepper_info);
+        set_stepper(cascade, stepper_info);
     });
 
     stepper_info.max_motor_speed = cascade.create_component({
@@ -353,7 +513,7 @@ function setup_stepper(cascade, id, stepper) {
     });
 
     stepper_info.max_motor_speed.on("value_updated", function () {
-        set_stepper(stepper_info);
+        set_stepper(cascade, stepper_info);
     });
 
     if (stepper_info.max_motor_speed.value) {
@@ -375,7 +535,7 @@ function setup_stepper(cascade, id, stepper) {
     });
 
     stepper_info.reverse.on("value_updated", function () {
-        set_stepper(stepper_info);
+        set_stepper(cascade, stepper_info);
     });
 
     // eslint-disable-next-line no-self-assign
@@ -473,17 +633,30 @@ function configure_io4(cascade, io4_info, io_index) {
     }
 }
 
-function set_io4(io4_info, io_index) {
+function set_io4(cascade, io4_info, io_index) {
     // This function sets the outbound value.  If not configured as output, return.
     if (io4_info.direction[io_index] != "o") return;
+    function log_err(err) {
+        cascade.log_info("Error on IO4 " + io4_info.id + "_" + io_index + ": " + err);
+    }
     let io = io4_info.interface;
     if (io && io4_info.port_value[io_index]) {
         // outbound setting, ignored when configured as input.
         if (io4_info.invert[io_index]) {
-            io.setSelectedValue(io_index, !io4_info.port_value[io_index].value);
+            io.setSelectedValue(io_index, !io4_info.port_value[io_index].value,
+                null, log_err);
         } else {
-            io.setSelectedValue(io_index, io4_info.port_value[io_index].value);
+            io.setSelectedValue(io_index, io4_info.port_value[io_index].value,
+                null, log_err);
         }
+    }
+}
+
+function renew_io4(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+    for(let io_index in [0,1,2,3]) {
+        configure_io4(cascade, info, io_index);
+        set_io4(cascade, info, io_index);
     }
 }
 
@@ -530,20 +703,65 @@ function setup_io4(cascade, id, io4) {
         io4_info.configuration[io_index].value = io4_info.configuration[io_index].value;
 
         io4_info.port_value[io_index].on("value_updated", function() {
-            set_io4(io4_info, io_index);
+            set_io4(cascade, io4_info, io_index);
         });
     }
     io4s[id] = io4_info;
     allDevices[id] = io4_info;
 }
 
+function configure_barometer(cascade, info) {
+    if (info.interface) {
+        if (info.interface.getTemperature) {
+            info.V2 = true;
+        } else {
+            info.V2 = false;
+        }
+    }
+}
+
+function schedule_barometer_callback(info) {
+    var barometer = info.interface;
+    if (barometer) {
+        // configure callbacks once per second if value changes
+        if (info.V2) {
+            barometer.setAirPressureCallbackConfiguration(1000, true, "x", 0, 0);
+            barometer.on(tinkerforge.BrickletBarometerV2.CALLBACK_AIR_PRESSURE,
+                function(airPressure) {
+                    info.air_pressure.value = airPressure / 1000;
+                });
+            // barometerV2 supports callbacks on temperature (not so V1).
+            barometer.setTemperatureCallbackConfiguration(1000, true, "x", 0, 0);
+            barometer.on(tinkerforge.BrickletBarometerV2.CALLBACK_TEMPERATURE,
+                function(temperature) {
+                    info.chip_temp.value = temperature/100;
+                });
+        } else {
+            barometer.setAirPressureCallbackPeriod(1000);
+            barometer.on(tinkerforge.BrickletBarometer.CALLBACK_AIR_PRESSURE,
+                function(airPressure) {
+                    info.air_pressure.value = airPressure / 1000;
+                });
+        }
+    }
+}
+
+function renew_barometer(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+    configure_barometer(cascade, info);
+    schedule_barometer_callback(info);
+}
+
 function setup_barometer(cascade, id, barometer) {
     var barometer_info = {
         id: id,
         interface: barometer,
-        component: undefined
+        air_pressure: undefined,
+        chip_temp: undefined,
+        V2: undefined,
     };
-    barometer_info.component = cascade.create_component({
+
+    barometer_info.air_pressure = cascade.create_component({
         id: "barometer",  // assumes only one barometer per system
         name: "Barometer",
         group: SENSORS_GROUP,
@@ -554,15 +772,46 @@ function setup_barometer(cascade, id, barometer) {
         type: cascade.TYPES.NUMBER
     });
 
+    barometer_info.chip_temp = cascade.create_component({
+        id: "controller_temp",  // assumes only one barometer per system
+        name: "Controller temperature",
+        group: RUN_GROUP,
+        display_order: BAROMETER_DISPLAY_BASE + next_display_order(),
+        class: "barometer",
+        read_only: true,
+        units: "C",
+        type: cascade.TYPES.NUMBER
+    });
+
+    configure_barometer(cascade, barometer_info);
+    schedule_barometer_callback(barometer_info);
+
     barometers[id] = barometer_info;
     allDevices[id] = barometer_info;
 }
 
-function configure_dist_ma(dist_info) {
+function schedule_distIR_callback(info) {
+    let distIR = info.interface;
+    if (distIR) {
+        distIR.setDistanceCallbackConfiguration(1000, false, "x", 0, 0);
+
+        distIR.on(tinkerforge.BrickletDistanceIRV2.CALLBACK_DISTANCE, function(distance) {
+            info.dist.value = distance;
+        });
+    }
+}
+
+function configure_distIR_ma(dist_info) {
     let dist = dist_info.interface;
     if (dist) {
         dist.setMovingAverageConfiguration(dist_info.dist_ma.value);
     }
+}
+
+function renew_distIR(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+    schedule_distIR_callback(info);
+    configure_dist_ma(info);
 }
 
 function setup_distIR(cascade, id, distIR) {
@@ -585,14 +834,6 @@ function setup_distIR(cascade, id, distIR) {
         type: cascade.TYPES.NUMBER
     });
 
-    if (distIR) {
-        distIR.setDistanceCallbackConfiguration(1000, false, "x", 0, 0);
-
-        distIR.on(tinkerforge.BrickletDistanceIRV2.CALLBACK_DISTANCE, function(distance) {
-            dist_info.dist.value = distance;
-        });
-    }
-
     dist_info.dist_ma = cascade.create_component({
         id: id + "_ma",
         name: id + " Moving Average Length",
@@ -605,10 +846,11 @@ function setup_distIR(cascade, id, distIR) {
     });
 
     dist_info.dist_ma.on("value_updated", function () {
-        configure_dist_ma(dist_info);
+        configure_distIR_ma(dist_info);
     });
-    // eslint-disable-next-line no-self-assign
-    dist_info.dist_ma.value = dist_info.dist_ma.value;
+
+    configure_distIR_ma(dist_info);
+    schedule_distIR_callback(dist_info);
 
     dist_names.push(id);
     distIRs[id] = dist_info;
@@ -623,6 +865,7 @@ function getAllProbes(cascade, ow_info, display_base, error_count) {
                     cascade.log_error(new Error(
                         "Onewire get-all-probes attempt " + error_count +
                         " failed with error: " + error));
+                    ow_info.interface.resetBus();
                     getAllProbes(cascade, ow_info, display_base, error_count+1);
                     return;
                 } else {
@@ -636,12 +879,14 @@ function getAllProbes(cascade, ow_info, display_base, error_count) {
                 display_base += 5;
                 ow_info.probes[ow_address] = probe;
                 ow_names.push(probe_name);
-                //utils.update_hard_resource_list_component(cascade, "OW_PROBE_HR_names",
-                //    ow_names.sort());
-                //utils.update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
-                //    ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
+                check_hard_resource_name(cascade, "OW_PROBE_HR_names", probe_name);
+                check_hard_resource_name(cascade, "TEMP_PROBE_HR_names", probe_name);
             }
         });
+}
+
+function renew_onewire_net(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
 }
 
 function setup_onewire_net(cascade, id, owNet) {
@@ -675,6 +920,46 @@ var PTC_WIRE_MODES = {
     FOUR_WIRE: tinkerforge.BrickletPTCV2.WIRE_MODE_4
 };
 
+function configure_ptc(cascade, ptc_info) {
+    var ptc = ptc_info.interface;
+    if (ptc && ptc_info.wire_mode.value) {
+        ptc.setWireMode(PTC_WIRE_MODES[ptc_info.wire_mode.value], null,
+            function(error) {
+                cascade.log_error(new Error("Error on PTCV2.setWireMode: " + error));
+            });
+    }
+}
+
+function schedule_ptc_callback(cascade, ptc_info) {
+    var ptc = ptc_info.interface;
+    var tempProbe = ptc_info.probe;
+
+    if (ptc) {
+
+        // configure temperature callbacks
+        ptc.setTemperatureCallbackConfiguration(1000, true, "x", 0, 0);
+
+        // Register temperature callback
+        ptc.on(tinkerforge.BrickletPTCV2.CALLBACK_TEMPERATURE,
+            function (temperature) {
+                var tempValue = temperature / 100;
+                tempProbe.raw.value = tempValue;
+                tempValue = tempValue + (tempProbe.calibration.value || 0);
+                tempProbe.calibrated.value = tempValue;
+                if (tempValue > max_temp.value) {
+                    check_max_temp(cascade, tempValue, tempProbe.calibrated.name);
+                }
+            });
+
+    }
+}
+
+function renew_ptc_probe(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+    configure_ptc(cascade, info);
+    schedule_ptc_callback(cascade, info);
+}
+
 function setup_ptc_probe(cascade, id, ptc) {
     let display_base = PTC_DISPLAY_BASE + utils.next_display_order(10);
     var ptc_info = {
@@ -695,13 +980,7 @@ function setup_ptc_probe(cascade, id, ptc) {
     });
 
     ptc_info.wire_mode.on("value_updated", function () {
-        var ptc = ptc_info.interface;
-        if (ptc && ptc_info.wire_mode.value) {
-            ptc.setWireMode(PTC_WIRE_MODES[ptc_info.wire_mode.value], null,
-                function(error) {
-                    cascade.log_error(new Error("Error on PTCV2.setWireMode: " + error));
-                });
-        }
+        configure_ptc(cascade, ptc_info);
     });
 
     // eslint-disable-next-line no-self-assign
@@ -722,12 +1001,55 @@ function setup_ptc_probe(cascade, id, ptc) {
             });
     }
 
+    schedule_ptc_callback(cascade, ptc_info);
+
     ptcProbes[id] = ptc_info;
     allDevices[id] = ptc_info;
     ptc_names.push(id);
     //utils.update_hard_resource_list_component(cascade, "PTC_PROBE_HR_names", ptc_names.sort());
     //utils.update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
     //    ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
+}
+
+function configure_tc(tc_info) {
+    let tc = tc_info.interface;
+    if (tc) {
+        tc.setConfiguration(tinkerforge.BrickletThermocouple.AVERAGING_16,
+            tinkerforge.BrickletThermocouple.TYPE_K,
+            tinkerforge.BrickletThermocouple.FILTER_OPTION_60HZ);
+    }
+}
+
+function schedule_tc_callback(cascade, tc_info) {
+    var tc = tc_info.interface;
+    var tempProbe = tc_info.probe;
+
+    if (tc) {
+
+        // configure temperature callbacks
+        //tc.setTemperatureCallbackConfiguration(1000, true, "x", 0, 0);
+        tc.setTemperatureCallbackPeriod(1000);
+
+        // Register temperature callback
+        //tc.on(tinkerforge.BrickletThermocoupleV2.CALLBACK_TEMPERATURE,
+        tc.on(tinkerforge.BrickletThermocouple.CALLBACK_TEMPERATURE,
+            function (temperature) {
+                var tempValue = temperature / 100;
+                tempProbe.raw.value = tempValue;
+                tempValue = tempValue + (tempProbe.calibration.value || 0);
+                tempProbe.calibrated.value = tempValue;
+                if (tempValue > max_temp.value) {
+                    check_max_temp(cascade, tempValue, tempProbe.calibrated.name);
+                }
+            });
+
+    }
+}
+
+function renew_thermocouple_probe(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+    schedule_tc_callback(cascade, info);
+    configure_tc(info);
 }
 
 function setup_thermocouple_probe(cascade, id, tc) {
@@ -738,11 +1060,8 @@ function setup_thermocouple_probe(cascade, id, tc) {
         probe: create_temp_probe(cascade, id, display_base),
     };
 
-    if (tc) {
-        tc.setConfiguration(tinkerforge.BrickletThermocouple.AVERAGING_16,
-            tinkerforge.BrickletThermocouple.TYPE_K,
-            tinkerforge.BrickletThermocouple.FILTER_OPTION_60HZ);
-    }
+    configure_tc(tc_info);
+    schedule_tc_callback(cascade, tc_info);
 
     thermocoupleProbes[id] = tc_info;
     allDevices[id] = tc_info;
@@ -791,6 +1110,52 @@ function create_temp_probe(cascade, probe_name, display_base) {
     return probe_component;
 }
 
+function update_hard_resource_list_component(cascade, id, list) {
+
+    var value = list.join(" ");
+    var component = cascade.components.all_current[id];
+
+    if (!component) {
+        var type;
+        if (value.length > 32) {
+            type = cascade.TYPES.BIG_TEXT;
+        }
+        else {
+            type = cascade.TYPES.TEXT;
+        }
+
+        cascade.create_component({
+            id: id,
+            group: RESOURCE_NAMES_GROUP,
+            display_order: HR_LISTS_DISPLAY_BASE + next_display_order(),
+            read_only: true,
+            type: type,
+            value: value
+        });
+    }
+    else {
+        component.value = value;
+    }
+}
+
+// function to add late arrivals to name lists.
+function check_hard_resource_name(cascade, HR_names_id, name) {
+    var component = cascade.components.all_current[HR_names_id];
+    if (component) {
+        let name_list = get_name_list(component.value);
+        if (name_list.indexOf(name) < 0) {
+            add_name_to_list(name_list, name, true);
+            update_hard_resource_list_component(cascade, HR_names_id, name_list);
+        }
+    }
+}
+
+var IPCON_DISCONNECT_TEXT = [
+    "Disconnect was requested by user.",
+    "Disconnect because of an unresolvable error.",
+    "Disconnect initiated by Brick Daemon or WIFI/Ethernet Extension.",
+];
+
 module.exports.setup = function (cascade) {
     // Create max_temp component used by stills overtemp shutdown feature.
     max_temp = cascade.create_component({
@@ -809,6 +1174,13 @@ module.exports.setup = function (cascade) {
             throw error;
         }
 
+        // Print a message on ipcon disconnect.
+        ipcon.on(tinkerforge.IPConnection.CALLBACK_DISCONNECTED,
+            function (disconnectReason) {
+                cascade.log_info("TF IPConnection disconnected -- reason: ("
+                    + disconnectReason + ") " + IPCON_DISCONNECT_TEXT[disconnectReason]);
+            });
+
         var masterbrick_position = {};
         ipcon.on(tinkerforge.IPConnection.CALLBACK_ENUMERATE,
             function (uid, connectedUid, position, hardwareVersion, firmwareVersion, deviceIdentifier, enumerationType) {
@@ -818,8 +1190,8 @@ module.exports.setup = function (cascade) {
                 if (enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_DISCONNECTED) {
                     for (var key in allDevices) {
                         var info = allDevices[key];
-
                         if (info.interface && info.interface.uid_string === uid) {
+                            cascade.log_info("Stack device disconnected: " + key);
                             info.interface = undefined;
                             return;
                         }
@@ -830,6 +1202,20 @@ module.exports.setup = function (cascade) {
                     switch (deviceIdentifier) {
                         case tinkerforge.BrickMaster.DEVICE_IDENTIFIER : {
                             masterbrick_position[uid] = position;
+
+                            var mb = new tinkerforge.BrickMaster(uid, ipcon);
+
+                            mb.uid_string = uid;
+                            mb.position = position;
+
+                            let id = "MB_" + position;
+
+                            info = allDevices[id];
+                            if (info) {
+                                renew_mastebrick(cascade, info, mb);
+                            } else {
+                                setup_masterbrick(cascade, id, mb);
+                            }
                             break;
                         }
                         case tinkerforge.BrickletOneWire.DEVICE_IDENTIFIER : {
@@ -839,9 +1225,14 @@ module.exports.setup = function (cascade) {
                             owNet.uid_string = uid;
                             owNet.position = masterbrick_position[connectedUid] + position;
 
-                            let ow_id = "OW_" + owNet.position;
+                            let id = "OW_" + owNet.position;
 
-                            setup_onewire_net(cascade, ow_id, owNet);
+                            info = allDevices[id];
+                            if (info) {
+                                renew_onewire_net(cascade, info, owNet);
+                            } else {
+                                setup_onewire_net(cascade, id, owNet);
+                            }
                             break;
                         }
                         case tinkerforge.BrickletThermocouple.DEVICE_IDENTIFIER : {
@@ -850,9 +1241,14 @@ module.exports.setup = function (cascade) {
                             tc.uid_string = uid;
                             tc.position = masterbrick_position[connectedUid] + position;
 
-                            var tc_id = "TC_" + tc.position;
+                            let id = "TC_" + tc.position;
 
-                            setup_thermocouple_probe(cascade, tc_id, tc);
+                            info = allDevices[id];
+                            if (info) {
+                                renew_thermocouple_probe(cascade, info, tc);
+                            } else {
+                                setup_thermocouple_probe(cascade, id, tc);
+                            }
                             break;
                         }
                         case tinkerforge.BrickletPTCV2.DEVICE_IDENTIFIER : {
@@ -860,9 +1256,15 @@ module.exports.setup = function (cascade) {
 
                             ptc.uid_string = uid;
                             ptc.position = masterbrick_position[connectedUid] + position;
-                            let ptc_id = "PTC_" + ptc.position;
 
-                            setup_ptc_probe(cascade, ptc_id, ptc);
+                            let id = "PTC_" + ptc.position;
+
+                            info = allDevices[id];
+                            if (info) {
+                                renew_ptc_probe(cascade, info, ptc);
+                            } else {
+                                setup_ptc_probe(cascade, id, ptc);
+                            }
                             break;
                         }
                         case tinkerforge.BrickletIndustrialAnalogOut.DEVICE_IDENTIFIER :
@@ -875,37 +1277,62 @@ module.exports.setup = function (cascade) {
                                 dac = new tinkerforge.BrickletIndustrialAnalogOutV2(uid, ipcon);
                                 dac.setEnabled(false);
                             }
-                            dac.setVoltage(0);
-                            dac.setCurrent(0);
 
                             dac.uid_string = uid;
                             dac.position = masterbrick_position[connectedUid] + position;
 
-                            var dac_id = "DAC_" + dac.position;
+                            let id = "DAC_" + dac.position;
 
-                            setup_dac(cascade, dac_id, dac);
+                            info = allDevices[id];
+                            if (info) {
+                                renew_dac(cascade, info, dac);
+                            } else {
+                                setup_dac(cascade, id, dac);
+                            }
                             break;
                         }
+                        case tinkerforge.BrickletIndustrialQuadRelayV2.DEVICE_IDENTIFIER :
                         case tinkerforge.BrickletIndustrialQuadRelay.DEVICE_IDENTIFIER : {
-                            var quadrelay = new tinkerforge.BrickletIndustrialQuadRelay(uid, ipcon);
+                            var quadrelay;
+                            if (deviceIdentifier == tinkerforge.BrickletIndustrialQuadRelay.DEVICE_IDENTIFIER) {
+                                quadrelay = new tinkerforge.BrickletIndustrialQuadRelay(uid, ipcon);
+                            } else {
+                                quadrelay = new tinkerforge.BrickletIndustrialQuadRelayV2(uid, ipcon);
+                            }
 
                             quadrelay.uid_string = uid;
                             quadrelay.position = masterbrick_position[connectedUid] + position;
 
-                            var quadrelay_id = "QUADRELAY_" + quadrelay.position;
+                            let id = "QUADRELAY_" + quadrelay.position;
 
-                            setup_quadrelay(cascade, quadrelay_id, quadrelay);
+                            info = allDevices[id];
+                            if (info) {
+                                renew_quadrelay(cascade, info, quadrelay);
+                            } else {
+                                setup_quadrelay(cascade, id, quadrelay);
+                            }
                             break;
                         }
+                        case tinkerforge.BrickletBarometerV2.DEVICE_IDENTIFIER :
                         case tinkerforge.BrickletBarometer.DEVICE_IDENTIFIER : {
-                            var barometer = new tinkerforge.BrickletBarometer(uid, ipcon);
+                            var barometer;
+                            if (deviceIdentifier == tinkerforge.BrickletBarometer.DEVICE_IDENTIFIER) {
+                                barometer = new tinkerforge.BrickletBarometer(uid, ipcon);
+                            } else {
+                                barometer = new tinkerforge.BrickletBarometerV2(uid, ipcon);
+                            }
 
                             barometer.uid_string = uid;
-                            barometer.position = masterbrick_position[connectedUid] + position.toUpperCase;
+                            barometer.position = masterbrick_position[connectedUid] + position;
 
-                            var barometer_id = "barometer_" + barometer.position;
+                            let id = "barometer_" + barometer.position;
 
-                            setup_barometer(cascade, barometer_id, barometer);
+                            info = allDevices[id];
+                            if (info) {
+                                renew_barometer(cascade, info, barometer);
+                            } else {
+                                setup_barometer(cascade, id, barometer);
+                            }
                             break;
                         }
                         case tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER :
@@ -914,22 +1341,26 @@ module.exports.setup = function (cascade) {
                             masterbrick_position[uid] = position;
 
                             let stepper;
-                            let stepper_id;
+                            let id;
                             if (deviceIdentifier == tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER) {
                                 stepper = new tinkerforge.BrickSilentStepper(uid, ipcon);
-                                stepper_id = "SSTEPPER_";
+                                id = "SSTEPPER_";
                             } else {
                                 stepper = new tinkerforge.BrickStepper(uid, ipcon);
-                                stepper_id = "STEPPER_";
+                                id = "STEPPER_";
                             }
-                            stepper.stop();
-                            stepper.disable();
 
                             stepper.uid_string = uid;
                             stepper.position = position;
-                            stepper_id = stepper_id + stepper.position;
 
-                            setup_stepper(cascade, stepper_id, stepper);
+                            id = id + stepper.position;
+
+                            info = allDevices[id];
+                            if (info) {
+                                renew_stepper(cascade, info, stepper);
+                            } else {
+                                setup_stepper(cascade, id, stepper);
+                            }
 
                             break;
                         }
@@ -949,9 +1380,15 @@ module.exports.setup = function (cascade) {
 
                             IO4.uid_string = uid;
                             IO4.position = masterbrick_position[connectedUid] + position;
-                            let IO4_id = "IO4_" + IO4.position;
 
-                            setup_io4(cascade, IO4_id, IO4);
+                            let id = "IO4_" + IO4.position;
+
+                            info = allDevices[id];
+                            if (info) {
+                                renew_io4(cascade, info, IO4);
+                            } else {
+                                setup_io4(cascade, id, IO4);
+                            }
 
                             break;
                         }
@@ -961,12 +1398,27 @@ module.exports.setup = function (cascade) {
 
                             distIR.uid_string = uid;
                             distIR.position = masterbrick_position[connectedUid] + position;
-                            let distIR_id = "DISTIR_" + distIR.position;
 
-                            setup_distIR(cascade, distIR_id, distIR);
+                            let id = "DISTIR_" + distIR.position;
+
+                            info = allDevices[id];
+                            if (info) {
+                                renew_distIR(cascade, info, distIR);
+                            } else {
+                                setup_distIR(cascade, id, distIR);
+                            }
 
                             break;
                         }
+                        default:
+                            // report any unhandled device
+                            if (deviceIdentifier == 17) break;
+                            cascade.log_info("Unrecognized TF device: uid=" + uid
+                                + " connected=" + connectedUid
+                                + " (" + masterbrick_position[connectedUid] + ")"
+                                + " position=" + position
+                                + " deviceId=" + deviceIdentifier);
+                            break;
                     }
                 }
             });
@@ -1018,6 +1470,7 @@ module.exports.loop = function (cascade) {
     });
     */
 
+    /*
     for (let id in thermocoupleProbes) {
         let tc_info = thermocoupleProbes[id];
         let tc = tc_info.interface;
@@ -1034,13 +1487,17 @@ module.exports.loop = function (cascade) {
                 tempProbe.raw.value = tempValue;
                 tempValue = tempValue + (tempProbe.calibration.value || 0);
                 tempProbe.calibrated.value = tempValue;
-                if (tempValue > max_temp.value && tempValue < 4000) {
-                    max_temp.value = tempValue;
+                if (tempValue > max_temp.value) {
+                    check_max_temp(cascade, tempValue, tempProbe.calibrated.name);
                 }
+            }, function(err) {
+                cascade.log_info("Error getting " + id + " temp: " + err);
             });
         }
     }
+    */
 
+    /*
     for (let id in ptcProbes) {
         let ptc_info = ptcProbes[id];
         let ptc = ptc_info.interface;
@@ -1057,21 +1514,28 @@ module.exports.loop = function (cascade) {
                 tempProbe.raw.value = tempValue;
                 tempValue = tempValue + (tempProbe.calibration.value || 0);
                 tempProbe.calibrated.value = tempValue;
-                if (tempValue > max_temp.value && tempValue < 4000) {
-                    max_temp.value = tempValue;
+                if (tempValue > max_temp.value) {
+                    check_max_temp(cascade, tempValue, tempProbe.calibrated.name);
                 }
+            }, function(err) {
+                cascade.log_info("Error getting " + id + " temp: " + err);
             });
 
         }
     }
+    */
 
     for (let id in onewireNets) {
         let ow_info = onewireNets[id];
         var ow = ow_info.interface;
+        if (ow && ow.in_use) {
+            cascade.log_info("OW " + id + " is in use at start of loop.");
+        }
         if (ow && !ow.in_use) {
             ow.in_use = true;
             ow.getAllTemperatures(function (error, ow_probes) {
                 if (error) {
+                    ow.resetBus();
                     cascade.log_warning(new Error(
                         "Unable to retrieve temperatures from onewire " + id +
                         ": " + error));
@@ -1092,8 +1556,8 @@ module.exports.loop = function (cascade) {
                     tempProbe.raw.value = tempValue;
                     tempValue = tempValue + (tempProbe.calibration.value || 0);
                     tempProbe.calibrated.value = tempValue;
-                    if (tempValue > max_temp.value && tempValue < 4000) {
-                        max_temp.value = tempValue;
+                    if (tempValue > max_temp.value) {
+                        check_max_temp(cascade, tempValue, tempProbe.calibrated.name);
                     }
                 }
                 ow.in_use = false;
@@ -1104,11 +1568,36 @@ module.exports.loop = function (cascade) {
     for (let id in barometers) {
         let barometer_info = barometers[id];
         var barometer = barometer_info.interface;
-        if (barometer) {
+
+        if (barometer && !barometer_info.V2) {
+
+            /*
             barometer.getAirPressure(
                 function(airPressure) {
-                    barometer_info.component.value = airPressure / 1000;
+                    barometer_info.air_pressure.value = airPressure / 1000;
+                }, function(err) {
+                    cascade.log_info("Error getting barometer reading: " + err);
                 });
+
+            if (barometer_info.V2) {
+                barometer.getTemperature(
+                    function(rawtemp) {
+                        barometer_info.chip_temp.value = rawtemp/100;
+                    },
+                    function(err) {
+                        cascade.log_info("Error getting barometer temperature: " + err);
+                    });
+            } else {
+            */
+
+            barometer.getChipTemperature(
+                function(rawtemp) {
+                    barometer_info.chip_temp.value = rawtemp/100;
+                },
+                function(err) {
+                    cascade.log_info("Error getting barometer temperature: " + err);
+                });
+        /*}*/
         }
     }
 };
