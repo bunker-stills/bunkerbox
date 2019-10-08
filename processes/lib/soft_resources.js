@@ -279,6 +279,7 @@ function SoftResource_PID(cascade, name) {
 
     this._pid = new pid_controller();
     this.update_pid_parameters = true;
+    this.new_i_term = undefined;
 
     this.enable = cascade.create_component({
         id: name + "_enable",
@@ -376,6 +377,12 @@ function SoftResource_PID(cascade, name) {
         display_order: next_display_order(),
         read_only: false,
         type: cascade.TYPES.NUMBER
+    });
+    this.i_term.on("value_updated", function(){
+        if (self.i_term.value != self._pid.getIntegral()) {
+            self.new_i_term = self.i_term.value;
+            self.update_pid_parameters = true;
+        }
     });
 
     this.p_gain = cascade.create_component({
@@ -502,6 +509,11 @@ SoftResource_PID.prototype.process_pid = function() {
             this._pid.setProportionalGain(this.p_gain.value || 0.0);
             this._pid.setIntegralGain(this.i_gain.value || 0.0);
             this._pid.setDerivativeGain(this.d_gain.value || 0.0);
+
+            if (this.new_i_term) {
+                this._pid.setIntegral(this.new_i_term);
+                this._new_i_term = undefined;
+            }
 
             let d_beta = Math.max(0, Math.min(1, this.derivative_beta.value));
             this._pid.setDerivativeBeta(d_beta || 0.5);
