@@ -88,11 +88,15 @@ function check_max_temp(cascade, new_temp, probe_name) {
         */
         if (new_temp < 100 || new_temp < 2*Tmax) {
             max_temp.value = new_temp;
+            cascade.log_info("Accepted max_temp candidate of "
+                + new_temp + "C from " + probe_name + ".");
         } else {
             cascade.log_info("Rejected max_temp candidate of "
                 + new_temp + "C from " + probe_name + ".");
+            return false;  /* temperature was rejected */
         }
     }
+    return true;
 }
 
 function reset_interface(cascade, info, interface) {
@@ -811,7 +815,7 @@ function configure_distIR_ma(dist_info) {
 function renew_distIR(cascade, info, interface) {
     reset_interface(cascade, info, interface);
     schedule_distIR_callback(info);
-    configure_dist_ma(info);
+    configure_distIR_ma(info);
 }
 
 function setup_distIR(cascade, id, distIR) {
@@ -943,12 +947,7 @@ function schedule_ptc_callback(cascade, ptc_info) {
         ptc.on(tinkerforge.BrickletPTCV2.CALLBACK_TEMPERATURE,
             function (temperature) {
                 var tempValue = temperature / 100;
-                tempProbe.raw.value = tempValue;
-                tempValue = tempValue + (tempProbe.calibration.value || 0);
-                tempProbe.calibrated.value = tempValue;
-                if (tempValue > max_temp.value) {
-                    check_max_temp(cascade, tempValue, tempProbe.calibrated.name);
-                }
+                set_temperature(cascade, tempProbe, tempValue);
             });
 
     }
@@ -1035,12 +1034,7 @@ function schedule_tc_callback(cascade, tc_info) {
         tc.on(tinkerforge.BrickletThermocouple.CALLBACK_TEMPERATURE,
             function (temperature) {
                 var tempValue = temperature / 100;
-                tempProbe.raw.value = tempValue;
-                tempValue = tempValue + (tempProbe.calibration.value || 0);
-                tempProbe.calibrated.value = tempValue;
-                if (tempValue > max_temp.value) {
-                    check_max_temp(cascade, tempValue, tempProbe.calibrated.name);
-                }
+                set_temperature(cascade, tempProbe, tempValue);
             });
 
     }
@@ -1108,6 +1102,14 @@ function create_temp_probe(cascade, probe_name, display_base) {
     });
 
     return probe_component;
+}
+
+function set_temperature(cascade, probe_component, raw_temp) {
+    var calibrated_temp = raw_temp +  (probe_component.calibration.value || 0);
+    if (check_max_temp(cascade, calibrated_temp, probe_component.calibrated.name)) {
+        probe_component.raw.value = raw_temp;
+        probe_component.calibrated.value = calibrated_temp;
+    }
 }
 
 function update_hard_resource_list_component(cascade, id, list) {
@@ -1552,13 +1554,7 @@ module.exports.loop = function (cascade) {
                             "No temp probe for " +probe_name+ " in loop function."));
                         continue;
                     }
-
-                    tempProbe.raw.value = tempValue;
-                    tempValue = tempValue + (tempProbe.calibration.value || 0);
-                    tempProbe.calibrated.value = tempValue;
-                    if (tempValue > max_temp.value) {
-                        check_max_temp(cascade, tempValue, tempProbe.calibrated.name);
-                    }
+                    set_temperature(cascade, tempProbe, tempValue);
                 }
                 ow.in_use = false;
             });
