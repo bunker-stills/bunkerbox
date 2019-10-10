@@ -4,11 +4,10 @@ var onewireTempSensors = require("./../lib/onewire_temp_sensors");  // sensor in
 var utils = require("./utils");
 
 var ONEWIRE_ERROR_LIMIT = 3;
-//var HIGH_TEMP_LIMIT = 1000;  // over this temp is ignored as a data error
 
+var RUN_GROUP = "00  Run";
 var SENSORS_GROUP = "97  HR Sensors";
 var PROCESS_CONTROLS_GROUP = "98  HR Controls";
-var RUN_GROUP = "00  Run";
 
 // Display orders:
 var RELAY_DISPLAY_BASE = 1000;
@@ -45,8 +44,6 @@ var thermocoupleProbes = {};
 var ptcProbes = {};
 var allDevices = {};
 
-var max_temp;  // max value of all probes (component)
-
 // flag to signal loop function when setup is complete and it can proceed.
 var setup_complete = false;
 
@@ -78,26 +75,6 @@ var remove_name_from_list = function(list, name) {
     list.splice(i_name, 1);
     return name;
 };
-
-function check_max_temp(cascade, new_temp, probe_name) {
-    let Tmax = max_temp.value;
-    if (new_temp > Tmax) {
-        /* To filter out data errors, we reject values greater than twice
-        ** the current max_temp value.  This does not apply to temp values
-        ** less than 100C.
-        */
-        if (new_temp < 100 || new_temp < 2*Tmax) {
-            max_temp.value = new_temp;
-            cascade.log_info("Accepted max_temp candidate of "
-                + new_temp + "C from " + probe_name + ".");
-        } else {
-            cascade.log_info("Rejected max_temp candidate of "
-                + new_temp + "C from " + probe_name + ".");
-            return false;  /* temperature was rejected */
-        }
-    }
-    return true;
-}
 
 function reset_interface(cascade, info, interface) {
     cascade.log_info("TF interface reset on " + info.id);
@@ -780,7 +757,7 @@ function setup_barometer(cascade, id, barometer) {
         id: "controller_temp",  // assumes only one barometer per system
         name: "Controller temperature",
         group: RUN_GROUP,
-        display_order: BAROMETER_DISPLAY_BASE + next_display_order(),
+        display_order: BAROMETER_DISPLAY_BASE + utils.next_display_order(),
         class: "barometer",
         read_only: true,
         units: "C",
@@ -947,7 +924,7 @@ function schedule_ptc_callback(cascade, ptc_info) {
         ptc.on(tinkerforge.BrickletPTCV2.CALLBACK_TEMPERATURE,
             function (temperature) {
                 var tempValue = temperature / 100;
-                set_temperature(cascade, tempProbe, tempValue);
+                set_temperature(tempProbe, tempValue);
             });
 
     }
@@ -1034,7 +1011,7 @@ function schedule_tc_callback(cascade, tc_info) {
         tc.on(tinkerforge.BrickletThermocouple.CALLBACK_TEMPERATURE,
             function (temperature) {
                 var tempValue = temperature / 100;
-                set_temperature(cascade, tempProbe, tempValue);
+                set_temperature(tempProbe, tempValue);
             });
 
     }
@@ -1104,39 +1081,11 @@ function create_temp_probe(cascade, probe_name, display_base) {
     return probe_component;
 }
 
-function set_temperature(cascade, probe_component, raw_temp) {
+function set_temperature(probe_component, raw_temp) {
     var calibrated_temp = raw_temp +  (probe_component.calibration.value || 0);
-    if (check_max_temp(cascade, calibrated_temp, probe_component.calibrated.name)) {
+    if (utils.check_max_temp(calibrated_temp, probe_component.calibrated.name)) {
         probe_component.raw.value = raw_temp;
         probe_component.calibrated.value = calibrated_temp;
-    }
-}
-
-function update_hard_resource_list_component(cascade, id, list) {
-
-    var value = list.join(" ");
-    var component = cascade.components.all_current[id];
-
-    if (!component) {
-        var type;
-        if (value.length > 32) {
-            type = cascade.TYPES.BIG_TEXT;
-        }
-        else {
-            type = cascade.TYPES.TEXT;
-        }
-
-        cascade.create_component({
-            id: id,
-            group: RESOURCE_NAMES_GROUP,
-            display_order: HR_LISTS_DISPLAY_BASE + next_display_order(),
-            read_only: true,
-            type: type,
-            value: value
-        });
-    }
-    else {
-        component.value = value;
     }
 }
 
@@ -1147,7 +1096,7 @@ function check_hard_resource_name(cascade, HR_names_id, name) {
         let name_list = get_name_list(component.value);
         if (name_list.indexOf(name) < 0) {
             add_name_to_list(name_list, name, true);
-            update_hard_resource_list_component(cascade, HR_names_id, name_list);
+            utils.update_hard_resource_list_component(cascade, HR_names_id, name_list);
         }
     }
 }
@@ -1159,16 +1108,8 @@ var IPCON_DISCONNECT_TEXT = [
 ];
 
 module.exports.setup = function (cascade) {
-    // Create max_temp component used by stills overtemp shutdown feature.
-    max_temp = cascade.create_component({
-        id: "max_temp",
-        name: "Max Temperature",
-        description: "Peak measured temperature",
-        group: RUN_GROUP,
-        display_order: 1000,
-        units: "C",
-        value: 0,
-    });
+    utils.setup_utils(cascade);
+    utils.setup_overtemp(RUN_GROUP);
 
     // Discover resources on the tf stack.
     tinkerforge_connection.create(function (error, ipcon) {
@@ -1445,7 +1386,7 @@ module.exports.setup = function (cascade) {
         utils.update_hard_resource_list_component(cascade, "OW_PROBE_HR_names", ow_names.sort());
         utils.update_hard_resource_list_component(cascade, "TEMP_PROBE_HR_names",
             ptc_names.sort().concat(tc_names.sort().concat(ow_names.sort())));
-        max_temp.value = 0;  // last chance in setup to clear this value.
+        //max_temp.value = 0;  // last chance in setup to clear this value.
         setup_complete = true;
         cascade.log_info("TF setup completed.");
     }, 10000);
@@ -1456,76 +1397,7 @@ module.exports.setup = function (cascade) {
 module.exports.loop = function (cascade) {
     if (!setup_complete) return;
 
-    /*
-    _.each(dacs, function (dac_info, id) {
-
-        var dac_interface = devices[id];
-
-        if (!dac_interface) {
-            //online = false;
-            dac_info.interface = null;
-        }
-        else if (!dac_info.interface) {
-            dac_info.interface = dac_interface;
-            set_dac(dac_info);
-        }
-    });
-    */
-
-    /*
-    for (let id in thermocoupleProbes) {
-        let tc_info = thermocoupleProbes[id];
-        let tc = tc_info.interface;
-        let tempProbe = tc_info.probe;
-
-        if(!tempProbe) {
-            cascade.log_error(new Error("No temp probe for " +id+ " in loop function."));
-            continue;
-        }
-
-        if (tc) {
-            tc.getTemperature(function (temperature) {
-                var tempValue = temperature / 100;
-                tempProbe.raw.value = tempValue;
-                tempValue = tempValue + (tempProbe.calibration.value || 0);
-                tempProbe.calibrated.value = tempValue;
-                if (tempValue > max_temp.value) {
-                    check_max_temp(cascade, tempValue, tempProbe.calibrated.name);
-                }
-            }, function(err) {
-                cascade.log_info("Error getting " + id + " temp: " + err);
-            });
-        }
-    }
-    */
-
-    /*
-    for (let id in ptcProbes) {
-        let ptc_info = ptcProbes[id];
-        let ptc = ptc_info.interface;
-        let tempProbe = ptc_info.probe;
-
-        if(!tempProbe) {
-            cascade.log_error(new Error("No temp probe for " +id+ " in loop function."));
-            continue;
-        }
-
-        if (ptc) {
-            ptc.getTemperature(function (temperature) {
-                var tempValue = temperature / 100;
-                tempProbe.raw.value = tempValue;
-                tempValue = tempValue + (tempProbe.calibration.value || 0);
-                tempProbe.calibrated.value = tempValue;
-                if (tempValue > max_temp.value) {
-                    check_max_temp(cascade, tempValue, tempProbe.calibrated.name);
-                }
-            }, function(err) {
-                cascade.log_info("Error getting " + id + " temp: " + err);
-            });
-
-        }
-    }
-    */
+    utils.log_cycle();
 
     for (let id in onewireNets) {
         let ow_info = onewireNets[id];
@@ -1554,7 +1426,7 @@ module.exports.loop = function (cascade) {
                             "No temp probe for " +probe_name+ " in loop function."));
                         continue;
                     }
-                    set_temperature(cascade, tempProbe, tempValue);
+                    set_temperature(tempProbe, tempValue);
                 }
                 ow.in_use = false;
             });
@@ -1567,25 +1439,6 @@ module.exports.loop = function (cascade) {
 
         if (barometer && !barometer_info.V2) {
 
-            /*
-            barometer.getAirPressure(
-                function(airPressure) {
-                    barometer_info.air_pressure.value = airPressure / 1000;
-                }, function(err) {
-                    cascade.log_info("Error getting barometer reading: " + err);
-                });
-
-            if (barometer_info.V2) {
-                barometer.getTemperature(
-                    function(rawtemp) {
-                        barometer_info.chip_temp.value = rawtemp/100;
-                    },
-                    function(err) {
-                        cascade.log_info("Error getting barometer temperature: " + err);
-                    });
-            } else {
-            */
-
             barometer.getChipTemperature(
                 function(rawtemp) {
                     barometer_info.chip_temp.value = rawtemp/100;
@@ -1593,7 +1446,6 @@ module.exports.loop = function (cascade) {
                 function(err) {
                     cascade.log_info("Error getting barometer temperature: " + err);
                 });
-        /*}*/
         }
     }
 };

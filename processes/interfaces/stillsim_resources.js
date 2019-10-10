@@ -1,3 +1,4 @@
+const _ = require("underscore");
 const got = require("got");
 const utils = require("./utils");
 
@@ -8,7 +9,6 @@ var SIMMETA_GROUP = "01  Simulation Metadata";   // meta, sim_value, sim_control
 var MODSET_GROUP = "02  Model Settings";
 var SENSORS_GROUP = "97  Model Sensors";
 var PROCESS_CONTROLS_GROUP = "98  Model Controls";
-var RESOURCE_NAMES_GROUP = "99  Model Resources";
 
 var latest_status;    // returned json object
 var model_selector;   // local component
@@ -24,7 +24,6 @@ var temp_probes = {};
 var dac_names = [];
 var temp_probe_names = [];
 
-var max_temp;  // max value of all probes (component)
 
 function do_request(action, body) {
     // 'action' is one of 'read_status', 'load', 'unload', 'run', 'stop
@@ -195,16 +194,16 @@ function setup_simmeta(cascade, info_obj) {
     });
     if (!info_obj.read_only) {
         info_obj.component.on("value_updated", function() {
-            update_setting(cascade, info_obj);
+            update_setting(cascade, info_obj, true);
         });
     }
 
     simmetas[info_obj.name] = info_obj;
 }
 
-function setup_setting(cascade, info_obj) {
+function setup_setting(cascade, info_obj, log_change) {
     info_obj.prior_val = info_obj.value;
-    delete info_obj.value
+    delete info_obj.value;
 
     info_obj.component = cascade.create_component({
         id: info_obj.name,
@@ -220,13 +219,13 @@ function setup_setting(cascade, info_obj) {
     settings[info_obj.name] = info_obj;
 
     info_obj.component.on("value_updated", function() {
-        update_setting(cascade, info_obj);
+        update_setting(cascade, info_obj, log_change);
     });
 }
 
 function setup_dac(cascade, info_obj) {
     info_obj.prior_val = info_obj.value;
-    delete info_obj.value
+    delete info_obj.value;
 
     info_obj.enable = cascade.create_component({
         id: info_obj.name + "_enable",
@@ -296,7 +295,7 @@ function get_probes_and_controls(cascade) {
     obj = latest_status.sim_value;
     for (let name in obj) { if (obj.hasOwnProperty(name)) {
         //let sim_val = {};
-        let sim_val = obj[name]
+        let sim_val = obj[name];
         sim_val.section_name = "sim_value";
         sim_val.remote_name = name;
         sim_val.group = SIMMETA_GROUP;
@@ -394,9 +393,9 @@ function get_probes_and_controls(cascade) {
 
     // names for soft_resource assignments.
     utils.update_hard_resource_list_component(cascade,
-        "TEMP_PROBE_HR_names", temp_probe_names.sort(), RESOURCE_NAMES_GROUP);
+        "TEMP_PROBE_HR_names", temp_probe_names.sort());
     utils.update_hard_resource_list_component(cascade,
-        "DAC_HR_names", dac_names.sort(), RESOURCE_NAMES_GROUP);
+        "DAC_HR_names", dac_names.sort());
 }
 
 function write_out_val(cascade, val, info_obj) {
@@ -410,10 +409,12 @@ function write_out_val(cascade, val, info_obj) {
         });
 }
 
-function update_setting(cascade, info_obj) {
-    cascade.log_info("update_setting: "
-        + info_obj.section_name + "." + info_obj.remote_name
-        + "  to value " + info_obj.component.value);
+function update_setting(cascade, info_obj, log_change) {
+    if (!_.isUndefined(log_change) && log_change) {
+        cascade.log_info("update_setting: "
+            + info_obj.section_name + "." + info_obj.remote_name
+            + "  to value " + info_obj.component.value);
+    }
     // convert controller units to simulator units
     var new_val = info_obj.write_function(info_obj.component.value, info_obj.prior_val);
     // send update to simulator
@@ -438,10 +439,12 @@ function update_dac(cascade, info_obj) {
     val = info_obj.write_function(val);
     // send update to simulator
     if (val != info_obj.prior_val) {
+        /*
         cascade.log_info("update_dac: "
             + info_obj.section_name + "." + info_obj.remote_name
             + "  to value " + info_obj.output.value
             + " from value " + info_obj.prior_val);
+        */
         info_obj.prior_val = val;
         write_out_val(cascade, val, info_obj);
     }
@@ -470,16 +473,8 @@ function sync_state() {
 module.exports.setup = function (cascade) {
     cascade.log_info("stillsim_resources.setup entered.");
 
-    // Create max_temp component used by stills overtemp shutdown feature.
-    max_temp = cascade.create_component({
-        id: "max_temp",
-        name: "Max Temperature",
-        description: "Peak measured temperature",
-        group: RUN_GROUP,
-        display_order: 1000,
-        units: "C",
-        value: 0,
-    });
+    utils.setup_utils(cascade);
+    utils.setup_overtemp(RUN_GROUP);
 
     // Model selector:
     // Model selection triggers loading and initialization of the model
@@ -559,7 +554,7 @@ module.exports.setup = function (cascade) {
 };
 
 function read_in_value(req_result, info_obj) {
-    let response = req_result[info_obj.section_name][info_obj.remote_name]
+    let response = req_result[info_obj.section_name][info_obj.remote_name];
     let val = "";
     if (response) {
         val = response.value;
@@ -571,12 +566,14 @@ function read_in_value(req_result, info_obj) {
 }
 
 module.exports.loop = function (cascade) {
+    utils.log_cycle();
+
     // get latest values
     do_request("read_status", null)
         .then(function(result) {
             // Update sim values
             for (let id in simmetas) { if (simmetas.hasOwnProperty(id)) {
-                info_obj = simmetas[id];
+                let info_obj = simmetas[id];
                 if (info_obj.read_only) {
                     read_in_value(result, simmetas[id]);
                 }
@@ -585,9 +582,7 @@ module.exports.loop = function (cascade) {
             for (let id in temp_probes) { if (temp_probes.hasOwnProperty(id)) {
                 read_in_value(result, temp_probes[id]);
                 let temp = temp_probes[id].component.value;
-                if (temp > max_temp.value) {
-                    max_temp.value = temp;
-                }
+                utils.check_max_temp(temp, id);
             }}
         })
         .catch(function(err) {

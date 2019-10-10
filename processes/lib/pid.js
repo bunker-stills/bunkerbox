@@ -87,10 +87,10 @@ pid.prototype.update = function(measuredValue, time)
 
     if(!_.isUndefined(this.CVUpperLimit) && CV >= this.CVUpperLimit)
     {
-        // integral has the same sign sense as CV regarless of sign of Ki.
+        // Integral moves in the same direction as CV regarless of sign of Ki.
         if(newIntegral > this.integral)
         {
-            // Stop integrating, reset the integral back to what it was before.
+            // Don't integrate higher; reset the integral back to former value.
             newIntegral = this.integral;
         }
 
@@ -101,10 +101,10 @@ pid.prototype.update = function(measuredValue, time)
 
     if(!_.isUndefined(this.CVLowerLimit) && CV <= this.CVLowerLimit)
     {
-        // integral has the same sign sense as CV regarless of sign of Ki.
+        // Integral moves in the same direction as CV regarless of sign of Ki.
         if(newIntegral < this.integral)
         {
-            // Stop integrating, reset the integral back to what it was before.
+            // Don't integrate lower; reset the integral back to former value.
             newIntegral = this.integral;
         }
 

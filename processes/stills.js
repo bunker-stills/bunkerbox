@@ -101,7 +101,12 @@ module.exports.setup = function (cascade) {
     barometer = new soft.Barometer(cascade);
 
     cascade.components.require_component("failsafe_temp",
-        function(component) {failsafe_temp = component;});
+        function(component) {
+            failsafe_temp = component;
+            failsafe_temp.on("value_updated", function() {
+                cascade.log_info("Failsafe temperature set to " + failsafe_temp.value);
+            });
+        });
     cascade.components.require_component("boiling_point",
         function(component) {boiling_point = component;});
 
@@ -150,6 +155,9 @@ function during_run(cascade) {
         if (max_temp.value >= failsafe_temp.value)
         {
             run_mode.value = "STOP";
+            cascade.log_error(new Error(
+                "OVERTEMP SHUTDOWN: max_temp of "+max_temp.value+
+                " exceeds failsafe_temp of "+failsafe_temp.value+"."));
             return;
         }
     } else {

@@ -378,10 +378,12 @@ function SoftResource_PID(cascade, name) {
         read_only: false,
         type: cascade.TYPES.NUMBER
     });
-    this.i_term.on("value_updated", function(){
-        if (self.i_term.value != self._pid.getIntegral()) {
+    this.i_term.on("value_updated", function() {
+        if (!_.isUndefined(self.i_term) &&
+                self.i_term.value != self._pid.getIntegral()) {
             self.new_i_term = self.i_term.value;
             self.update_pid_parameters = true;
+            cascade.log_info(self.name+" i_term set to "+self.new_i_term);
         }
     });
 
