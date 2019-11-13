@@ -4,6 +4,7 @@
 const _ = require("underscore");
 
 var cascade;  // copy of cascade reference
+
 module.exports.setup_utils = function(cascade_) {
     cascade = cascade_;
 };
@@ -13,8 +14,11 @@ var loop_count = 0;
 var start_time = Date.now();
 var rpt_time = start_time;
 
-module.exports.log_cycle = function () {
+module.exports.log_cycle = function (log_obj, clear) {
+    if (_.isUndefined(clear)) clear = false;
+
     loop_count += 1;
+
     if (loop_count%600 == 0) {
         let dt = Date.now() - rpt_time;
         rpt_time += dt;
@@ -26,6 +30,12 @@ module.exports.log_cycle = function () {
         cascade.log_info("Cycles: "+loop_count +
                          "; Elapsed time: "+d+" days and "+h+":"+m+":"+s+
                          "; 600 cycles in the last "+dt/1000+" seconds.");
+
+        // print log object
+        for (let name in _.keys(log_obj).sort()) {
+            cascade.log_info("       "+name+" = "+log_obj[name]);
+            if (clear) log_obj[name] = undefined;
+        }
     }
 };
 

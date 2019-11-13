@@ -10,7 +10,7 @@ var MODSET_GROUP = "02  Model Settings";
 var SENSORS_GROUP = "97  Model Sensors";
 var PROCESS_CONTROLS_GROUP = "98  Model Controls";
 
-var latest_status;    // returned json object
+var latest_status;    // json object returned by simulation server
 var model_selector;   // local component
 var run_name;         // local component
 var simulator_state;  // local component
