@@ -514,7 +514,7 @@ SoftResource_PID.prototype.process_pid = function(time) {
 
             if (this.new_i_term) {
                 this._pid.setIntegral(this.new_i_term);
-                this._new_i_term = undefined;
+                this.new_i_term = undefined;
             }
 
             let d_beta = Math.max(0, Math.min(1, this.derivative_beta.value));
