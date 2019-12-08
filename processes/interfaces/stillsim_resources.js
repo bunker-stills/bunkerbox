@@ -10,7 +10,7 @@ var MODSET_GROUP = "02  Model Settings";
 var SENSORS_GROUP = "97  Model Sensors";
 var PROCESS_CONTROLS_GROUP = "98  Model Controls";
 
-var latest_status;    // returned json object
+var latest_status;    // json object returned by simulation server
 var model_selector;   // local component
 var run_name;         // local component
 var simulator_state;  // local component
@@ -296,6 +296,7 @@ function get_probes_and_controls(cascade) {
     for (let name in obj) { if (obj.hasOwnProperty(name)) {
         //let sim_val = {};
         let sim_val = obj[name];
+        if (sim_val.name == "Time") sim_val.name = "simulated_time";
         sim_val.section_name = "sim_value";
         sim_val.remote_name = name;
         sim_val.group = SIMMETA_GROUP;

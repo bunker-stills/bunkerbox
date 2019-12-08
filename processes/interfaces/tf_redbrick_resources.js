@@ -47,6 +47,12 @@ var allDevices = {};
 // flag to signal loop function when setup is complete and it can proceed.
 var setup_complete = false;
 
+// periodic logging information
+log_obj = {
+    OW_in_use : 0;
+};
+
+
 var name_regex = /[^\s,;]+/g;
 
 var get_name_list = function(s) {
@@ -87,9 +93,8 @@ function report_masterbrick(cascade, mb_info, non_zero) {
         mb.getStackVoltage(function(v) {
             mb.getStackCurrent(function(i) {
                 if (non_zero && v===0 && i===0) return;
-                cascade.log_info("Masterbrick " + mb_info.id
-                                 + " voltage = " + v + "mV, "
-                                 + " current = " + i + "mA.");
+                log_obj(mb_info.id) = "voltage = " + v/1000 + "V; "
+                                    + "current = " + i + "mA");
             }, function(err) {
                 cascade.log_error("Masterbrick " + mb_info.id +
                     " current error: " + err);
@@ -115,7 +120,7 @@ function setup_masterbrick(cascade, id, mb) {
     setTimeout(function do_report() {
         report_masterbrick(cascade, mb_info);
         setTimeout(do_report, 600000);
-    }, 60000);
+    }, 300000);
 
     allDevices[id] = mb_info;
 }
@@ -1393,17 +1398,17 @@ module.exports.setup = function (cascade) {
     cascade.log_info("TF setup exits.");
 };
 
-
 module.exports.loop = function (cascade) {
     if (!setup_complete) return;
 
-    utils.log_cycle();
+    utils.log_cycle(log_obj, true);
 
     for (let id in onewireNets) {
         let ow_info = onewireNets[id];
         var ow = ow_info.interface;
         if (ow && ow.in_use) {
-            cascade.log_info("OW " + id + " is in use at start of loop.");
+            log_obj.OW_in_use = log_obj.OW_in_use+1 || 1;
+            /*cascade.log_info("OW " + id + " is in use at start of loop.");*/
         }
         if (ow && !ow.in_use) {
             ow.in_use = true;

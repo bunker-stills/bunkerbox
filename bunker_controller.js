@@ -1,6 +1,7 @@
 process.chdir(__dirname);
 
-var cascade = require("@bunkerstills/cascade");
+//var cascade = require("@bunkerstills/cascade");
+var cascade = require("../../cascade/cascade")
 var commander = require("commander");
 var package_info = require("./package.json");
 
@@ -17,7 +18,7 @@ function collect(val, memo) {
 }
 
 commander.version(package_info.version) // User command line args if processes are specified.
-    .option('-p, --process [value]', 'process file path', collect, [])
+    .option("-p, --process [value]", "process file path", collect, [])
     .parse(process.argv);
 
 if(commander.process.length > 0)
@@ -29,7 +30,15 @@ var users;
 
 if(process.env.USERS)
 {
-    try { users = JSON.parse(process.env.USERS) } catch(e){}
+    try { users = JSON.parse(process.env.USERS); } catch(e){}
+}
+
+let loop_time_seconds =  process.env.LOOP_SECONDS || 1;
+
+// Allow a component name as LOOP_SECONDS for dynamic loop timing.
+// If we have a component name (a string) then isNaN() returns true.
+if ( ! isNaN(loop_time_seconds) ) {
+    loop_time_seconds = Number(loop_time_seconds);
 }
 
 var cascade_server = new cascade({
@@ -40,6 +49,6 @@ var cascade_server = new cascade({
     enable_mqtt: true,
     data_storage_location : process.env.DATA_PATH,
     processes : process_list,
-    run_loop_time_in_seconds : Number(process.env.LOOP_SECONDS) || 1,
+    run_loop_time_in_seconds : loop_time_seconds,
     users : users
 });
