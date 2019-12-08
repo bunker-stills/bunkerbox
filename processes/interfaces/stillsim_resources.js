@@ -296,6 +296,7 @@ function get_probes_and_controls(cascade) {
     for (let name in obj) { if (obj.hasOwnProperty(name)) {
         //let sim_val = {};
         let sim_val = obj[name];
+        if (sim_val.name == "Time") sim_val.name = "simulated_time";
         sim_val.section_name = "sim_value";
         sim_val.remote_name = name;
         sim_val.group = SIMMETA_GROUP;

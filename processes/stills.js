@@ -50,7 +50,7 @@ var barometer;
 var do_PID_options = true;
 var currentOptionsList = [];
 
-var simulated_time_component;
+var simulated_time;
 
 //////////////////////////////////////////////////////////////////////////////
 // cascade process setup and supporting functions
@@ -72,8 +72,36 @@ module.exports.setup = function (cascade) {
         function(component) {max_temp = component;});
 
     // Integrate simulator time when present.
+    var loop_time_component;
     cascade.components.require_component("simulated_time",
-        function(component) {simulated_time_component = component;});
+        function(component) {
+            simulated_time = component;
+            loop_time_component = cascade.create_component({
+                id: "loop_seconds",
+                name: "Loop seconds",
+                group: RUN_GROUP,
+                type: cascade.TYPES.NUMBER,
+                value: 1
+            });
+
+            let prior_simtime = 0;
+            let prior_realtime = Date.now() / 1000;
+            simulated_time.on("value_updated", function() {
+
+                // Determine the increments of real and simulated time.
+                let delta_realtime = Date.now() / 1000 - prior_realtime;
+                prior_realtime += delta_realtime;
+
+                let delta_simtime = simulated_time.value - prior_simtime;
+                prior_simtime += delta_simtime;
+
+                // in singular cases leave the existing loop_seconds value.
+                if (delta_realtime == 0 || delta_simtime == 0) return;
+
+                // We want to loop in the realtime equivalent of 1s simulated time.
+                loop_time_component.value = Math.min(delta_realtime / delta_simtime, 8);
+            });
+        });
 
     for (let vardef of system_Variables) {
         new soft.Variable(cascade, vardef);
@@ -173,8 +201,8 @@ function during_run(cascade) {
 
     // process PIDs
     var time;
-    if (simulated_time_component) {
-        time = simulated_time_component.value * 1000;
+    if (simulated_time) {
+        time = simulated_time.value * 1000;
     } else {
         time = Date.now();
     }
