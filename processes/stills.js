@@ -103,9 +103,11 @@ module.exports.setup = function (cascade) {
     cascade.components.require_component("failsafe_temp",
         function(component) {
             failsafe_temp = component;
+            /*
             failsafe_temp.on("value_updated", function() {
                 cascade.log_info("Failsafe temperature set to " + failsafe_temp.value);
             });
+            */
         });
     cascade.components.require_component("boiling_point",
         function(component) {boiling_point = component;});
