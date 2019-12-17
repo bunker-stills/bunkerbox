@@ -48,8 +48,8 @@ var allDevices = {};
 var setup_complete = false;
 
 // periodic logging information
-log_obj = {
-    OW_in_use : 0;
+var log_obj = {
+    OW_in_use : 0,
 };
 
 
@@ -93,8 +93,8 @@ function report_masterbrick(cascade, mb_info, non_zero) {
         mb.getStackVoltage(function(v) {
             mb.getStackCurrent(function(i) {
                 if (non_zero && v===0 && i===0) return;
-                log_obj(mb_info.id) = "voltage = " + v/1000 + "V; "
-                                    + "current = " + i + "mA");
+                log_obj[mb_info.id] = "voltage = " + v/1000 + "V; "
+                                    + "current = " + i + "mA";
             }, function(err) {
                 cascade.log_error("Masterbrick " + mb_info.id +
                     " current error: " + err);
