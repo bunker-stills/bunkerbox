@@ -14,6 +14,7 @@ module.exports.create = function(callback)
         catch (e) {
         }
     }
+    if (tfPassword) tfPassword = tfPassword.trim();
 
     var tfHost = process.env.TF_HOST || 'localhost';
 
