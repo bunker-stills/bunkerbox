@@ -32,7 +32,7 @@ module.exports.log_cycle = function (log_obj, clear) {
                          "; 600 cycles in the last "+dt/1000+" seconds.");
 
         // print log object
-        for (let name in _.keys(log_obj).sort()) {
+        for (let name of Object.keys(log_obj).sort()) {
             cascade.log_info("       "+name+" = "+log_obj[name]);
             if (clear) log_obj[name] = undefined;
         }
