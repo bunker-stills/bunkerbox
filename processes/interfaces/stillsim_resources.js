@@ -24,6 +24,10 @@ var temp_probes = {};
 var dac_names = [];
 var temp_probe_names = [];
 
+// periodic logging information
+var log_obj = {
+    test:"test_string",
+};
 
 function do_request(action, body) {
     // 'action' is one of 'read_status', 'load', 'unload', 'run', 'stop
@@ -33,7 +37,7 @@ function do_request(action, body) {
         baseUrl:SIM_URL,
         json:true,
         timeout:15000,
-        retries: 1
+        retries: 4
     };
     if (body) {
         options.body = body;
@@ -195,6 +199,16 @@ function setup_simmeta(cascade, info_obj) {
     if (!info_obj.read_only) {
         info_obj.component.on("value_updated", function() {
             update_setting(cascade, info_obj, true);
+        });
+    }
+    if (info_obj.name=="simulated_time") {
+        var prior_time;
+        info_obj.component.on("value_updated", function() {
+            let time = info_obj.component.value;
+            let delta_time = time - prior_time;
+            log_obj["simulated_time"] = time;
+            log_obj["loop_time"] = delta_time;
+            prior_time = time;
         });
     }
 
@@ -567,7 +581,7 @@ function read_in_value(req_result, info_obj) {
 }
 
 module.exports.loop = function (cascade) {
-    utils.log_cycle();
+    utils.log_cycle(log_obj, true);
 
     // get latest values
     do_request("read_status", null)
