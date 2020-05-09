@@ -376,6 +376,13 @@ function get_probes_and_controls(cascade) {
             control.write_function = abvToMolvec;
             setup_setting(cascade, control);
         }
+        if (control.units == "J/(m^2 K s)") {
+            control.group = MODSET_GROUP;
+            control.units = "J/(m^2 C s)";
+            control.read_function = identity;
+            control.write_function = identity;
+            setup_setting(cascade, control);
+        }
         if (control.units == "K") {
             control.group = MODSET_GROUP;
             control.units = "C";
