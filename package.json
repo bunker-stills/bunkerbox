@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "jsonschema": "1.2.5",
     "@bunkerstills/cascade": "git+https://github.com/bunker-stills/cascade.git",
     "commander": "2.9.0",
     "got": "^9.6.0",
