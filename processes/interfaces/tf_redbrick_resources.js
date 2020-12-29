@@ -1502,6 +1502,7 @@ module.exports.setup = function (cascade) {
         utils.update_hard_resource_list_component(cascade, "STEPPER_HR_names", stepper_names.sort());
         utils.update_hard_resource_list_component(cascade, "BIT_IN_HR_names", input_names.sort());
         utils.update_hard_resource_list_component(cascade, "BIT_OUT_HR_names", output_names.sort());
+        utils.update_hard_resource_list_component(cascade, "ADC_HR_names", adc_names.sort());
         utils.update_hard_resource_list_component(cascade, "DISTANCE_HR_names", dist_names.sort());
         utils.update_hard_resource_list_component(cascade, "PTC_PROBE_HR_names", ptc_names.sort());
         utils.update_hard_resource_list_component(cascade, "TC_PROBE_HR_names", tc_names.sort());
