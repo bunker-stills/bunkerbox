@@ -701,14 +701,17 @@ function setup_io4(cascade, id, io4) {
 
 function schedule_dualADC_callback(cascade, info) {
     let dualADC = info.interface;
-    dualADC.setAllVoltagesCallbackConfiguration(1000, false);
-    dualADC.on(tinkerforge.BrickletIndustrialDualAnalogInV2.CALLBACK_ALL_VOLTAGES,
-        function (voltages) {
-            // voltages – Type: [int, ...], Length: 2, Unit: 1 mV, Range: [-35000 to 35000] 
-            for(let adc_index in [0,1]) {
-                info.voltage[adc_index].setValue(voltages[adc_index] * 0.001);
-            }
-        });
+    if (dualADC) {
+        dualADC.setAllVoltagesCallbackConfiguration(1000, false);
+        dualADC.on(tinkerforge.BrickletIndustrialDualAnalogInV2.CALLBACK_ALL_VOLTAGES,
+           function (voltages) {
+               // voltages – Type: [int, ...], Length: 2, Unit: 1 mV, Range: [-35000 to 35000] 
+               for(let adc_index in [0,1]) {
+                   info.voltage[adc_index].value = ((voltages[adc_index] * 0.001) + info.offset[adc_index].value)
+                                                      * info.multiplier[adc_index].value;
+               }
+           });
+    }
 }
 function configure_dualADC(cascade, info) {
 }
@@ -724,10 +727,10 @@ function setup_dualADC(cascade, id, dualADC) {
     var dualADC_info = {
         id: id,
         interface: dualADC,
-        voltage = [undefined, undefined],
-        offset = [undefined, undefined],
-        multiplier = [undefined, undefined],
-        units = [undefined, undefined]
+        voltage: [undefined, undefined],
+        offset: [undefined, undefined],
+        multiplier: [undefined, undefined],
+        units: [undefined, undefined]
     }
 
     var adc_index;
@@ -741,6 +744,7 @@ function setup_dualADC(cascade, id, dualADC) {
             display_order: display_base + 5 * adc_index,
             class: "adc",
             type: cascade.TYPES.NUMBER,
+            read_only: true,
             units: "V",
             value: 0
         });
@@ -750,6 +754,7 @@ function setup_dualADC(cascade, id, dualADC) {
             group: SENSORS_GROUP,
             display_order: display_base + 5 * adc_index + 1,
             class: "adc",
+            persist: true,
             type: cascade.TYPES.NUMBER,
             value: 0
         });
@@ -759,6 +764,7 @@ function setup_dualADC(cascade, id, dualADC) {
             group: SENSORS_GROUP,
             display_order: display_base + 5 * adc_index + 2,
             class: "adc",
+            persist: true,
             type: cascade.TYPES.NUMBER,
             value: 1
         });
@@ -768,12 +774,16 @@ function setup_dualADC(cascade, id, dualADC) {
             group: SENSORS_GROUP,
             display_order: display_base + 5 * adc_index + 3,
             class: "adc",
+            persist: true,
             type: cascade.TYPES.TEXT,
             value: "V"
         });
+        var unit_index = adc_index;
         dualADC_info.units[adc_index].on("value_updated", function() {
-            dualADC_info.voltage.units[adc_index] = dualADC_info.units[adc_index].value;
+            dualADC_info.voltage[unit_index].units = dualADC_info.units[unit_index].value;
         });
+        // eslint-disable-next-line no-self-assign
+        dualADC_info.units[adc_index].value = dualADC_info.units[adc_index].value;
 
         adc_names.push(adc_id);
     }
@@ -1452,7 +1462,7 @@ module.exports.setup = function (cascade) {
                             var dualAnalogIn = new tinkerforge.BrickletIndustrialDualAnalogInV2(uid, ipcon);
 
                             dualAnalogIn.uid_string = uid;
-                            dualAnalogIn.position = masterbrick_position[connectionUid] + position;
+                            dualAnalogIn.position = masterbrick_position[connectedUid] + position;
 
                             let id = "DUAL_ADC_" + dualAnalogIn.position;
 
