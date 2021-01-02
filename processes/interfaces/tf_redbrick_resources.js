@@ -778,9 +778,9 @@ function setup_dualADC(cascade, id, dualADC) {
             type: cascade.TYPES.TEXT,
             value: "V"
         });
-        var unit_index = adc_index;
         dualADC_info.units[adc_index].on("value_updated", function() {
-            dualADC_info.voltage[unit_index].units = dualADC_info.units[unit_index].value;
+            const i = adc_index;
+            dualADC_info.voltage[i].units = dualADC_info.units[i].value;
         });
         // eslint-disable-next-line no-self-assign
         dualADC_info.units[adc_index].value = dualADC_info.units[adc_index].value;
