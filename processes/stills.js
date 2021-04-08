@@ -180,6 +180,12 @@ function during_stop() {
     _.each(soft.DutyCycleRelay.get_instances(), function(dcr) {dcr.reset_dcr();});
 }
 
+function during_pause(cascade) {
+    // process Functions;
+    _.each(soft.Function.get_instances(),
+        function(func) {func.process_function(cascade);});
+}
+
 function during_run(cascade) {
     if(max_temp) {
         if (max_temp.value >= failsafe_temp.value)
@@ -259,6 +265,7 @@ module.exports.loop = function (cascade) {
             break;
         }
         case "PAUSE": {
+            during_pause(cascade);
             break;
         }
         default: {

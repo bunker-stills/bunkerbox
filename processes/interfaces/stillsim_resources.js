@@ -36,7 +36,7 @@ function do_request(action, body) {
     var options = {
         baseUrl:SIM_URL,
         json:true,
-        timeout:15000,
+        timeout:30000,
         retries: 4
     };
     if (body) {
@@ -410,6 +410,12 @@ function get_probes_and_controls(cascade) {
             control.read_function = identity;
             control.write_function = identity;
             setup_dac(cascade, control);
+        }
+        if (control.name.startsWith("EC_")) {
+            control.group = SIMMETA_GROUP;
+            control.read_function = identity;
+            control.write_function = identity;
+            setup_simmeta(cascade, control);
         }
     }}
 
