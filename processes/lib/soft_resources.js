@@ -12,6 +12,7 @@ module.exports.DutyCycleRelay = SoftResource_DUTYCYCLE_RELAY;
 module.exports.DAC = SoftResource_DAC;
 module.exports.Stepper = SoftResource_STEPPER;
 module.exports.BitIn = SoftResource_BIT_IN;
+module.exports.ADC = SoftResource_ADC;
 module.exports.Distance = SoftResource_DISTANCE;
 module.exports.OW_probe = SoftResource_OW_PROBE;
 module.exports.TC_probe = SoftResource_TC_PROBE;
@@ -27,6 +28,7 @@ module.exports.resource_types = [
     "DAC",
     "Stepper",
     "BitIn",
+    "ADC",
     "Distance",
     "OW_probe",
     "TC_probe",
@@ -1453,6 +1455,70 @@ SoftResource_BIT_IN.prototype.detach_HR = function() {
 SoftResource_BIT_IN.prototype.get_bit_value = function() {
     if (this.bit_value) {
         return this.bit_value.value;
+    }
+    return 0;
+};
+
+//////////////////////
+// ADC              //
+//////////////////////
+
+function SoftResource_ADC(cascade, name) {
+    this.HR_adc = undefined;
+    this.adc = undefined;
+
+    this.init_subclass_properties(SoftResource_ADC);
+    SoftResource_HR.call(this, cascade, name);
+}
+
+// add psuedo class methods (not inherited by subclasses).
+SoftResource_ADC.get_instances = function() {
+    return SoftResource_ADC.prototype._instances_of_type;
+};
+SoftResource_ADC.get_instance = function(name) {
+    return SoftResource_ADC.prototype._instances_of_type[name];
+};
+
+SoftResource_ADC.prototype = create_SoftResource_HR_prototype("ADC");
+
+SoftResource_ADC.prototype.attach_HR = function(HR_name) {
+    var self = this;
+    if (!this.adc_value) {
+        this.adc_value = this.cascade.create_component({
+            id: this.name,
+            name: this.description,
+            group: PROCESS_SENSOR_GROUP,
+            display_order: next_display_order(),
+            class: "adc",
+            read_only: true,
+            type: this.cascade.TYPES.NUMBER,
+            units: this.cascade.UNITS.NONE,
+        });
+    }
+
+    this.cascade.components.require_component(HR_name,
+        function(component) {
+            self.HR_adc_value = component;
+            set_driving_components(self.HR_adc_value, self.adc_value);
+        });
+    this.HR_assignment = HR_name;
+};
+
+SoftResource_ADC.prototype.detach_HR = function() {
+    if (this.HR_adc_value) {
+        unset_driving_components(this.HR_adc_value, this.adc_value);
+    }
+    this.HR_adc_value = undefined;
+    this.adc_value.value = 0;
+
+    var prior_assignment = this.HR_assignment;
+    this.HR_assignment = undefined;
+    return prior_assignment;
+};
+
+SoftResource_ADC.prototype.get_adc_value = function() {
+    if (this.adc_value) {
+        return this.adc_value.value;
     }
     return 0;
 };

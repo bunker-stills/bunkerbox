@@ -19,6 +19,7 @@ var DISTIR_DISPLAY_BASE = 11000;
 var PTC_DISPLAY_BASE = 12000;
 var TC_DISPLAY_BASE = 13000;
 var OW_DISPLAY_BASE = 14000;
+var DUAL_ADC_DISPLAY_BASE = 15000;
 
 
 // hard resource names at individual relay or probe level, eg "OW_2A_28af3098c5b7041d", "DAc_3a", "RELAY_2B_2"
@@ -27,6 +28,7 @@ var dac_names = [];
 var stepper_names = [];
 var input_names = [];  // of io4
 var output_names = []; // of io4
+var adc_names = [];
 var dist_names = [];
 var ow_names = [];
 var ptc_names = [];
@@ -37,6 +39,7 @@ var quadrelays = {};
 var dacs = {};
 var steppers = {};
 var io4s = {};
+var dualADCs = {};
 var barometers = {};
 var distIRs = {};
 var onewireNets = {};
@@ -134,7 +137,7 @@ function set_relays(cascade, quadrelay_info) {
             var values = quadrelay_info.relays.map(
                 function(relay) {return relay.value;}
             );
-            relay_interface.setValue(values, null, function(err) {
+            relay_interface.setValue(values, undefined, function(err) {
                 cascade.log_info("Error setting relay " + quadrelay_info.id
                     + ": " + err);
             });
@@ -148,7 +151,7 @@ function set_relays(cascade, quadrelay_info) {
             bitmask = bitmask | (relay.value << relay_index);
         }
 
-        relay_interface.setValue(bitmask, null, function(err) {
+        relay_interface.setValue(bitmask, undefined, function(err) {
             cascade.log_info("Error setting relay " + quadrelay_info.id
                 + ": " + err);
         });
@@ -248,12 +251,12 @@ function set_dac_enable(cascade, dac_info) {
     let dac = dac_info.interface;
     if (dac) {
         if (dac_info.enable.value === true) {
-            if (dac.setEnabled) dac.setEnabled(true, null, log_err);  // V2
-            else dac.enable(null, log_err);                         // V1
+            if (dac.setEnabled) dac.setEnabled(true, undefined, log_err);  // V2
+            else dac.enable(undefined, log_err);                         // V1
         }
         else {
-            if (dac.setEnabled) dac.setEnabled(false, null, log_err);  // V2
-            else dac.disable(null, log_err);                         // V1
+            if (dac.setEnabled) dac.setEnabled(false, undefined, log_err);  // V2
+            else dac.disable(undefined, log_err);                         // V1
         }
     }
 }
@@ -272,18 +275,18 @@ function set_dac(cascade, dac_info) {
 
             /*
             if (dac_info.enable.value === true) {
-                if (dac.setEnabled) dac.setEnabled(true, null, log_err);  // V2
-                else dac.enable(null, log_err);                           // V1
+                if (dac.setEnabled) dac.setEnabled(true, undefined, log_err);  // V2
+                else dac.enable(undefined, log_err);                           // V1
             }
             else {
-                if (dac.setEnabled) dac.setEnabled(false, null, log_err);  // V2
-                else dac.disable(null, log_err);                           // V1
+                if (dac.setEnabled) dac.setEnabled(false, undefined, log_err);  // V2
+                else dac.disable(undefined, log_err);                           // V1
             }
             */
         }
         else {
-            if (dac.setEnabled) dac.setEnabled(false, null, log_err);  // V2
-            else dac.disable(null, log_err);                           // V1
+            if (dac.setEnabled) dac.setEnabled(false, undefined, log_err);  // V2
+            else dac.disable(undefined, log_err);                           // V1
         }
     }
 }
@@ -378,7 +381,7 @@ function configure_stepper(stepper) {
         if (stepper.getBasicConfiguration) {
             // this is a silent stepper, set configurations
             stepper.setMotorCurrent(MAX_SSTEPPER_CURRENT);
-            stepper.setBasicConfiguration(null, DEFAULT_STEPPER_CURRENT);
+            stepper.setBasicConfiguration(undefined, DEFAULT_STEPPER_CURRENT);
             stepper.setStepConfiguration(SSTEPPER_RESOLUTION, true);
         } else {
             stepper.setMotorCurrent(DEFAULT_STEPPER_CURRENT);
@@ -394,7 +397,7 @@ function set_stepper_current(stepper_info) {
         if (stepper.getBasicConfiguration) {
             // this is a SilentStepper; set MotorRunCurrent
             new_current = Math.max(MIN_SSTEPPER_CURRENT, Math.min(MAX_SSTEPPER_CURRENT, new_current));
-            stepper.setBasicConfiguration(null, new_current);
+            stepper.setBasicConfiguration(undefined, new_current);
         } else {
             new_current = Math.max(MIN_STEPPER_CURRENT, Math.min(MAX_STEPPER_CURRENT, new_current));
             stepper.setMotorCurrent(new_current);
@@ -409,27 +412,27 @@ function set_stepper(cascade, stepper_info) {
     var stepper = stepper_info.interface;
     if (stepper) {
         if (stepper_info.enable.value === true) {
-            stepper.enable(null, log_err);
+            stepper.enable(undefined, log_err);
         }
 
         let velocity = Math.round(mapRange(stepper_info.velocity.value,
             0, 100, 0, stepper_info.max_motor_speed.value));
         if (velocity) {
-            stepper.setMaxVelocity(Math.min(65535, Math.abs(velocity)), null, log_err);
+            stepper.setMaxVelocity(Math.min(65535, Math.abs(velocity)), undefined, log_err);
             if ((velocity<0) != (stepper_info.reverse.value==true)) {  // XOR operation
-                stepper.driveBackward(null, log_err);
+                stepper.driveBackward(undefined, log_err);
             }
             else {
-                stepper.driveForward(null, log_err);
+                stepper.driveForward(undefined, log_err);
             }
         }
         else {
-            stepper.stop(null, log_err);
+            stepper.stop(undefined, log_err);
         }
 
         if (stepper_info.enable.value === false) {
-            stepper.stop(null, log_err);
-            stepper.disable(null, log_err);
+            stepper.stop(undefined, log_err);
+            stepper.disable(undefined, log_err);
         }
     }
 }
@@ -630,10 +633,10 @@ function set_io4(cascade, io4_info, io_index) {
         // outbound setting, ignored when configured as input.
         if (io4_info.invert[io_index]) {
             io.setSelectedValue(io_index, !io4_info.port_value[io_index].value,
-                null, log_err);
+                undefined, log_err);
         } else {
             io.setSelectedValue(io_index, io4_info.port_value[io_index].value,
-                null, log_err);
+                undefined, log_err);
         }
     }
 }
@@ -694,6 +697,102 @@ function setup_io4(cascade, id, io4) {
     }
     io4s[id] = io4_info;
     allDevices[id] = io4_info;
+}
+
+function schedule_dualADC_callback(cascade, info) {
+    let dualADC = info.interface;
+    if (dualADC) {
+        dualADC.setAllVoltagesCallbackConfiguration(1000, false);
+        dualADC.on(tinkerforge.BrickletIndustrialDualAnalogInV2.CALLBACK_ALL_VOLTAGES,
+           function (voltages) {
+               // voltages – Type: [int, ...], Length: 2, Unit: 1 mV, Range: [-35000 to 35000] 
+               for(let adc_index in [0,1]) {
+                   info.voltage[adc_index].value = ((voltages[adc_index] * 0.001) + info.offset[adc_index].value)
+                                                      * info.multiplier[adc_index].value;
+               }
+           });
+    }
+}
+function configure_dualADC(cascade, info) {
+}
+function renew_dualADC(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+    configure_dualADC(cascade, info);
+    schedule_dualADC_callback(cascade, info);
+}
+function setup_dualADC(cascade, id, dualADC) {
+
+    let display_base = DUAL_ADC_DISPLAY_BASE + utils.next_display_order(10);
+
+    var dualADC_info = {
+        id: id,
+        interface: dualADC,
+        voltage: [undefined, undefined],
+        offset: [undefined, undefined],
+        multiplier: [undefined, undefined],
+        units: [undefined, undefined]
+    }
+
+    var adc_index;
+    for(adc_index in [0,1]) {
+        let adc_id_base = "ADC_" + dualADC.position;
+        let adc_id = adc_id_base + "_" + adc_index;
+        dualADC_info.voltage[adc_index] = cascade.create_component({
+            id: adc_id,
+            name: adc_id_base + " # " + adc_index,
+            group: SENSORS_GROUP,
+            display_order: display_base + 5 * adc_index,
+            class: "adc",
+            type: cascade.TYPES.NUMBER,
+            read_only: true,
+            units: "V",
+            value: 0
+        });
+        dualADC_info.offset[adc_index] = cascade.create_component({
+            id: adc_id + "_offset",
+            name: adc_id + " Offset",
+            group: SENSORS_GROUP,
+            display_order: display_base + 5 * adc_index + 1,
+            class: "adc",
+            persist: true,
+            type: cascade.TYPES.NUMBER,
+            value: 0
+        });
+        dualADC_info.multiplier[adc_index] = cascade.create_component({
+            id: adc_id + "_multiplier",
+            name: adc_id + " Multiplier",
+            group: SENSORS_GROUP,
+            display_order: display_base + 5 * adc_index + 2,
+            class: "adc",
+            persist: true,
+            type: cascade.TYPES.NUMBER,
+            value: 1
+        });
+        dualADC_info.units[adc_index] = cascade.create_component({
+            id: adc_id + "_units",
+            name: adc_id + " Units",
+            group: SENSORS_GROUP,
+            display_order: display_base + 5 * adc_index + 3,
+            class: "adc",
+            persist: true,
+            type: cascade.TYPES.TEXT,
+            value: "V"
+        });
+        dualADC_info.units[adc_index].on("value_updated", function() {
+            const i = adc_index;
+            dualADC_info.voltage[i].units = dualADC_info.units[i].value;
+        });
+        // eslint-disable-next-line no-self-assign
+        dualADC_info.units[adc_index].value = dualADC_info.units[adc_index].value;
+
+        adc_names.push(adc_id);
+    }
+
+    configure_dualADC(cascade, dualADC_info);
+    schedule_dualADC_callback(cascade, dualADC_info);
+
+    dualADCs[id] = dualADC_info;
+    allDevices[id] = dualADC_info;
 }
 
 function configure_barometer(cascade, info) {
@@ -888,7 +987,7 @@ function setup_onewire_net(cascade, id, owNet) {
     if (owNet) {
 
         // The tempSetResolution call does not return nor error -- unknown bug
-        owNet.tempSetResolution(12, null,
+        owNet.tempSetResolution(12, undefined,
             function(error) {
                 cascade.log_error(new Error("Onewire set-resolution error: " + error));
             });
@@ -909,7 +1008,7 @@ var PTC_WIRE_MODES = {
 function configure_ptc(cascade, ptc_info) {
     var ptc = ptc_info.interface;
     if (ptc && ptc_info.wire_mode.value) {
-        ptc.setWireMode(PTC_WIRE_MODES[ptc_info.wire_mode.value], null,
+        ptc.setWireMode(PTC_WIRE_MODES[ptc_info.wire_mode.value], undefined,
             function(error) {
                 cascade.log_error(new Error("Error on PTCV2.setWireMode: " + error));
             });
@@ -1358,6 +1457,24 @@ module.exports.setup = function (cascade) {
 
                             break;
                         }
+                        case tinkerforge.BrickletIndustrialDualAnalogInV2.DEVICE_IDENTIFIER: {
+
+                            var dualAnalogIn = new tinkerforge.BrickletIndustrialDualAnalogInV2(uid, ipcon);
+
+                            dualAnalogIn.uid_string = uid;
+                            dualAnalogIn.position = masterbrick_position[connectedUid] + position;
+
+                            let id = "DUAL_ADC_" + dualAnalogIn.position;
+
+                            info = allDevices[id];
+                            if (info) {
+                                renew_dualADC(cascade, info, dualAnalogIn);
+                            } else {
+                                setup_dualADC(cascade, id, dualAnalogIn);
+                            }
+
+                            break;
+                        }
                         default:
                             // report any unhandled device
                             if (deviceIdentifier == 17) break;
@@ -1385,6 +1502,7 @@ module.exports.setup = function (cascade) {
         utils.update_hard_resource_list_component(cascade, "STEPPER_HR_names", stepper_names.sort());
         utils.update_hard_resource_list_component(cascade, "BIT_IN_HR_names", input_names.sort());
         utils.update_hard_resource_list_component(cascade, "BIT_OUT_HR_names", output_names.sort());
+        utils.update_hard_resource_list_component(cascade, "ADC_HR_names", adc_names.sort());
         utils.update_hard_resource_list_component(cascade, "DISTANCE_HR_names", dist_names.sort());
         utils.update_hard_resource_list_component(cascade, "PTC_PROBE_HR_names", ptc_names.sort());
         utils.update_hard_resource_list_component(cascade, "TC_PROBE_HR_names", tc_names.sort());

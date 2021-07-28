@@ -138,7 +138,7 @@ var device_name;
 
 // Data that changes is recorded right away. Data that doesn't change is recorded once a minute.
 module.exports.setup = function (cascade) {
-    data_recorder = new recorder("52.39.173.27", 8089);
+    data_recorder = new recorder("54.189.74.97", 8089);
 
     device_name = cascade.create_component({
         id: "device_name",
