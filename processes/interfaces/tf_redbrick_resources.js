@@ -376,13 +376,21 @@ var STEPPER_RESOLUTION = Number(process.env.STEPPER_RESOLUTION) ||
 var SSTEPPER_RESOLUTION = Number(process.env.STEPPER_RESOLUTION) ||
     tinkerforge.BrickSilentStepper.STEP_RESOLUTION_16;
 
-function configure_stepper(stepper) {
+function configure_stepper(cascade, stepper) {
     if (stepper) {
         if (stepper.getBasicConfiguration) {
             // this is a silent stepper, set configurations
             stepper.setMotorCurrent(MAX_SSTEPPER_CURRENT);
             stepper.setBasicConfiguration(undefined, DEFAULT_STEPPER_CURRENT);
             stepper.setStepConfiguration(SSTEPPER_RESOLUTION, true);
+            stepper.getStepConfiguration(function(resolution){
+                if (resolution !== SSTEPPER_RESOLUTION) {
+                    cascade.log_info("Stepper resolution error:"
+                                     + " intended " + SSTEPPER_RESOLUTION 
+                                     + "; actual " + resolution);
+                    setTimeout(configure_stepper(cascade, stepper), 10000);
+                }
+            });
         } else {
             stepper.setMotorCurrent(DEFAULT_STEPPER_CURRENT);
             stepper.setStepMode(STEPPER_RESOLUTION);
@@ -403,6 +411,14 @@ function set_stepper_current(stepper_info) {
             stepper.setMotorCurrent(new_current);
         }
     }
+}
+
+function disable_stepper(stepper, log_err) {
+    stepper.stop(undefined, log_err);
+    // wait 10 seconds for motor to halt to avoid damage to driver chip.
+    // see disable() documentation at:
+    //     https://www.tinkerforge.com/en/doc/Software/Bricks/SilentStepper_Brick_JavaScript.html#BrickSilentStepper.disable
+    setTimeout(function() {stepper.disable(undefined, log_err);}, 10000);
 }
 
 function set_stepper(cascade, stepper_info) {
@@ -431,15 +447,14 @@ function set_stepper(cascade, stepper_info) {
         }
 
         if (stepper_info.enable.value === false) {
-            stepper.stop(undefined, log_err);
-            stepper.disable(undefined, log_err);
+            disable_stepper(stepper, log_err);
         }
     }
 }
 
 function renew_stepper(cascade, info, interface) {
     reset_interface(cascade, info, interface);
-    configure_stepper(interface);
+    configure_stepper(cascade, interface);
     set_stepper_current(info);
     set_stepper(cascade, info);
 }
@@ -456,10 +471,9 @@ function setup_stepper(cascade, id, stepper) {
         motor_current: null
     };
 
-    stepper.stop();
-    stepper.disable();
+    disable_stepper(stepper);
 
-    configure_stepper(stepper);
+    configure_stepper(cascade, stepper);
 
     stepper_info.enable = cascade.create_component({
         id: id + "_enable",
@@ -704,20 +718,20 @@ function schedule_dualADC_callback(cascade, info) {
     if (dualADC) {
         dualADC.setAllVoltagesCallbackConfiguration(1000, false);
         dualADC.on(tinkerforge.BrickletIndustrialDualAnalogInV2.CALLBACK_ALL_VOLTAGES,
-           function (voltages) {
-               // voltages – Type: [int, ...], Length: 2, Unit: 1 mV, Range: [-35000 to 35000] 
-               for(let adc_index in [0,1]) {
-                   info.voltage[adc_index].value = ((voltages[adc_index] * 0.001) + info.offset[adc_index].value)
+            function (voltages) {
+                // voltages – Type: [int, ...], Length: 2, Unit: 1 mV, Range: [-35000 to 35000] 
+                for(let adc_index in [0,1]) {
+                    info.voltage[adc_index].value = ((voltages[adc_index] * 0.001) + info.offset[adc_index].value)
                                                       * info.multiplier[adc_index].value;
-               }
-           });
+                }
+            });
     }
 }
-function configure_dualADC(cascade, info) {
-}
+// function configure_dualADC(cascade, info) {
+// }
 function renew_dualADC(cascade, info, interface) {
     reset_interface(cascade, info, interface);
-    configure_dualADC(cascade, info);
+    // configure_dualADC(cascade, info);
     schedule_dualADC_callback(cascade, info);
 }
 function setup_dualADC(cascade, id, dualADC) {
@@ -731,7 +745,7 @@ function setup_dualADC(cascade, id, dualADC) {
         offset: [undefined, undefined],
         multiplier: [undefined, undefined],
         units: [undefined, undefined]
-    }
+    };
 
     var adc_index;
     for(adc_index in [0,1]) {
@@ -788,7 +802,7 @@ function setup_dualADC(cascade, id, dualADC) {
         adc_names.push(adc_id);
     }
 
-    configure_dualADC(cascade, dualADC_info);
+    // configure_dualADC(cascade, dualADC_info);
     schedule_dualADC_callback(cascade, dualADC_info);
 
     dualADCs[id] = dualADC_info;
