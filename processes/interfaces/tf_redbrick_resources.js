@@ -365,6 +365,57 @@ function setup_dac(cascade, id, dac) {
     //utils.update_hard_resource_list_component(cascade, "DAC_HR_names", dac_names.sort());
 }
 
+// AnalogOut3 is a digital-analog-converter (DAC) but is named AO3 to distinguish it 
+// from the IndustrialAnalogOut devices above.  It is significantly simpler in that 
+//     1. it has no enable/disable function
+//     2. it supports only 0-12 volts and has no configuration, whereas IndustrialAnalogOut
+//        supports multiple voltage and current outputs that require configuration. 
+// Since is is a DAC, it is classed as one and listed in dac_names and dac_devices.
+function set_ao3(cascade, ao3_info) {
+    let ao3 = ao3_info.interface;
+    if (ao3) {
+        let output_percent = ao3_info.output.value;
+        let output_millivolts = Math.round(mapRange(output_percent, 0, 100, 0, 12000));
+        ao3.setOutputVoltage(output_millivolts);
+    }
+}
+function renew_ao3(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+    set_ao3(cascade, info);
+}
+function setup_ao3(cascade, id, ao3) {
+    let display_base = DAC_DISPLAY_BASE + utils.next_display_order(5);
+
+    var ao3_info = {
+        id: id,
+        interface: ao3,
+    };
+
+    ao3.setOutputVoltage(0);
+
+    ao3_info.output = cascade.create_component({
+        id: id + "_output",
+        name: id + " Output Percent",
+        group: PROCESS_CONTROLS_GROUP,
+        display_order: display_base + 1,
+        class: "dac_output",
+        type: cascade.TYPES.NUMBER,
+        units: cascade.UNITS.PERCENTAGE,
+        value: 0
+    });
+
+    ao3_info.output.on("value_updated", function () {
+        set_ao3(cascade, ao3_info);
+    });
+
+    // eslint-disable-next-line no-self-assign
+    ao3_info.output_type.value = ao3_info.output_type.value;
+
+    dacs[id] = ao3_info;
+    allDevices[id] = ao3_info;
+    dac_names.push(id);
+}
+
 var MIN_STEPPER_CURRENT = Number(process.env.MIN_STEPPER_CURRENT) || 100;
 var MAX_STEPPER_CURRENT = Number(process.env.MAX_STEPPER_CURRENT) || 2291;
 var MIN_SSTEPPER_CURRENT = Number(process.env.MIN_SSTEPPER_CURRENT) || 360;
@@ -1349,6 +1400,22 @@ module.exports.setup = function (cascade) {
                                 renew_dac(cascade, info, dac);
                             } else {
                                 setup_dac(cascade, id, dac);
+                            }
+                            break;
+                        }
+                        case tinkerforge.BrickletAnalogOutV3.DEVICE_IDENTIFIER : {
+                            let ao3 = new tinkerforge.BrickletAnalogOutV3(uid, ipcon);
+
+                            ao3.uid_string = uid;
+                            ao3.position = masterbrick_position[connectedUid] + position;
+
+                            let id = "AO3_" + ao3.position;
+
+                            info = allDevices[id];
+                            if (info) {
+                                renew_ao3(cascade, info, ao3);
+                            } else {
+                                setup_ao3(cascade, id, ao3);
                             }
                             break;
                         }
