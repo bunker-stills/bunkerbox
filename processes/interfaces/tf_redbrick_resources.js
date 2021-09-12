@@ -1242,7 +1242,7 @@ module.exports.setup = function (cascade) {
                     + disconnectReason + ") " + IPCON_DISCONNECT_TEXT[disconnectReason]);
             });
 
-        var masterbrick_position = {};
+        var connected_position = {};
         ipcon.on(tinkerforge.IPConnection.CALLBACK_ENUMERATE,
             function (uid, connectedUid, position, hardwareVersion, firmwareVersion, deviceIdentifier, enumerationType) {
 
@@ -1262,7 +1262,7 @@ module.exports.setup = function (cascade) {
                          enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_AVAILABLE) {
                     switch (deviceIdentifier) {
                         case tinkerforge.BrickMaster.DEVICE_IDENTIFIER : {
-                            masterbrick_position[uid] = position;
+                            connected_position[uid] = position;
 
                             var mb = new tinkerforge.BrickMaster(uid, ipcon);
 
@@ -1279,12 +1279,16 @@ module.exports.setup = function (cascade) {
                             }
                             break;
                         }
+                        case tinkerforge.BrickletIsolator.DEVICE_IDENTIFIER : {
+                            connected_position[uid] = connected_position[connectedUid] + position;
+                            break;
+                        }
                         case tinkerforge.BrickletOneWire.DEVICE_IDENTIFIER : {
                             let owNet = new onewireTempSensors(uid, ipcon);
                             owNet.in_use = false;
 
                             owNet.uid_string = uid;
-                            owNet.position = masterbrick_position[connectedUid] + position;
+                            owNet.position = connected_position[connectedUid] + position;
 
                             let id = "OW_" + owNet.position;
 
@@ -1300,7 +1304,7 @@ module.exports.setup = function (cascade) {
                             var tc = new tinkerforge.BrickletThermocouple(uid, ipcon);
 
                             tc.uid_string = uid;
-                            tc.position = masterbrick_position[connectedUid] + position;
+                            tc.position = connected_position[connectedUid] + position;
 
                             let id = "TC_" + tc.position;
 
@@ -1316,7 +1320,7 @@ module.exports.setup = function (cascade) {
                             var ptc = new tinkerforge.BrickletPTCV2(uid, ipcon);
 
                             ptc.uid_string = uid;
-                            ptc.position = masterbrick_position[connectedUid] + position;
+                            ptc.position = connected_position[connectedUid] + position;
 
                             let id = "PTC_" + ptc.position;
 
@@ -1340,7 +1344,7 @@ module.exports.setup = function (cascade) {
                             }
 
                             dac.uid_string = uid;
-                            dac.position = masterbrick_position[connectedUid] + position;
+                            dac.position = connected_position[connectedUid] + position;
 
                             let id = "DAC_" + dac.position;
 
@@ -1362,7 +1366,7 @@ module.exports.setup = function (cascade) {
                             }
 
                             quadrelay.uid_string = uid;
-                            quadrelay.position = masterbrick_position[connectedUid] + position;
+                            quadrelay.position = connected_position[connectedUid] + position;
 
                             let id = "QUADRELAY_" + quadrelay.position;
 
@@ -1384,7 +1388,7 @@ module.exports.setup = function (cascade) {
                             }
 
                             barometer.uid_string = uid;
-                            barometer.position = masterbrick_position[connectedUid] + position;
+                            barometer.position = connected_position[connectedUid] + position;
 
                             let id = "barometer_" + barometer.position;
 
@@ -1399,7 +1403,7 @@ module.exports.setup = function (cascade) {
                         case tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER :
                         case tinkerforge.BrickStepper.DEVICE_IDENTIFIER : {
                             // this brick can have up to 2 bricklets
-                            masterbrick_position[uid] = position;
+                            connected_position[uid] = position;
 
                             let stepper;
                             let id;
@@ -1440,7 +1444,7 @@ module.exports.setup = function (cascade) {
                             var IO4 = new tinkerforge.BrickletIO4V2(uid, ipcon);
 
                             IO4.uid_string = uid;
-                            IO4.position = masterbrick_position[connectedUid] + position;
+                            IO4.position = connected_position[connectedUid] + position;
 
                             let id = "IO4_" + IO4.position;
 
@@ -1458,7 +1462,7 @@ module.exports.setup = function (cascade) {
                             var distIR = new tinkerforge.BrickletDistanceIRV2(uid, ipcon);
 
                             distIR.uid_string = uid;
-                            distIR.position = masterbrick_position[connectedUid] + position;
+                            distIR.position = connected_position[connectedUid] + position;
 
                             let id = "DISTIR_" + distIR.position;
 
@@ -1476,7 +1480,7 @@ module.exports.setup = function (cascade) {
                             var dualAnalogIn = new tinkerforge.BrickletIndustrialDualAnalogInV2(uid, ipcon);
 
                             dualAnalogIn.uid_string = uid;
-                            dualAnalogIn.position = masterbrick_position[connectedUid] + position;
+                            dualAnalogIn.position = connected_position[connectedUid] + position;
 
                             let id = "DUAL_ADC_" + dualAnalogIn.position;
 
@@ -1494,7 +1498,7 @@ module.exports.setup = function (cascade) {
                             if (deviceIdentifier == 17) break;
                             cascade.log_info("Unrecognized TF device: uid=" + uid
                                 + " connected=" + connectedUid
-                                + " (" + masterbrick_position[connectedUid] + ")"
+                                + " (" + connected_position[connectedUid] + ")"
                                 + " position=" + position
                                 + " deviceId=" + deviceIdentifier);
                             break;
