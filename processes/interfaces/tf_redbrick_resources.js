@@ -408,9 +408,6 @@ function setup_ao3(cascade, id, ao3) {
         set_ao3(cascade, ao3_info);
     });
 
-    // eslint-disable-next-line no-self-assign
-    ao3_info.output_type.value = ao3_info.output_type.value;
-
     dacs[id] = ao3_info;
     allDevices[id] = ao3_info;
     dac_names.push(id);
@@ -1411,7 +1408,7 @@ module.exports.setup = function (cascade) {
                             let ao3 = new tinkerforge.BrickletAnalogOutV3(uid, ipcon);
 
                             ao3.uid_string = uid;
-                            ao3.position = masterbrick_position[connectedUid] + position;
+                            ao3.position = connected_position[connectedUid] + position;
 
                             let id = "AO3_" + ao3.position;
 
