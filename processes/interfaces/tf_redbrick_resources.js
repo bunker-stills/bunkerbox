@@ -365,6 +365,54 @@ function setup_dac(cascade, id, dac) {
     //utils.update_hard_resource_list_component(cascade, "DAC_HR_names", dac_names.sort());
 }
 
+// AnalogOut3 is a digital-analog-converter (DAC) but is named AO3 to distinguish it 
+// from the IndustrialAnalogOut devices above.  It is significantly simpler in that 
+//     1. it has no enable/disable function
+//     2. it supports only 0-12 volts and has no configuration, whereas IndustrialAnalogOut
+//        supports multiple voltage and current outputs that require configuration. 
+// Since is is a DAC, it is classed as one and listed in dac_names and dac_devices.
+function set_ao3(cascade, ao3_info) {
+    let ao3 = ao3_info.interface;
+    if (ao3) {
+        let output_percent = ao3_info.output.value;
+        let output_millivolts = Math.round(mapRange(output_percent, 0, 100, 0, 12000));
+        ao3.setOutputVoltage(output_millivolts);
+    }
+}
+function renew_ao3(cascade, info, interface) {
+    reset_interface(cascade, info, interface);
+    set_ao3(cascade, info);
+}
+function setup_ao3(cascade, id, ao3) {
+    let display_base = DAC_DISPLAY_BASE + utils.next_display_order(5);
+
+    var ao3_info = {
+        id: id,
+        interface: ao3,
+    };
+
+    ao3.setOutputVoltage(0);
+
+    ao3_info.output = cascade.create_component({
+        id: id + "_output",
+        name: id + " Output Percent",
+        group: PROCESS_CONTROLS_GROUP,
+        display_order: display_base + 1,
+        class: "dac_output",
+        type: cascade.TYPES.NUMBER,
+        units: cascade.UNITS.PERCENTAGE,
+        value: 0
+    });
+
+    ao3_info.output.on("value_updated", function () {
+        set_ao3(cascade, ao3_info);
+    });
+
+    dacs[id] = ao3_info;
+    allDevices[id] = ao3_info;
+    dac_names.push(id);
+}
+
 var MIN_STEPPER_CURRENT = Number(process.env.MIN_STEPPER_CURRENT) || 100;
 var MAX_STEPPER_CURRENT = Number(process.env.MAX_STEPPER_CURRENT) || 2291;
 var MIN_SSTEPPER_CURRENT = Number(process.env.MIN_SSTEPPER_CURRENT) || 360;
@@ -376,13 +424,21 @@ var STEPPER_RESOLUTION = Number(process.env.STEPPER_RESOLUTION) ||
 var SSTEPPER_RESOLUTION = Number(process.env.STEPPER_RESOLUTION) ||
     tinkerforge.BrickSilentStepper.STEP_RESOLUTION_16;
 
-function configure_stepper(stepper) {
+function configure_stepper(cascade, stepper) {
     if (stepper) {
         if (stepper.getBasicConfiguration) {
             // this is a silent stepper, set configurations
             stepper.setMotorCurrent(MAX_SSTEPPER_CURRENT);
             stepper.setBasicConfiguration(undefined, DEFAULT_STEPPER_CURRENT);
             stepper.setStepConfiguration(SSTEPPER_RESOLUTION, true);
+            stepper.getStepConfiguration(function(resolution){
+                if (resolution !== SSTEPPER_RESOLUTION) {
+                    cascade.log_info("Stepper resolution error:"
+                                     + " intended " + SSTEPPER_RESOLUTION 
+                                     + "; actual " + resolution);
+                    setTimeout(configure_stepper(cascade, stepper), 10000);
+                }
+            });
         } else {
             stepper.setMotorCurrent(DEFAULT_STEPPER_CURRENT);
             stepper.setStepMode(STEPPER_RESOLUTION);
@@ -403,6 +459,14 @@ function set_stepper_current(stepper_info) {
             stepper.setMotorCurrent(new_current);
         }
     }
+}
+
+function disable_stepper(stepper, log_err) {
+    stepper.stop(undefined, log_err);
+    // wait 10 seconds for motor to halt to avoid damage to driver chip.
+    // see disable() documentation at:
+    //     https://www.tinkerforge.com/en/doc/Software/Bricks/SilentStepper_Brick_JavaScript.html#BrickSilentStepper.disable
+    setTimeout(function() {stepper.disable(undefined, log_err);}, 10000);
 }
 
 function set_stepper(cascade, stepper_info) {
@@ -431,15 +495,14 @@ function set_stepper(cascade, stepper_info) {
         }
 
         if (stepper_info.enable.value === false) {
-            stepper.stop(undefined, log_err);
-            stepper.disable(undefined, log_err);
+            disable_stepper(stepper, log_err);
         }
     }
 }
 
 function renew_stepper(cascade, info, interface) {
     reset_interface(cascade, info, interface);
-    configure_stepper(interface);
+    configure_stepper(cascade, interface);
     set_stepper_current(info);
     set_stepper(cascade, info);
 }
@@ -456,10 +519,9 @@ function setup_stepper(cascade, id, stepper) {
         motor_current: null
     };
 
-    stepper.stop();
-    stepper.disable();
+    disable_stepper(stepper);
 
-    configure_stepper(stepper);
+    configure_stepper(cascade, stepper);
 
     stepper_info.enable = cascade.create_component({
         id: id + "_enable",
@@ -704,20 +766,20 @@ function schedule_dualADC_callback(cascade, info) {
     if (dualADC) {
         dualADC.setAllVoltagesCallbackConfiguration(1000, false);
         dualADC.on(tinkerforge.BrickletIndustrialDualAnalogInV2.CALLBACK_ALL_VOLTAGES,
-           function (voltages) {
-               // voltages – Type: [int, ...], Length: 2, Unit: 1 mV, Range: [-35000 to 35000] 
-               for(let adc_index in [0,1]) {
-                   info.voltage[adc_index].value = ((voltages[adc_index] * 0.001) + info.offset[adc_index].value)
+            function (voltages) {
+                // voltages – Type: [int, ...], Length: 2, Unit: 1 mV, Range: [-35000 to 35000] 
+                for(let adc_index in [0,1]) {
+                    info.voltage[adc_index].value = ((voltages[adc_index] * 0.001) + info.offset[adc_index].value)
                                                       * info.multiplier[adc_index].value;
-               }
-           });
+                }
+            });
     }
 }
-function configure_dualADC(cascade, info) {
-}
+// function configure_dualADC(cascade, info) {
+// }
 function renew_dualADC(cascade, info, interface) {
     reset_interface(cascade, info, interface);
-    configure_dualADC(cascade, info);
+    // configure_dualADC(cascade, info);
     schedule_dualADC_callback(cascade, info);
 }
 function setup_dualADC(cascade, id, dualADC) {
@@ -731,7 +793,7 @@ function setup_dualADC(cascade, id, dualADC) {
         offset: [undefined, undefined],
         multiplier: [undefined, undefined],
         units: [undefined, undefined]
-    }
+    };
 
     var adc_index;
     for(adc_index in [0,1]) {
@@ -788,7 +850,7 @@ function setup_dualADC(cascade, id, dualADC) {
         adc_names.push(adc_id);
     }
 
-    configure_dualADC(cascade, dualADC_info);
+    // configure_dualADC(cascade, dualADC_info);
     schedule_dualADC_callback(cascade, dualADC_info);
 
     dualADCs[id] = dualADC_info;
@@ -1228,7 +1290,7 @@ module.exports.setup = function (cascade) {
                     + disconnectReason + ") " + IPCON_DISCONNECT_TEXT[disconnectReason]);
             });
 
-        var masterbrick_position = {};
+        var connected_position = {};
         ipcon.on(tinkerforge.IPConnection.CALLBACK_ENUMERATE,
             function (uid, connectedUid, position, hardwareVersion, firmwareVersion, deviceIdentifier, enumerationType) {
 
@@ -1248,7 +1310,7 @@ module.exports.setup = function (cascade) {
                          enumerationType === tinkerforge.IPConnection.ENUMERATION_TYPE_AVAILABLE) {
                     switch (deviceIdentifier) {
                         case tinkerforge.BrickMaster.DEVICE_IDENTIFIER : {
-                            masterbrick_position[uid] = position;
+                            connected_position[uid] = position;
 
                             var mb = new tinkerforge.BrickMaster(uid, ipcon);
 
@@ -1265,12 +1327,16 @@ module.exports.setup = function (cascade) {
                             }
                             break;
                         }
+                        case tinkerforge.BrickletIsolator.DEVICE_IDENTIFIER : {
+                            connected_position[uid] = connected_position[connectedUid] + position;
+                            break;
+                        }
                         case tinkerforge.BrickletOneWire.DEVICE_IDENTIFIER : {
                             let owNet = new onewireTempSensors(uid, ipcon);
                             owNet.in_use = false;
 
                             owNet.uid_string = uid;
-                            owNet.position = masterbrick_position[connectedUid] + position;
+                            owNet.position = connected_position[connectedUid] + position;
 
                             let id = "OW_" + owNet.position;
 
@@ -1286,7 +1352,7 @@ module.exports.setup = function (cascade) {
                             var tc = new tinkerforge.BrickletThermocouple(uid, ipcon);
 
                             tc.uid_string = uid;
-                            tc.position = masterbrick_position[connectedUid] + position;
+                            tc.position = connected_position[connectedUid] + position;
 
                             let id = "TC_" + tc.position;
 
@@ -1302,7 +1368,7 @@ module.exports.setup = function (cascade) {
                             var ptc = new tinkerforge.BrickletPTCV2(uid, ipcon);
 
                             ptc.uid_string = uid;
-                            ptc.position = masterbrick_position[connectedUid] + position;
+                            ptc.position = connected_position[connectedUid] + position;
 
                             let id = "PTC_" + ptc.position;
 
@@ -1326,7 +1392,7 @@ module.exports.setup = function (cascade) {
                             }
 
                             dac.uid_string = uid;
-                            dac.position = masterbrick_position[connectedUid] + position;
+                            dac.position = connected_position[connectedUid] + position;
 
                             let id = "DAC_" + dac.position;
 
@@ -1335,6 +1401,22 @@ module.exports.setup = function (cascade) {
                                 renew_dac(cascade, info, dac);
                             } else {
                                 setup_dac(cascade, id, dac);
+                            }
+                            break;
+                        }
+                        case tinkerforge.BrickletAnalogOutV3.DEVICE_IDENTIFIER : {
+                            let ao3 = new tinkerforge.BrickletAnalogOutV3(uid, ipcon);
+
+                            ao3.uid_string = uid;
+                            ao3.position = connected_position[connectedUid] + position;
+
+                            let id = "AO3_" + ao3.position;
+
+                            info = allDevices[id];
+                            if (info) {
+                                renew_ao3(cascade, info, ao3);
+                            } else {
+                                setup_ao3(cascade, id, ao3);
                             }
                             break;
                         }
@@ -1348,7 +1430,7 @@ module.exports.setup = function (cascade) {
                             }
 
                             quadrelay.uid_string = uid;
-                            quadrelay.position = masterbrick_position[connectedUid] + position;
+                            quadrelay.position = connected_position[connectedUid] + position;
 
                             let id = "QUADRELAY_" + quadrelay.position;
 
@@ -1370,7 +1452,7 @@ module.exports.setup = function (cascade) {
                             }
 
                             barometer.uid_string = uid;
-                            barometer.position = masterbrick_position[connectedUid] + position;
+                            barometer.position = connected_position[connectedUid] + position;
 
                             let id = "barometer_" + barometer.position;
 
@@ -1385,7 +1467,7 @@ module.exports.setup = function (cascade) {
                         case tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER :
                         case tinkerforge.BrickStepper.DEVICE_IDENTIFIER : {
                             // this brick can have up to 2 bricklets
-                            masterbrick_position[uid] = position;
+                            connected_position[uid] = position;
 
                             let stepper;
                             let id;
@@ -1426,7 +1508,7 @@ module.exports.setup = function (cascade) {
                             var IO4 = new tinkerforge.BrickletIO4V2(uid, ipcon);
 
                             IO4.uid_string = uid;
-                            IO4.position = masterbrick_position[connectedUid] + position;
+                            IO4.position = connected_position[connectedUid] + position;
 
                             let id = "IO4_" + IO4.position;
 
@@ -1444,7 +1526,7 @@ module.exports.setup = function (cascade) {
                             var distIR = new tinkerforge.BrickletDistanceIRV2(uid, ipcon);
 
                             distIR.uid_string = uid;
-                            distIR.position = masterbrick_position[connectedUid] + position;
+                            distIR.position = connected_position[connectedUid] + position;
 
                             let id = "DISTIR_" + distIR.position;
 
@@ -1462,7 +1544,7 @@ module.exports.setup = function (cascade) {
                             var dualAnalogIn = new tinkerforge.BrickletIndustrialDualAnalogInV2(uid, ipcon);
 
                             dualAnalogIn.uid_string = uid;
-                            dualAnalogIn.position = masterbrick_position[connectedUid] + position;
+                            dualAnalogIn.position = connected_position[connectedUid] + position;
 
                             let id = "DUAL_ADC_" + dualAnalogIn.position;
 
@@ -1480,7 +1562,7 @@ module.exports.setup = function (cascade) {
                             if (deviceIdentifier == 17) break;
                             cascade.log_info("Unrecognized TF device: uid=" + uid
                                 + " connected=" + connectedUid
-                                + " (" + masterbrick_position[connectedUid] + ")"
+                                + " (" + connected_position[connectedUid] + ")"
                                 + " position=" + position
                                 + " deviceId=" + deviceIdentifier);
                             break;
