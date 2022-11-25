@@ -14,7 +14,7 @@
     "got": "^9.6.0",
     "jsonschema": "1.2.5",
     "request": "^2.81.0",
-    "tinkerforge": "^2.1.31",
+    "tinkerforge": "^2.1.34",
     "underscore": "1.8.3"
   },
   "devDependencies": {
