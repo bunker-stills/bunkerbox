@@ -657,10 +657,12 @@ SoftResource_Function.prototype.create_script = function(cascade) {
     }
 
     // create the context object
-    this.context = {
-        console: console,   // for output eg debug, errors, etc.
-        myStore: {},        // for persistent data
-    };
+    if (!this.context) {  // preserve existing context so we can recompile without losing myStore
+        this.context = {
+            console: console,   // for output eg debug, errors, etc.
+            myStore: {},        // for persistent data
+        };
+    }
 
     var source = this.code.value.replace(commentRegex, function() { return "";});
     source = source.replace(stringLiteralRegex, function() { return "";});
