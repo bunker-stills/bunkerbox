@@ -466,7 +466,13 @@ function disable_stepper(stepper, log_err) {
     // wait 10 seconds for motor to halt to avoid damage to driver chip.
     // see disable() documentation at:
     //     https://www.tinkerforge.com/en/doc/Software/Bricks/SilentStepper_Brick_JavaScript.html#BrickSilentStepper.disable
-    setTimeout(function() {stepper.disable(undefined, log_err);}, 10000);
+    if (stepper.setEnabled) {
+        // this is the Bricklet version of silent stepper
+        setTimeout(function() {stepper.setEnabled(true, log_err);}, 10000);
+    } else {
+        // this is stepper or silent stepper brick
+        setTimeout(function() {stepper.disable(undefined, log_err);}, 10000);
+    }
 }
 
 function set_stepper(cascade, stepper_info) {
@@ -476,7 +482,13 @@ function set_stepper(cascade, stepper_info) {
     var stepper = stepper_info.interface;
     if (stepper) {
         if (stepper_info.enable.value === true) {
-            stepper.enable(undefined, log_err);
+            if (stepper.setEnabled) {
+                // Stepper bricklet
+                stepper.setEnabled(true, log_err);
+            } else {
+                // Stepper brick
+                stepper.enable(undefined, log_err);
+            }
         }
 
         let velocity = Math.round(mapRange(stepper_info.velocity.value,
@@ -1464,25 +1476,36 @@ module.exports.setup = function (cascade) {
                             }
                             break;
                         }
+                        case tinkerforge.BrickletSilentStepperV2.DEVICE_IDENTIFIER :
                         case tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER :
                         case tinkerforge.BrickStepper.DEVICE_IDENTIFIER : {
-                            // this brick can have up to 2 bricklets
-                            connected_position[uid] = position;
-
                             let stepper;
                             let id;
-                            if (deviceIdentifier == tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER) {
-                                stepper = new tinkerforge.BrickSilentStepper(uid, ipcon);
-                                id = "SSTEPPER_";
+
+                            if (deviceIdentifier == tinkerforge.BrickletSilentStepperV2.DEVICE_IDENTIFIER) {
+                                // this is a bricklet so is not a connectable position
+                                stepper = new tinkerforge.BrickletSilentStepperV2(uid, ipcon);
+                                stepper.uid_string = uid;
+                                stepper.position = connected_position[connectedUid] + position;
+                                id = "SBSTEPPER_" + position;
+
                             } else {
-                                stepper = new tinkerforge.BrickStepper(uid, ipcon);
-                                id = "STEPPER_";
+                                // this brick can have up to 2 bricklets
+                                connected_position[uid] = position;
+
+                                if (deviceIdentifier == tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER) {
+                                    stepper = new tinkerforge.BrickSilentStepper(uid, ipcon);
+                                    id = "SSTEPPER_";
+                                } else {
+                                    stepper = new tinkerforge.BrickStepper(uid, ipcon);
+                                    id = "STEPPER_";
+                                }
+
+                                stepper.uid_string = uid;
+                                stepper.position = position;
+
+                                id = id + stepper.position;
                             }
-
-                            stepper.uid_string = uid;
-                            stepper.position = position;
-
-                            id = id + stepper.position;
 
                             info = allDevices[id];
                             if (info) {
