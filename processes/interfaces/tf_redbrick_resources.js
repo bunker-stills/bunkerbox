@@ -468,7 +468,7 @@ function disable_stepper(stepper, log_err) {
     //     https://www.tinkerforge.com/en/doc/Software/Bricks/SilentStepper_Brick_JavaScript.html#BrickSilentStepper.disable
     if (stepper.setEnabled) {
         // this is the Bricklet version of silent stepper
-        setTimeout(function() {stepper.setEnabled(true, log_err);}, 10000);
+        setTimeout(function() {stepper.setEnabled(false, undefined, log_err);}, 10000);
     } else {
         // this is stepper or silent stepper brick
         setTimeout(function() {stepper.disable(undefined, log_err);}, 10000);
@@ -484,7 +484,7 @@ function set_stepper(cascade, stepper_info) {
         if (stepper_info.enable.value === true) {
             if (stepper.setEnabled) {
                 // Stepper bricklet
-                stepper.setEnabled(true, log_err);
+                stepper.setEnabled(true, undefined, log_err);
             } else {
                 // Stepper brick
                 stepper.enable(undefined, log_err);
@@ -1487,10 +1487,10 @@ module.exports.setup = function (cascade) {
                                 stepper = new tinkerforge.BrickletSilentStepperV2(uid, ipcon);
                                 stepper.uid_string = uid;
                                 stepper.position = connected_position[connectedUid] + position;
-                                id = "SBSTEPPER_" + position;
+                                id = "SSTEPPER_" + stepper.position;
 
                             } else {
-                                // this brick can have up to 2 bricklets
+                                // this brick can have up to 2 bricklets so record it's position
                                 connected_position[uid] = position;
 
                                 if (deviceIdentifier == tinkerforge.BrickSilentStepper.DEVICE_IDENTIFIER) {
