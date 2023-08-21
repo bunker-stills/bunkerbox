@@ -32,8 +32,7 @@ function create_pid(cascade, name, description, displayOrder) {
             definition.i_term.value = null;
             definition.control_value.value = 0;
             definition.pid.reset();
-        }
-        else {
+        } else {
             definition.pid.setIntegral(definition.i_term.value);
         }
     });
@@ -187,8 +186,7 @@ function create_script(cascade, function_info) {
     try {
         var script_code = "var _return_value; function custom(){" + function_info.code.value + "}; _return_value = custom();";
         function_info.script = vm.createScript(script_code);
-    }
-    catch (e) {
+    } catch (e) {
         cascade.log_error("ERROR: " + e.toString());
     }
 }
@@ -225,14 +223,14 @@ module.exports.setup = function (cascade) {
 
     if (process.env.SIMULATE) {
         cascade.require_process("simulator/simulator");
-    }
-    else {
+    } else {
         cascade.require_process("interfaces/tinkerforge");
     }
 
     cascade.require_process("relay_control");
     cascade.require_process("warm_restart");
-    cascade.require_process("interfaces/data_recorder");
+    //cascade.require_process("interfaces/influx_db");
+    cascade.require_process("interfaces/aws_timestream");
 
     pids.push(create_pid(cascade, "pid_1", "PID 1", 100));
     pids.push(create_pid(cascade, "pid_2", "PID 2", 200));
@@ -286,8 +284,8 @@ function processFunctions(cascade) {
 
         // Remove any functions themselves from the list
         if (_.find(functions, function (custom_function) {
-                return (component === custom_function.code);
-            })) {
+            return (component === custom_function.code);
+        })) {
             return;
         }
 
@@ -299,8 +297,7 @@ function processFunctions(cascade) {
         if (custom_function.script) {
             try {
                 custom_function.script.runInNewContext(component_values, {timeout: 3000});
-            }
-            catch (e) {
+            } catch (e) {
                 cascade.log_error("ERROR: " + e.toString());
                 return;
             }
@@ -315,12 +312,10 @@ function processFunctions(cascade) {
     });
 }
 
-function updatePIDProcessValue(pid_definition)
-{
+function updatePIDProcessValue(pid_definition) {
     if (pid_definition.process_component) {
         pid_definition.process_value.value = pid_definition.process_component.value;
-    }
-    else {
+    } else {
         pid_definition.process_value.value = 0.0;
     }
 }
@@ -358,22 +353,19 @@ function processPIDs() {
     });
 }
 
-function should_temp_failsafe()
-{
+function should_temp_failsafe() {
     var fs_temp = failsafe_temp.value;
 
-    for(var index in tempComponents)
-    {
+    for (var index in tempComponents) {
         var tempComponent = tempComponents[index];
-        if(tempComponent.value >= fs_temp) return true;
+        if (tempComponent.value >= fs_temp) return true;
     }
     return false;
 }
 
 
 function during_run(cascade) {
-    if(should_temp_failsafe())
-    {
+    if (should_temp_failsafe()) {
         run_mode.value = "STOP";
         return;
     }
@@ -422,7 +414,9 @@ module.exports.loop = function (cascade) {
         });
 
         // Update our temperature components
-        tempComponents = _.filter(cascade.components.all_current, function(component) { return component.class === "calibrated_temperature" });
+        tempComponents = _.filter(cascade.components.all_current, function (component) {
+            return component.class === "calibrated_temperature"
+        });
     }
 
     switch (run_mode.value.toUpperCase()) {

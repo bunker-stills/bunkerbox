@@ -112,7 +112,7 @@ recorder.prototype.record = function (measurement_name, values, tags) {
 
 function recordComponent(component)
 {
-    data_recorder.record(component.id, {
+    influx_db.record(component.id, {
             value: component.value,
             units: component.units
         }, {
@@ -124,7 +124,7 @@ function recordComponent(component)
 
 function recordLog(logType, message)
 {
-    data_recorder.record("logs", {
+    influx_db.record("logs", {
             value: message,
             log_type: logType
         }, {
@@ -133,12 +133,12 @@ function recordLog(logType, message)
     );
 }
 
-var data_recorder;
+var influx_db;
 var device_name;
 
 // Data that changes is recorded right away. Data that doesn't change is recorded once a minute.
 module.exports.setup = function (cascade) {
-    data_recorder = new recorder("54.189.74.97", 8089);
+    influx_db = new recorder("54.189.74.97", 8089);
 
     device_name = cascade.create_component({
         id: "device_name",
@@ -165,7 +165,7 @@ module.exports.loop = function (cascade) {
 
     if(lastUpdate && now - lastUpdate <= 60000)
     {
-        data_recorder.flush(cascade);
+        influx_db.flush(cascade);
         return;
     }
 
@@ -178,5 +178,5 @@ module.exports.loop = function (cascade) {
     });
 
     lastUpdate = now;
-    data_recorder.flush(cascade);
+    influx_db.flush(cascade);
 };
