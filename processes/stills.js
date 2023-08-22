@@ -64,8 +64,11 @@ module.exports.setup = function (cascade) {
     // auxiliary application processes
     cascade.require_process("warm_restart");
     if (!TESTING) {
-        // cascade.require_process("interfaces/influx_db");
-        cascade.require_process("interfaces/aws_timestream");
+        if (!!process.env.AWS_ACCESS_KEY_ID) {
+            cascade.require_process("interfaces/aws_timestream");
+        } else {
+            cascade.require_process("interfaces/influx_db");
+        }
     }
 
     // Get max_temp component for failsafe check.

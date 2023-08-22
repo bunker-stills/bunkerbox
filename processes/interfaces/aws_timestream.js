@@ -1,13 +1,7 @@
 const _ = require("underscore");
 const Timestream = require("@aws-sdk/client-timestream-write");
 
-const writeClient = new Timestream.TimestreamWriteClient({
-    region: "us-west-2",
-    credentials: {
-        accessKeyId: "AKIA4VH4GTZHZNKVSNIR",
-        secretAccessKey: "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"
-    }
-});
+const writeClient = new Timestream.TimestreamWriteClient({});
 
 let currentRecords = [];
 

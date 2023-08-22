@@ -229,8 +229,11 @@ module.exports.setup = function (cascade) {
 
     cascade.require_process("relay_control");
     cascade.require_process("warm_restart");
-    //cascade.require_process("interfaces/influx_db");
-    cascade.require_process("interfaces/aws_timestream");
+    if (!!process.env.AWS_ACCESS_KEY_ID) {
+        cascade.require_process("interfaces/aws_timestream");
+    } else {
+        cascade.require_process("interfaces/influx_db");
+    }
 
     pids.push(create_pid(cascade, "pid_1", "PID 1", 100));
     pids.push(create_pid(cascade, "pid_2", "PID 2", 200));
